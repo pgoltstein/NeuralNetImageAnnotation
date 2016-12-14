@@ -14,6 +14,7 @@ Contains functions that represent (sets of) images and their annotations
 ########################################################################
 
 import numpy as np
+from skimage import measure
 
 
 ########################################################################
@@ -33,6 +34,10 @@ class Annotation(object):
         self.body = body_pixels_yx
         self.name = annotation_name
 
+    def __str__(self):
+        return "Annotation at (y={:.1f},x={:.1f}), name={!s}".format(
+            self.__y,self.__x,self.name)
+
     @property
     def body(self):
         """Returns body coordinates"""
@@ -40,29 +45,34 @@ class Annotation(object):
 
     @body.setter
     def body(self,body_pixels_yx):
-        """Sets body and calculates associated centroids"""
-        n_pixels = len(body_pixels_yx)
-        self.__body = np.zeros((n_pixels,2))
-        for px in range(n_pixels):
-            self.__body[px,0] = body_pixels_yx[px][0]
-            self.__body[px,1] = body_pixels_yx[px][1]
-        self.__y = np.mean(self.__body[:,0])
-        self.__x = np.mean(self.__body[:,1])
-        self.__perimeter = None
+        """Sets body coordinates and calculates associated centroids"""
+        print(body_pixels_yx)
+        # n_pixels = len(body_pixels_yx)
+        # self.__body = np.array(body_pixels_yx)
+        # self.__y = self.__body[:,0].mean()
+        # self.__x = self.__body[:,1].mean()
+        # temp_mask = np.zeros( self.__body.max(axis=0) )
+        # print(temp_mask.shape())
+        # temp_mask[ np.ix_(self.__body[:,0],self.__body[:,1]) ] = 1
+        # contours = measure.find_contours(temp_mask, 0.5)
+        # print(len(countours))
+#        for n, contour in enumerate(contours):
+#            plt.plot(contour[:, 1], contour[:, 0], linewidth=2)
+        self.__perimeter = 0
 
     @property
     def x(self):
-        """Returns centroid x coordinate"""
+        """Returns read-only centroid x coordinate"""
         return self.__x
 
     @property
     def y(self):
-        """Returns centroid y coordinate"""
+        """Returns read-only centroid y coordinate"""
         return self.__y
 
     @property
     def perimeter(self):
-        """Returns stored list of perimeter (y,x) coordinates.
+        """Returns read-only stored list of perimeter (y,x) coordinates.
         If not yet calculated, it calculates it first"""
         return self.__perimeter
 
