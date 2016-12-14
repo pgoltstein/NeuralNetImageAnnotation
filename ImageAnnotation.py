@@ -9,21 +9,77 @@ Contains functions that represent (sets of) images and their annotations
 """
 
 
+########################################################################
+### Imports
+########################################################################
+
+import numpy as np
+
+
+########################################################################
+### Class Annotation
+########################################################################
+
 class Annotation(object):
-    """Class that holds individual annotation data"""
+    """Class that holds individual image annotations"""
 
-    def __init__(self,body_pixels_yx,annotation_type):
-        # Store body pixels
+    def __init__(self,body_pixels_yx,annotation_name,group_nr=None):
+        """Initialize.
+            body_pixels_yx: list/tuple of (y,x)'s or [y,x]'s
+            annotation_name: string
+            group_nr: int
+        """
+        # Store supplied parameters
         self.body = body_pixels_yx
-
-        # Calculate centroids
-        self.y = np.mean(self.body[:,0])
-        self.x = np.mean(self.body[:,1])
+        self.name = annotation_name
 
     @property
-    def perimeter():
-        return []
+    def body(self):
+        """Returns body coordinates"""
+        return self.__body
 
+    @body.setter
+    def body(self,body_pixels_yx):
+        """Sets body and calculates associated centroids"""
+        n_pixels = len(body_pixels_yx)
+        self.__body = np.zeros((n_pixels,2))
+        for px in range(n_pixels):
+            self.__body[px,0] = body_pixels_yx[px][0]
+            self.__body[px,1] = body_pixels_yx[px][1]
+        self.__y = np.mean(self.__body[:,0])
+        self.__x = np.mean(self.__body[:,1])
+        self.__perimeter = None
+
+    @property
+    def x(self):
+        """Returns centroid x coordinate"""
+        return self.__x
+
+    @property
+    def y(self):
+        """Returns centroid y coordinate"""
+        return self.__y
+
+    @property
+    def perimeter(self):
+        """Returns stored list of perimeter (y,x) coordinates.
+        If not yet calculated, it calculates it first"""
+        return self.__perimeter
+
+    def add_mask(self,image,dilation_factor=1):
+        """Draws mask in supplied image (dilation_factor: larger than one for
+        dilation, smaller than one for erosion)"""
+
+    def add_centroid(self,image,dilation_factor=1):
+        """Draws mask in supplied image (dilation_factor: larger than one for
+        padding the centroid with surrounding points"""
+
+
+
+
+########################################################################
+### Class AnnotatedImage
+########################################################################
 
 class AnnotatedImage(object):
     """Class that hold a multichannel image and its annotations
@@ -32,15 +88,51 @@ class AnnotatedImage(object):
 
     def __init__(self,image_size):
         self.y_res,self.x_res = image_size
-        self.I = np.zeros(image_size)
+        self.image = np.zeros(image_size)
+        self.annotation_list = []
 
-    def import_from_mat(file_name,file_path='.'):
+    def import_from_mat(self,file_name,file_path='.'):
+        """Reads data from ROI.mat file and fills the annotation_list"""
         return 0
 
+    def export_annotations_to_mat(self,file_name,file_path='.'):
+        """Writes annotations to ROI_py.mat file"""
+        return 0
 
-class ML_ROI_Set(object):
+    def load(self,file_name,file_path='.'):
+        """Loads image and annotations from file"""
+
+    def save(self,file_name,file_path='.'):
+        """Saves image and annotations to file"""
+
+
+########################################################################
+### Class AnnotatedImageSet
+########################################################################
+
+class AnnotatedImageSet(object):
     """Class that represents a dataset of annotated images and organizes
     the dataset for feeding in machine learning algorithms"""
 
     def __init__(self):
-        print("Function not yet implemented...")
+        print("Class not yet implemented...")
+
+    def import_from_mat(self,data_directory):
+        """Imports all images and accompanying ROI.mat files from a
+        single directory"""
+
+    def get_training_set():
+        """Returns training set"""
+        return 0
+
+    def get_crossvalidation_set():
+        """Returns cross-validation set"""
+        return 0
+
+    def get_test_set():
+        """Returns test set"""
+        return 0
+
+    def get_full_set():
+        """Returns the entire data set (train, cv, test)"""
+        return 0
