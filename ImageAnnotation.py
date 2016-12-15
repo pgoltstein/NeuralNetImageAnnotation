@@ -46,19 +46,13 @@ class Annotation(object):
     @body.setter
     def body(self,body_pixels_yx):
         """Sets body coordinates and calculates associated centroids"""
-        print(body_pixels_yx)
-        # n_pixels = len(body_pixels_yx)
-        # self.__body = np.array(body_pixels_yx)
-        # self.__y = self.__body[:,0].mean()
-        # self.__x = self.__body[:,1].mean()
-        # temp_mask = np.zeros( self.__body.max(axis=0) )
-        # print(temp_mask.shape())
-        # temp_mask[ np.ix_(self.__body[:,0],self.__body[:,1]) ] = 1
-        # contours = measure.find_contours(temp_mask, 0.5)
-        # print(len(countours))
-#        for n, contour in enumerate(contours):
-#            plt.plot(contour[:, 1], contour[:, 0], linewidth=2)
-        self.__perimeter = 0
+        self.__body = np.array(body_pixels_yx)
+        self.__y = self.__body[:,0].mean()
+        self.__x = self.__body[:,1].mean()
+        temp_mask = np.zeros( self.__body.max(axis=0)+1 )
+        temp_mask[ np.ix_(self.__body[:,0],self.__body[:,1]) ] = 1
+        self.__perimeter = measure.find_contours(temp_mask, 0.5)[0]
+        self.__size = len(body_pixels_yx[:,0])
 
     @property
     def x(self):
@@ -72,19 +66,35 @@ class Annotation(object):
 
     @property
     def perimeter(self):
-        """Returns read-only stored list of perimeter (y,x) coordinates.
-        If not yet calculated, it calculates it first"""
+        """Returns read-only stored list of perimeter (y,x) coordinates"""
         return self.__perimeter
 
-    def add_mask(self,image,dilation_factor=1):
-        """Draws mask in supplied image (dilation_factor: larger than one for
-        dilation, smaller than one for erosion)"""
+    @property
+    def size(self):
+        """Returns read-only size of annotation (number of pixels)"""
+        return self.__size
 
-    def add_centroid(self,image,dilation_factor=1):
-        """Draws mask in supplied image (dilation_factor: larger than one for
-        padding the centroid with surrounding points"""
+    def mask(self, image, dilation_factor=1, mask_value=1):
+        """Draws mask in image
+        dilation_factor: >1 for dilation, <1 for erosion"""
+        if dilation_factor==1:
+            # Just mask the incoming image
+            image[ np.ix_(self.__body[:,0],self.__body[:,1]) ] = mask_value
+        else:
+            # Draw mask on temp image, dilate, get pixels, then draw in image
+            temp_mask = np.zeros_like(image,dtype=bool)
+            temp_mask[ np.ix_(self.__body[:,0],self.__body[:,1]) ] = True
+            temp_mask = ndimage.binary_dilation(temp_mask)
+            temp_body = np.array(np.where(temp_mask == True)).transpose()
+            image[ np.ix_(temp_body[:,0],temp_body[:,1]) ] = mask_value
+        return image
 
+    def centroid(self,image,dilation_factor=1):
+        """Draws mask in image
+        dilation_factor: >1 for padding the centroid with surrounding points"""
 
+    def zoom(self,image,zoom_size):
+        """Crops image to area of tuple zoom_size around centroid"""
 
 
 ########################################################################
