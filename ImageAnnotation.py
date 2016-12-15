@@ -15,6 +15,7 @@ Contains functions that represent (sets of) images and their annotations
 
 import numpy as np
 from skimage import measure
+from scipy import ndimage
 
 
 ########################################################################
@@ -52,7 +53,7 @@ class Annotation(object):
         temp_mask = np.zeros( self.__body.max(axis=0)+1 )
         temp_mask[ np.ix_(self.__body[:,0],self.__body[:,1]) ] = 1
         self.__perimeter = measure.find_contours(temp_mask, 0.5)[0]
-        self.__size = len(body_pixels_yx[:,0])
+        self.__size = self.__body.shape[0]
 
     @property
     def x(self):
@@ -74,24 +75,39 @@ class Annotation(object):
         """Returns read-only size of annotation (number of pixels)"""
         return self.__size
 
-    def mask(self, image, dilation_factor=1, mask_value=1):
-        """Draws mask in image
-        dilation_factor: >1 for dilation, <1 for erosion"""
-        if dilation_factor==1:
+    def mask_body(self, image, dilation_factor=0, mask_value=1):
+        """Draws mask of all body pixels in image
+        dilation_factor: >0 for dilation, <0 for erosion"""
+        if dilation_factor==0:
             # Just mask the incoming image
             image[ np.ix_(self.__body[:,0],self.__body[:,1]) ] = mask_value
         else:
             # Draw mask on temp image, dilate, get pixels, then draw in image
             temp_mask = np.zeros_like(image,dtype=bool)
             temp_mask[ np.ix_(self.__body[:,0],self.__body[:,1]) ] = True
-            temp_mask = ndimage.binary_dilation(temp_mask)
+            if dilation_factor>0:
+                for _ in range(dilation_factor):
+                    temp_mask = ndimage.binary_dilation(temp_mask)
+            elif dilation_factor<0:
+                for _ in range(-1*dilation_factor):
+                    temp_mask = ndimage.binary_erosion(temp_mask)
             temp_body = np.array(np.where(temp_mask == True)).transpose()
             image[ np.ix_(temp_body[:,0],temp_body[:,1]) ] = mask_value
-        return image
 
-    def centroid(self,image,dilation_factor=1):
-        """Draws mask in image
-        dilation_factor: >1 for padding the centroid with surrounding points"""
+    def mask_centroid(self, image, dilation_factor=0, mask_value=1):
+        """Draws mask of centroid pixel in image
+        dilation_factor: >0 for padding the centroid with surrounding points"""
+        if dilation_factor==0:
+            # Just mask the incoming image
+            image[self.__y.astype(int),self.__x.astype(int)] = mask_value
+        else:
+            # Draw mask on temp image, dilate, get pixels, then draw in image
+            temp_mask = np.zeros_like(image,dtype=bool)
+            temp_mask[self.__y.astype(int),self.__x.astype(int)] = True
+            for _ in range(dilation_factor):
+                temp_mask = ndimage.binary_dilation(temp_mask)
+            temp_body = np.array(np.where(temp_mask == True)).transpose()
+            image[ np.ix_(temp_body[:,0],temp_body[:,1]) ] = mask_value
 
     def zoom(self,image,zoom_size):
         """Crops image to area of tuple zoom_size around centroid"""
