@@ -110,7 +110,12 @@ class Annotation(object):
             image[ np.ix_(temp_body[:,0],temp_body[:,1]) ] = mask_value
 
     def zoom(self,image,zoom_size):
-        """Crops image to area of tuple zoom_size around centroid"""
+        """Crops image to area of tuple/list zoom_size around centroid"""
+        top_y  = np.int16( 1 + self.__y - (zoom_size[0] / 2) )
+        left_x = np.int16( 1 + self.__x - (zoom_size[1] / 2) )
+        ix_y = top_y + list(range( 0, zoom_size[0] ))
+        ix_x = left_x + list(range( 0, zoom_size[1] ))
+        return image[ np.ix_(ix_y,ix_x) ]
 
 
 ########################################################################
