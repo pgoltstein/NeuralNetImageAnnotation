@@ -23,7 +23,7 @@ from scipy import ndimage
 ########################################################################
 
 class Annotation(object):
-    """Class that holds individual image annotations"""
+    """Class that holds an individual image annotation"""
 
     def __init__(self,body_pixels_yx,annotation_name,group_nr=None):
         """Initialize.
@@ -34,10 +34,11 @@ class Annotation(object):
         # Store supplied parameters
         self.body = body_pixels_yx
         self.name = annotation_name
+        self.group_nr = group_nr
 
     def __str__(self):
-        return "Annotation at (y={:.1f},x={:.1f}), name={!s}".format(
-            self.__y,self.__x,self.name)
+        return "Annotation at (y={:.1f},x={:.1f}), group={:.0f}, \
+            name={!s}".format(self.__y, self.__x, self.name, self.group_nr)
 
     @property
     def body(self):
@@ -109,13 +110,24 @@ class Annotation(object):
             temp_body = np.array(np.where(temp_mask == True)).transpose()
             image[ np.ix_(temp_body[:,0],temp_body[:,1]) ] = mask_value
 
-    def zoom(self,image,zoom_size):
+    def zoom(self, image, zoom_size=(36,36) ):
         """Crops image to area of tuple/list zoom_size around centroid"""
         top_y  = np.int16( 1 + self.__y - (zoom_size[0] / 2) )
         left_x = np.int16( 1 + self.__x - (zoom_size[1] / 2) )
         ix_y = top_y + list(range( 0, zoom_size[0] ))
         ix_x = left_x + list(range( 0, zoom_size[1] ))
         return image[ np.ix_(ix_y,ix_x) ]
+
+    def morped_zoom(self, image, zoom_size=(36,36), rotation=0,
+                    scale_xy=(1,1), noise_level=0 ):
+        """Crops image to area of tuple/list zoom_size around centroid
+        rotation: Rotation of annotation in degrees
+        scale_xy: Determines fractional scaling on x/y axis
+        noise_level: Level of random noise"""
+        print("Warning: Not yet fully implemented...")
+        temp_zoom = self.zoom(image, zoom_size )
+        return temp_zoom
+
 
 
 ########################################################################
