@@ -25,6 +25,8 @@ from scipy import ndimage
 class Annotation(object):
     """Class that holds an individual image annotation"""
 
+    DEFAULT_ZOOM = (27,27)
+
     def __init__(self,body_pixels_yx,annotation_name,group_nr=None):
         """Initialize.
             body_pixels_yx: list/tuple of (y,x)'s or [y,x]'s
@@ -37,8 +39,8 @@ class Annotation(object):
         self.group_nr = group_nr
 
     def __str__(self):
-        return "Annotation at (y={:.1f},x={:.1f}), group={:.0f}, \
-            name={!s}".format(self.__y, self.__x, self.name, self.group_nr)
+        return "Annotation at (y={:.1f},x={:.1f}), group={:.0f}, "\
+            "name={!s}".format(self.__y, self.__x, self.__group_nr, self.name)
 
     @property
     def body(self):
@@ -65,6 +67,19 @@ class Annotation(object):
     def y(self):
         """Returns read-only centroid y coordinate"""
         return self.__y
+
+    @property
+    def group_nr(self):
+        """Returns read-only group number"""
+        return self.__group_nr
+
+    @group_nr.setter
+    def group_nr(self,group_nr):
+        """Sets group number to integer or 0"""
+        if isinstance(group_nr, (int,float)):
+            self.__group_nr = int(group_nr)
+        else:
+            self.__group_nr = 0
 
     @property
     def perimeter(self):
@@ -110,23 +125,79 @@ class Annotation(object):
             temp_body = np.array(np.where(temp_mask == True)).transpose()
             image[ np.ix_(temp_body[:,0],temp_body[:,1]) ] = mask_value
 
-    def zoom(self, image, zoom_size=(36,36) ):
-        """Crops image to area of tuple/list zoom_size around centroid"""
-        top_y  = np.int16( 1 + self.__y - (zoom_size[0] / 2) )
-        left_x = np.int16( 1 + self.__x - (zoom_size[1] / 2) )
+    def zoom(self, image, zoom_size=DEFAULT_ZOOM ):
+        """Crops image to area of tuple/list zoom_size around centroid
+        zoom_size: (y size, x size), accepts only uneven numbers"""
+        assert zoom_size[0] % 2 and zoom_size[1] % 2, \
+            "zoom_size cannot contain even numbers: (%r,%r)" % zoom_size
+        top_y  = np.int16( 1 + self.__y - ((zoom_size[0]+1) / 2) )
+        left_x = np.int16( 1 + self.__x - ((zoom_size[1]+1) / 2) )
         ix_y = top_y + list(range( 0, zoom_size[0] ))
         ix_x = left_x + list(range( 0, zoom_size[1] ))
         return image[ np.ix_(ix_y,ix_x) ]
 
-    def morped_zoom(self, image, zoom_size=(36,36), rotation=0,
+    def morped_zoom(self, image, zoom_size=DEFAULT_ZOOM, rotation=0,
                     scale_xy=(1,1), noise_level=0 ):
         """Crops image to area of tuple/list zoom_size around centroid
-        rotation: Rotation of annotation in degrees
-        scale_xy: Determines fractional scaling on x/y axis
-        noise_level: Level of random noise"""
+        zoom_size: (y size, x size), accepts only uneven numbers
+        rotation: Rotation of annotation in degrees (0-360 degrees)
+        scale_xy: Determines fractional scaling on x/y axis.
+                  Min-Max = (0.5,0.5) - (2,2)
+        noise_level: Level of random noise
+        returns tuple holding (morped_zoom, morped_annotation)"""
+
         print("Warning: Not yet fully implemented...")
-        temp_zoom = self.zoom(image, zoom_size )
-        return temp_zoom
+        assert zoom_size[0] % 2 and zoom_size[1] % 2, \
+            "zoom_size cannot contain even numbers: (%r,%r)" % zoom_size
+
+        # Get large, annotation centered, zoom image
+        temp_zoom_size = (zoom_size[0]*4+1,zoom_size[1]*4+1)
+        temp_zoom = self.zoom(image, temp_zoom_size )
+
+        # Get large, annotation centered, mask image
+        mid_y = np.int16(temp_zoom_size[0] / 2)
+        mid_x = np.int16(temp_zoom_size[1] / 2)
+        top_y  = np.int16( 1 + mid_y - (zoom_size[0] / 2) )
+        left_x = np.int16( 1 + mid_x - (zoom_size[1] / 2) )
+        temp_ann = np.zeros_like(temp_zoom)
+        temp_ann[ np.ix_( np.int16((self.__body[:,0]-self.y) + zoom_size[0]*2),
+                          np.int16((self.__body[:,1]-self.y) + zoom_size[0]*2)
+                          ) ] = 1
+
+        # Rotate
+        if rotation != 0:
+            temp_zoom = ndimage.interpolation.rotate(temp_zoom,
+                            rotation, reshape=False)
+            temp_ann = ndimage.interpolation.rotate(temp_ann,
+                            rotation, reshape=False)
+
+        # Scale
+        if scale_xy[0] != 1 or scale_xy[1] != 1:
+            temp_zoom = ndimage.interpolation.zoom( temp_zoom, scale_xy )
+            temp_ann = ndimage.interpolation.zoom( temp_ann, scale_xy )
+            temp_zoom_size = temp_zoom.shape
+
+        # Add noise
+        if noise_level:
+            noise_mask = np.random.normal(size=temp_zoom.shape) * noise_level
+            temp_zoom = temp_zoom + noise_mask
+
+        # Make mask 0 or 1
+        temp_ann[temp_ann<0.5] = 0
+        temp_ann[temp_ann>=0.5] = 1
+
+        # Cut out real zoom image from center of temp_zoom
+        mid_y = np.int16(temp_zoom_size[0] / 2)
+        mid_x = np.int16(temp_zoom_size[1] / 2)
+        top_y  = np.int16( 1 + mid_y - (zoom_size[0] / 2) )
+        left_x = np.int16( 1 + mid_x - (zoom_size[1] / 2) )
+        ix_y = top_y + list(range( 0, zoom_size[0] ))
+        ix_x = left_x + list(range( 0, zoom_size[1] ))
+        print(temp_zoom.shape)
+        print(mid_x,mid_y,top_y,left_x)
+        print(ix_y,ix_x)
+        # return temp_zoom
+        return (temp_zoom[ np.ix_(ix_y,ix_x) ],temp_ann[ np.ix_(ix_y,ix_x) ])
 
 
 
@@ -136,13 +207,15 @@ class Annotation(object):
 
 class AnnotatedImage(object):
     """Class that hold a multichannel image and its annotations
-    Images are represented in a [x * y * nChannels] matrix
+    Images are represented in a [x * y * n_channels] matrix
     Annotations are represented as a list of Annotation objects"""
 
     def __init__(self,image_size):
         self.y_res,self.x_res = image_size
         self.image = np.zeros(image_size)
+        self.n_channels = 0
         self.annotation_list = []
+        self.n_annotations = 0;
 
     def import_from_mat(self,file_name,file_path='.'):
         """Reads data from ROI.mat file and fills the annotation_list"""
