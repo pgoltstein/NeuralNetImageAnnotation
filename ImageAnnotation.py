@@ -139,14 +139,13 @@ class Annotation(object):
     def morped_zoom(self, image, zoom_size=DEFAULT_ZOOM, rotation=0,
                     scale_xy=(1,1), noise_level=0 ):
         """Crops image to area of tuple/list zoom_size around centroid
-        zoom_size: (y size, x size), accepts only uneven numbers
-        rotation: Rotation of annotation in degrees (0-360 degrees)
-        scale_xy: Determines fractional scaling on x/y axis.
-                  Min-Max = (0.5,0.5) - (2,2)
+        zoom_size:   (y size, x size), accepts only uneven numbers
+        rotation:    Rotation of annotation in degrees (0-360 degrees)
+        scale_xy:    Determines fractional scaling on x/y axis.
+                     Min-Max = (0.5,0.5) - (2,2)
         noise_level: Level of random noise
         returns tuple holding (morped_zoom, morped_annotation)"""
 
-        print("Warning: Not yet fully implemented...")
         assert zoom_size[0] % 2 and zoom_size[1] % 2, \
             "zoom_size cannot contain even numbers: (%r,%r)" % zoom_size
 
@@ -193,10 +192,6 @@ class Annotation(object):
         left_x = np.int16( 1 + mid_x - (zoom_size[1] / 2) )
         ix_y = top_y + list(range( 0, zoom_size[0] ))
         ix_x = left_x + list(range( 0, zoom_size[1] ))
-        print(temp_zoom.shape)
-        print(mid_x,mid_y,top_y,left_x)
-        print(ix_y,ix_x)
-        # return temp_zoom
         return (temp_zoom[ np.ix_(ix_y,ix_x) ],temp_ann[ np.ix_(ix_y,ix_x) ])
 
 

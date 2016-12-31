@@ -31,7 +31,7 @@ c = a.zoom(b,(9,9))
 plt.figure()
 plt.imshow(c,interpolation='nearest')
 
-(c,d) = a.morped_zoom(b,zoom_size=(9,9),rotation=45, scale_xy=(0.5,1.8), noise_level=0.1)
+c,d = a.morped_zoom(b,zoom_size=(11,11),rotation=0, scale_xy=(1,2), noise_level=0.1)
 plt.figure()
 plt.imshow(c,interpolation='nearest')
 plt.figure()
