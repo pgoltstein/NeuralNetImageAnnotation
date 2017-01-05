@@ -5,6 +5,18 @@ Created on Wed Dec 14 19:25:32 2016
 
 Contains functions that represent (sets of) images and their annotations
 
+1. class Annotation(object):
+    Class that holds an individual image annotation
+
+2. class AnnotatedImage(object):
+    Class that hold a multichannel image and its annotations
+    Images are represented in a [x * y * n_channels] matrix
+    Annotations are represented as a list of Annotation objects
+
+3. class AnnotatedImageSet(object):
+    Class that represents a dataset of annotated images and organizes
+    the dataset for feeding in machine learning algorithms
+
 @author: pgoltstein
 """
 
@@ -16,6 +28,7 @@ Contains functions that represent (sets of) images and their annotations
 import numpy as np
 from skimage import measure
 from scipy import ndimage
+from scipy.io import loadmat
 
 
 ########################################################################
@@ -195,22 +208,39 @@ class Annotation(object):
         return (temp_zoom[ np.ix_(ix_y,ix_x) ],temp_ann[ np.ix_(ix_y,ix_x) ])
 
 
-
 ########################################################################
 ### Class AnnotatedImage
 ########################################################################
 
 class AnnotatedImage(object):
     """Class that hold a multichannel image and its annotations
-    Images are represented in a [x * y * n_channels] matrix
-    Annotations are represented as a list of Annotation objects"""
+    Images are represented in a list of [x * y] matrices
+    Annotations are represented as a list of Annotation objects
+    image_data      = list or tuple of same size images
+    annotation_data = list or tuple of annotations (Annotation objects)"""
 
-    def __init__(self,image_size):
-        self.y_res,self.x_res = image_size
-        self.image = np.zeros(image_size)
-        self.n_channels = 0
-        self.annotation_list = []
-        self.n_annotations = 0;
+    def __init__( self, image_data=None, annotation_data=None ):
+        if not image_data:
+            self.image_list = []
+            self.y_res,self.x_res = (0,0)
+        else:
+            self.image_list = []
+            self.y_res,self.x_res = np.array(self.image_list[1]).shape
+        self.n_channels = len(self.image_list)
+
+        if not annotation_data:
+            self.annotation_list = []
+        else:
+            self.annotation_list = annotation_data
+        self.n_annotations = len(self.annotation_list)
+
+    @property
+    def image(self, channel=0):
+        return self.image_list(channel)
+
+    @image.setter
+    def image(self, image_data, channel=0):
+        self.image_list[channel] = image_data
 
     def import_from_mat(self,file_name,file_path='.'):
         """Reads data from ROI.mat file and fills the annotation_list"""
