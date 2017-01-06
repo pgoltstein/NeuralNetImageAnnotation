@@ -31,7 +31,7 @@ from skimage.io import imread
 from scipy import ndimage
 from scipy.io import loadmat,savemat
 from os import path
-
+import glob
 
 ########################################################################
 ### Class Annotation
@@ -353,33 +353,29 @@ class AnnotatedImageSet(object):
         print("Class unfinished...")
 
     def __str__(self):
-        return "AnnotatedImageSet (n_sets={:.0f}" \
-                ")".format(self._an_im_list)
+        return "AnnotatedImageSet (# Annotated Images = {:.0f}" \
+                ")".format(self.n_annot_images)
 
     @property
-    def n_sets(self):
-        return len(self.channel)
+    def n_annot_images(self):
+        return len(self._an_im_list)
 
     @property
-    def n_annotations(self):
-        return len(self.annotation)
+    def full_data_set(self):
+        """Returns the (read-only) entire data set"""
+        return self._an_im_list
 
-    def import_from_mat(self,data_directory):
-        """Imports all images and accompanying ROI.mat files from a
+    def load_data_dir(self,data_directory):
+        """Loads all images and accompanying ROI.mat files from a
         single directory"""
-
-    def get_training_set():
-        """Returns training set"""
-        return 0
-
-    def get_crossvalidation_set():
-        """Returns cross-validation set"""
-        return 0
-
-    def get_test_set():
-        """Returns test set"""
-        return 0
-
-    def get_full_set():
-        """Returns the entire data set (train, cv, test)"""
-        return 0
+        tiff_files = glob.glob(path.join(data_directory,'*.tiff'))
+        mat_files = glob.glob(path.join(data_directory,'*.mat'))
+        print("Loading .tiff and annotation files:")
+        for f, (tiff_file, mat_file) in enumerate(zip(tiff_files,mat_files)):
+            tiff_filepath, tiff_filename = path.split(tiff_file)
+            mat_filepath, mat_filename = path.split(mat_file)
+            print("{:2.0f}) {} -- {}".format(f+1,tiff_filename,mat_filename))
+            anim = AnnotatedImage(image_data=[], annotation_data=[])
+            anim.add_image_from_file(tiff_filename,tiff_filepath)
+            anim.import_annotations_from_mat(mat_filename,mat_filepath)
+            self._an_im_list.append(anim)
