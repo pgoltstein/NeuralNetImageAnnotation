@@ -29,7 +29,7 @@ import numpy as np
 from skimage import measure
 from skimage.io import imread
 from scipy import ndimage
-from scipy.io import loadmat
+from scipy.io import loadmat,savemat
 from os import path
 
 
@@ -42,15 +42,17 @@ class Annotation(object):
 
     DEFAULT_ZOOM = (27,27)
 
-    def __init__(self,body_pixels_yx,annotation_name,group_nr=None):
+    def __init__(self,body_pixels_yx,annotation_name,type_nr=1,group_nr=None):
         """Initialize.
             body_pixels_yx: list/tuple of (y,x)'s or [y,x]'s
             annotation_name: string
+            type_nr: int
             group_nr: int
         """
         # Store supplied parameters
         self.body = np.int16(body_pixels_yx)
         self.name = annotation_name
+        self.type_nr = type_nr
         self.group_nr = group_nr
 
     def __str__(self):
@@ -95,6 +97,19 @@ class Annotation(object):
             self._group_nr = int(group_nr)
         else:
             self._group_nr = 0
+
+    @property
+    def type_nr(self):
+        """Returns read-only type number"""
+        return self._type_nr
+
+    @type_nr.setter
+    def type_nr(self,type_nr):
+        """Sets type number to integer or 0"""
+        if isinstance(type_nr, (int,float)):
+            self._type_nr = int(type_nr)
+        else:
+            self._type_nr = 0
 
     @property
     def perimeter(self):
@@ -213,15 +228,15 @@ class Annotation(object):
 ### Class AnnotatedImage
 ########################################################################
 
-
 class AnnotatedImage(object):
     """Class that hold a multichannel image and its annotations
     Images are represented in a list of [x * y] matrices
-    Annotations are represented as a list of Annotation objects
-    channel      = list or tuple of same size images
-    annotation = list or tuple of Annotation objects"""
+    Annotations are represented as a list of Annotation objects"""
 
     def __init__( self, image_data=[], annotation_data=[] ):
+        """Initialize.
+            channel    = list or tuple of same size images
+            annotation = list or tuple of Annotation objects"""
         self.channel = image_data
         self.annotation = annotation_data
 
@@ -231,10 +246,12 @@ class AnnotatedImage(object):
 
     @property
     def n_channels(self):
+        """Returns the (read-only) number of image channels"""
         return len(self.channel)
 
     @property
     def n_annotations(self):
+        """Returns the (read-only) number of annotations"""
         return len(self.annotation)
 
     def add_image_from_file(self,file_name,file_path='.'):
@@ -251,16 +268,29 @@ class AnnotatedImage(object):
         """Reads data from ROI.mat file and fills the annotation_list"""
         # Load mat file with ROI data
         mat_data = loadmat(path.join(file_path,file_name))
-        nROIs = len(mat_data['ROI'][0])
-        for c in range(nROIs):
-            body = mat_data['ROI'][0][c][8]
-            body = np.array([body[:,1],body[:,0]]).transpose()
-            name = mat_data['ROI'][0][c][3][0]
-            group_nr = mat_data['ROI'][0][c][1][0][0]
-            self.annotation.append( Annotation( body_pixels_yx=body,
-                                    annotation_name=name, group_nr=group_nr ) )
+        if 'ROI' in mat_data.keys():
+            nROIs = len(mat_data['ROI'][0])
+            for c in range(nROIs):
+                body = mat_data['ROI'][0][c]['body']
+                body = np.array([body[:,1],body[:,0]]).transpose()
+                type_nr = int(mat_data['ROI'][0][c]['type'][0][0])
+                name = str(mat_data['ROI'][0][c]['typename'][0])
+                group_nr = int(mat_data['ROI'][0][c]['group'][0][0])
+                self.annotation.append( Annotation( body_pixels_yx=body,
+                        annotation_name=name, type_nr=type_nr, group_nr=group_nr ) )
+        elif 'ROIpy' in mat_data.keys():
+            nROIs = len(mat_data['ROIpy'][0])
+            for c in range(nROIs):
+                body = mat_data['ROIpy'][0][c]['body'][0][0]
+                body = np.array([body[:,1],body[:,0]]).transpose()
+                type_nr = int(mat_data['ROIpy'][0][c]['type'][0][0][0][0])
+                name = str(mat_data['ROIpy'][0][c]['typename'][0][0][0])
+                group_nr = int(mat_data['ROIpy'][0][c]['group'][0][0][0][0])
+                self.annotation.append( Annotation( body_pixels_yx=body,
+                        annotation_name=name, type_nr=type_nr, group_nr=group_nr ) )
 
     def bodies(self, dilation_factor=0, mask_value=1):
+        """Returns an image with annotation bodies masked"""
         annotated_bodies = np.zeros_like(self.channel[0])
         for nr in range(self.n_annotations):
             self.annotation[nr].mask_body(annotated_bodies,
@@ -268,6 +298,7 @@ class AnnotatedImage(object):
         return annotated_bodies
 
     def centroids(self, dilation_factor=0, mask_value=1):
+        """Returns an image with annotation centroids masked"""
         annotated_centroids = np.zeros_like(self.channel[0])
         for nr in range(self.n_annotations):
             self.annotation[nr].mask_centroid(annotated_centroids,
@@ -276,13 +307,37 @@ class AnnotatedImage(object):
 
     def export_annotations_to_mat(self,file_name,file_path='.'):
         """Writes annotations to ROI_py.mat file"""
-        return 0
+        roi_list = []
+        for nr in range(self.n_annotations):
+            roi_dict = {}
+            roi_dict['nr']=nr
+            roi_dict['group']=self.annotation[nr].group_nr
+            roi_dict['type']=self.annotation[nr].type_nr
+            roi_dict['typename']=self.annotation[nr].name
+            roi_dict['x']=self.annotation[nr].x
+            roi_dict['y']=self.annotation[nr].y
+            roi_dict['size']=self.annotation[nr].size
+            roi_dict['perimeter']=self.annotation[nr].perimeter
+            body = np.array([self.annotation[nr].body[:,1],
+                             self.annotation[nr].body[:,0]]).transpose()
+            roi_dict['body']=body
+            roi_list.append(roi_dict)
+        savedata = {}
+        savedata['ROIpy']=roi_list
+        savemat(path.join(file_path,file_name),savedata)
 
     def load(self,file_name,file_path='.'):
-        """Loads image and annotations from file"""
+        """Loads image and annotations from .npy file"""
+        combined_annotated_image = np.load(path.join(file_path,file_name)).item()
+        self.channel = combined_annotated_image['image_data']
+        self.annotation = combined_annotated_image['annotation_data']
 
     def save(self,file_name,file_path='.'):
-        """Saves image and annotations to file"""
+        """Saves image and annotations to .npy file"""
+        combined_annotated_image = {}
+        combined_annotated_image['image_data'] = self.channel
+        combined_annotated_image['annotation_data'] = self.annotation
+        np.save(path.join(file_path,file_name), combined_annotated_image)
 
 
 ########################################################################
