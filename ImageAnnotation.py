@@ -71,7 +71,7 @@ class Annotation(object):
         self._y = self._body[:,0].mean()
         self._x = self._body[:,1].mean()
         temp_mask = np.zeros( self._body.max(axis=0)+1 )
-        temp_mask[ np.ix_(self._body[:,0],self._body[:,1]) ] = 1
+        temp_mask[ self._body[:,0], self._body[:,1] ] = 1
         self._perimeter = measure.find_contours(temp_mask, 0.5)[0]
         self._size = self._body.shape[0]
 
@@ -166,7 +166,7 @@ class Annotation(object):
         ix_x = left_x + list(range( 0, zoom_size[1] ))
         return image[ np.ix_(ix_y,ix_x) ]
 
-    def morped_zoom(self, image, zoom_size=DEFAULT_ZOOM, rotation=0,
+    def morphed_zoom(self, image, zoom_size=DEFAULT_ZOOM, rotation=0,
                     scale_xy=(1,1), noise_level=0 ):
         """Crops image to area of tuple/list zoom_size around centroid
         zoom_size:   (y size, x size), accepts only uneven numbers
