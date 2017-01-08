@@ -17,7 +17,7 @@ a = ia.Annotation([[10,10],[10,11],[10,12],
                    [11,10],[11,11],[11,12],
                    [12,10],[12,11],[12,12]],'funky2')
 
-b=np.zeros((40,40))
+b=np.zeros((100,100))
 
 a.mask_body(b,dilation_factor=0,mask_value=3)
 a.mask_centroid(b,dilation_factor=0,mask_value=1)
@@ -27,11 +27,13 @@ plt.figure()
 plt.imshow(b,interpolation='nearest')
 print(a)
 
-c = a.zoom(b,(9,9))
+zoom_size = 36
+
+c = a.zoom(b,(zoom_size,zoom_size))
 plt.figure()
 plt.imshow(c,interpolation='nearest')
 
-c,d = a.morped_zoom(b,zoom_size=(11,11),rotation=0, scale_xy=(1,2), noise_level=0.1)
+c,d = a.morphed_zoom(b,zoom_size=(zoom_size,zoom_size),rotation=45, scale_xy=(1,2), noise_level=0.1)
 plt.figure()
 plt.imshow(c,interpolation='nearest')
 plt.figure()

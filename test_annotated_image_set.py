@@ -6,17 +6,22 @@ Created on Fri Jan  6 16:38:41 2017
 @author: pgoltstein
 """
 
-#import ImageAnnotation as ia
-#import numpy as np
-#import importlib
-#import matplotlib.pyplot as plt
-#from skimage import measure
-#
-#importlib.reload(ia)
-#
-#data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet'
-#ais = ia.AnnotatedImageSet()
-#ais.load_data_dir(data_path)
+import ImageAnnotation as ia
+import numpy as np
+import importlib
+import matplotlib.pyplot as plt
+from skimage import measure
+
+importlib.reload(ia)
+
+data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
+ais = ia.AnnotatedImageSet()
+ais.load_data_dir(data_path)
+sam,lab = ais.centroid_detection_data(m_samples=100)
+print(sam.shape)
+print(lab.shape)
+for t in range(100):print(lab[t])
+
 #
 #ai_list = ais.full_data_set
 

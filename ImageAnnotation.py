@@ -163,11 +163,9 @@ class Annotation(object):
 
     def zoom(self, image, zoom_size=DEFAULT_ZOOM ):
         """Crops image to area of tuple/list zoom_size around centroid
-        zoom_size: (y size, x size), accepts only uneven numbers"""
-        assert zoom_size[0] % 2 and zoom_size[1] % 2, \
-            "zoom_size cannot contain even numbers: (%r,%r)" % zoom_size
-        top_y  = np.int16( 1 + self._y - ((zoom_size[0]+1) / 2) )
-        left_x = np.int16( 1 + self._x - ((zoom_size[1]+1) / 2) )
+        zoom_size: (y size, x size)"""
+        top_y  = np.int16( np.round( 1 + self._y - ((zoom_size[0]+1) / 2) ) )
+        left_x = np.int16( np.round( 1 + self._x - ((zoom_size[1]+1) / 2) ) )
         ix_y = top_y + list(range( 0, zoom_size[0] ))
         ix_x = left_x + list(range( 0, zoom_size[1] ))
         return image[ np.ix_(ix_y,ix_x) ]
@@ -175,15 +173,12 @@ class Annotation(object):
     def morphed_zoom(self, image, zoom_size=DEFAULT_ZOOM, rotation=0,
                     scale_xy=(1,1), noise_level=0 ):
         """Crops image to area of tuple/list zoom_size around centroid
-        zoom_size:   (y size, x size), accepts only uneven numbers
+        zoom_size:   (y size, x size)
         rotation:    Rotation of annotation in degrees (0-360 degrees)
         scale_xy:    Determines fractional scaling on x/y axis.
                      Min-Max = (0.5,0.5) - (2,2)
         noise_level: Level of random noise
         returns tuple holding (morped_zoom, morped_annotation)"""
-
-        assert zoom_size[0] % 2 and zoom_size[1] % 2, \
-            "zoom_size cannot contain even numbers: (%r,%r)" % zoom_size
 
         # Get large, annotation centered, zoom image
         temp_zoom_size = (zoom_size[0]*4+1,zoom_size[1]*4+1)
@@ -192,8 +187,8 @@ class Annotation(object):
         # Get large, annotation centered, mask image
         mid_y = np.int16(temp_zoom_size[0] / 2)
         mid_x = np.int16(temp_zoom_size[1] / 2)
-        top_y  = np.int16( 1 + mid_y - (zoom_size[0] / 2) )
-        left_x = np.int16( 1 + mid_x - (zoom_size[1] / 2) )
+        top_y  = np.int16( np.round( 1 + mid_y - (zoom_size[0] / 2) ) )
+        left_x = np.int16( np.round( 1 + mid_x - (zoom_size[1] / 2) ) )
         temp_ann = np.zeros_like(temp_zoom)
         temp_ann[ np.int16((self._body[:,0]-self._y) + zoom_size[0]*2),
                   np.int16((self._body[:,1]-self._x) + zoom_size[0]*2) ] = 1
@@ -223,8 +218,8 @@ class Annotation(object):
         # Cut out real zoom image from center of temp_zoom
         mid_y = np.int16(temp_zoom_size[0] / 2)
         mid_x = np.int16(temp_zoom_size[1] / 2)
-        top_y  = np.int16( 1 + mid_y - (zoom_size[0] / 2) )
-        left_x = np.int16( 1 + mid_x - (zoom_size[1] / 2) )
+        top_y  = np.int16( np.round( 1 + mid_y - (zoom_size[0] / 2) ) )
+        left_x = np.int16( np.round( 1 + mid_x - (zoom_size[1] / 2) ) )
         ix_y = top_y + list(range( 0, zoom_size[0] ))
         ix_x = left_x + list(range( 0, zoom_size[1] ))
         return (temp_zoom[ np.ix_(ix_y,ix_x) ],temp_ann[ np.ix_(ix_y,ix_x) ])
@@ -314,11 +309,9 @@ class AnnotatedImage(object):
     def zoom(self, y, x, zoom_size=DEFAULT_ZOOM ):
         """Returns an image list, cropped to an area of tuple/list zoom_size
             around coordinates x and y
-        zoom_size: (y size, x size), accepts only uneven numbers"""
-        assert zoom_size[0] % 2 and zoom_size[1] % 2, \
-            "zoom_size cannot contain even numbers: (%r,%r)" % zoom_size
-        top_y  = np.int16( 1 + y - ((zoom_size[0]+1) / 2) )
-        left_x = np.int16( 1 + x - ((zoom_size[1]+1) / 2) )
+        zoom_size: (y size, x size)"""
+        top_y  = np.int16( np.round( 1 + y - ((zoom_size[0]+1) / 2) ) )
+        left_x = np.int16( np.round( 1 + x - ((zoom_size[1]+1) / 2) ) )
         ix_y = top_y + list(range( 0, zoom_size[0] ))
         ix_x = left_x + list(range( 0, zoom_size[1] ))
         zoom_list = []
@@ -452,7 +445,6 @@ class AnnotatedImageSet(object):
 
     def __init__(self):
         self._an_im_list = []
-        print("Class unfinished...")
 
     def __str__(self):
         return "AnnotatedImageSet (# Annotated Images = {:.0f}" \
@@ -466,6 +458,24 @@ class AnnotatedImageSet(object):
     def full_data_set(self):
         """Returns the (read-only) entire data set"""
         return self._an_im_list
+
+    def centroid_detection_sample(self, m_samples=100, zoom_size=DEFAULT_ZOOM):
+        """Return a random sample of centroid data"""
+        n_pix_lin = self._an_im_list[0].n_channels * zoom_size[0] * zoom_size[1]
+        m_set_samples_list = np.round( np.linspace( 0, m_samples,
+            self.n_annot_images+1 ) )
+        samples = np.zeros( (m_samples, n_pix_lin) )
+        labels = np.zeros( (m_samples, 2) )
+        for s in range(self.n_annot_images):
+            m_set_samples = int(m_set_samples_list[s+1]-m_set_samples_list[s])
+            s_samples,s_labels = \
+                self._an_im_list[s].centroid_detection_training_batch(
+                    m_samples=m_set_samples, zoom_size=zoom_size )
+            samples[int(m_set_samples_list[s]):int(m_set_samples_list[s+1]),:] \
+                = s_samples
+            labels[int(m_set_samples_list[s]):int(m_set_samples_list[s+1]),:] \
+                = s_labels
+        return samples,labels
 
     def load_data_dir(self,data_directory):
         """Loads all images and accompanying ROI.mat files from a
