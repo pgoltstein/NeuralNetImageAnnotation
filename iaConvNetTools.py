@@ -31,7 +31,7 @@ class ConvNetCnv2Fc1(object):
     def __init__(self, input_image_size, n_input_channels, output_size,
                 conv1_size=5, conv1_n_chan=32, conv1_n_pool=2,
                 conv2_size=5, conv2_n_chan=64, conv2_n_pool=2,
-                fc1_n_chan=1024, fc1_dropout=0.5 ):
+                fc1_n_chan=1024, fc1_dropout=0.5, alpha=5e-4 ):
         """Initializes all variables and sets up the network
         input_image_size: Tuple containing (y,x) size of input image
         output_image_size: Tuple containing dimensions of network output"""
@@ -52,6 +52,7 @@ class ConvNetCnv2Fc1(object):
             self.x_res/self.conv1_n_pool ) / self.conv2_n_pool ) )
         self.fc1_n_chan = fc1_n_chan
         self.fc1_dropout = fc1_dropout
+        self.alpha = alpha
 
         #########################################################
         # Input and target variable placeholders
@@ -150,7 +151,7 @@ class ConvNetCnv2Fc1(object):
         self.cross_entropy = tf.reduce_mean(
                     tf.nn.softmax_cross_entropy_with_logits(
                                             self.fc_out_lin, self.y_trgt ) )
-        self.train_step = tf.train.AdamOptimizer(5e-4).minimize(
+        self.train_step = tf.train.AdamOptimizer(self.alpha).minimize(
                                                         self.cross_entropy )
 
         #########################################################
@@ -214,7 +215,7 @@ class ConvNetCnv2Fc1(object):
         final_precision = true_pos / (true_pos+false_pos)
         final_recall = true_pos / (true_pos+false_neg)
         final_F1 = 2 * ((final_precision*final_recall)/(final_precision+final_recall))
-        print('\nLabeled training set (m={}):'.format(m_samples))
+        print('\nLabeled image set (m={}):'.format(m_samples))
         print(' - Accuracy = {:6.4f}'.format( final_accuracy ))
         print(' - Precision = {:6.4f}'.format( final_precision ))
         print(' - Recall = {:6.4f}'.format( final_recall ))
@@ -241,16 +242,14 @@ class ConvNetCnv2Fc1(object):
             self.sess.run( self.train_step, feed_dict={ self.x: samples,
                 self.y_trgt: labels, self.fc1_keep_prob: self.fc1_dropout } )
             print('.', end="", flush=True)
-            
-        # Dipslay final performance
-        self.report_F1(training_image_set, 1000)
-        print("\n")
 
     def load_network_parameters(self, file_name, file_path='.'):
-        saver.restore(sess, path.join(file_path+'.nnprm',file_name))
-        print('  -> Loaded network parameters from file: {}'.format(
-                                            path.join(file_path,file_name)))
+        self.saver.restore( self.sess,
+                            path.join(file_path,file_name+'.nnprm'))
+        print('\nLoaded network parameters from file:\n{}'.format(
+                                    path.join(file_path,file_name+'.nnprm')))
 
     def save_network_parameters(self, file_name, file_path='.'):
-        save_path = saver.save(sess, path.join(file_path+'.nnprm',file_name))
-        print('  -> Network parameters saved in file: {}'.format(save_path))
+        save_path = self.saver.save( self.sess,
+                                     path.join(file_path,file_name+'.nnprm'))
+        print('\nNetwork parameters saved in file:\n{}'.format(save_path))

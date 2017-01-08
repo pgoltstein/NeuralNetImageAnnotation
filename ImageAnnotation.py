@@ -395,14 +395,14 @@ class AnnotatedImage(object):
         roi_negative_y = pix_y.ravel()[im_label.ravel() == 0]
 
         # Exclude all pixels that are within half-zoom from the border
-        roi_positive_inclusion = np.logical_and( np.logical_and(
-            roi_positive_x>zoom_half_x, roi_positive_x<(x_len-zoom_half_x) ),
-            roi_positive_y>zoom_half_y, roi_positive_y<(y_len-zoom_half_y) )
+        roi_positive_inclusion = np.logical_and( np.logical_and( np.logical_and(
+            roi_positive_x>zoom_half_x, roi_positive_x<(x_len-(zoom_half_x+1)) ),
+            roi_positive_y>zoom_half_y ), roi_positive_y<(y_len-(zoom_half_y+1)) )
         roi_positive_x = roi_positive_x[ roi_positive_inclusion ]
         roi_positive_y = roi_positive_y[ roi_positive_inclusion ]
         roi_negative_inclusion = np.logical_and( np.logical_and( np.logical_and(
-            roi_negative_x>zoom_half_x, roi_negative_x<(x_len-(zoom_half_x)) ),
-            roi_negative_y>zoom_half_y ), roi_negative_y<(y_len-(zoom_half_y)) )
+            roi_negative_x>zoom_half_x, roi_negative_x<(x_len-(zoom_half_x+1)) ),
+            roi_negative_y>zoom_half_y ), roi_negative_y<(y_len-(zoom_half_y+1)) )
         roi_negative_x = roi_negative_x[ roi_negative_inclusion ]
         roi_negative_y = roi_negative_y[ roi_negative_inclusion ]
 
