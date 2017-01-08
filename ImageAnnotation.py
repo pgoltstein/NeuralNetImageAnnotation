@@ -482,7 +482,7 @@ class AnnotatedImageSet(object):
         single directory"""
         tiff_files = glob.glob(path.join(data_directory,'*.tiff'))
         mat_files = glob.glob(path.join(data_directory,'*.mat'))
-        print("Loading .tiff and annotation files:")
+        print("\nLoading .tiff and annotation files:")
         for f, (tiff_file, mat_file) in enumerate(zip(tiff_files,mat_files)):
             tiff_filepath, tiff_filename = path.split(tiff_file)
             mat_filepath, mat_filename = path.split(mat_file)

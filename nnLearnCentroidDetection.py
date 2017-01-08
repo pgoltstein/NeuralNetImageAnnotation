@@ -35,4 +35,5 @@ nn.start()
 
 ########################################################################
 # Train network
-nn.train( training_data, m_samples=500, n_epochs=20, display_every_n=4)
+nn.train( training_data, m_samples=100, n_epochs=20, display_every_n=10)
+nn.save_network_parameters('centroid_net',data_path)

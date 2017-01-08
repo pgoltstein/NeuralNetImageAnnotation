@@ -16,6 +16,7 @@ Contains functions that set up a convolutional neural net for image annotation
 import numpy as np
 import tensorflow as tf
 import time, datetime
+from os import path
 
 
 ########################################################################
@@ -161,13 +162,19 @@ class ConvNetCnv2Fc1(object):
         self.accuracy = tf.reduce_mean( tf.cast(
                                     self.is_correct_prediction, tf.float32 ) )
 
+        #########################################################
+        # Create save operation
+        self.saver = tf.train.Saver()
+
     def start(self):
         """Initializes all variables and starts session"""
         init = tf.initialize_all_variables()
         self.sess = tf.Session()
         self.sess.run(init)
 
-    def test(self, test_image_set, step_no, t_start, m_samples=100):
+    def report_progress_accuracy(self, test_image_set,
+                                    step_no, t_start, m_samples=100):
+        """Report progress and accuracy on single line"""
         # Get m samples and labels from a single AnnotatedImage
         samples,labels = \
             test_image_set.centroid_detection_sample(
@@ -183,6 +190,36 @@ class ConvNetCnv2Fc1(object):
             str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
             end="", flush=True)
 
+    def report_F1(self, test_image_set, m_samples=100):
+        """Report accuracy, precision, recall and F1 score"""
+        # Get m samples and labels from a single AnnotatedImage
+        samples,labels = \
+            test_image_set.centroid_detection_sample(
+                m_samples=m_samples, zoom_size=(self.y_res,self.y_res) )
+
+        # Calculate network accuracy
+        result = self.sess.run( [self.network_prediction], feed_dict={
+            self.x: samples, self.y_trgt: labels,
+            self.fc1_keep_prob: 1.0 })
+        pred = result[0]
+
+        # Calculate true/false pos/neg
+        true_pos = np.sum( pred[labels[:,1]==1]==1 )
+        false_neg = np.sum( pred[labels[:,1]==1]==0 )
+        true_neg = np.sum( pred[labels[:,1]==0]==0 )
+        false_pos = np.sum( pred[labels[:,1]==0]==1 )
+
+        # Calculate accuracy, precision, recall, F1
+        final_accuracy = (true_pos+true_neg) / len(pred)
+        final_precision = true_pos / (true_pos+false_pos)
+        final_recall = true_pos / (true_pos+false_neg)
+        final_F1 = 2 * ((final_precision*final_recall)/(final_precision+final_recall))
+        print('\nLabeled training set (m={}):'.format(m_samples))
+        print(' - Accuracy = {:6.4f}'.format( final_accuracy ))
+        print(' - Precision = {:6.4f}'.format( final_precision ))
+        print(' - Recall = {:6.4f}'.format( final_recall ))
+        print(' - F1-score = {:6.4f}'.format( final_F1 ))
+
     def train(self, training_image_set, m_samples=100, n_epochs=100,
                     display_every_n=10):
         """Trains network on training_image_set"""
@@ -194,7 +231,8 @@ class ConvNetCnv2Fc1(object):
         for step_no in range(n_epochs):
             # Dipslay progress if necessary
             if step_no % display_every_n == 0:
-                self.test(training_image_set, step_no, t_start, m_samples)
+                self.report_progress_accuracy( training_image_set,
+                                                step_no, t_start, m_samples)
 
             # Train the network on m samples and labels
             samples,labels = \
@@ -203,6 +241,16 @@ class ConvNetCnv2Fc1(object):
             self.sess.run( self.train_step, feed_dict={ self.x: samples,
                 self.y_trgt: labels, self.fc1_keep_prob: self.fc1_dropout } )
             print('.', end="", flush=True)
+            
         # Dipslay final performance
-        self.test(training_image_set, step_no, t_start, m_samples=1000)
+        self.report_F1(training_image_set, 1000)
         print("\n")
+
+    def load_network_parameters(self, file_name, file_path='.'):
+        saver.restore(sess, path.join(file_path+'.nnprm',file_name))
+        print('  -> Loaded network parameters from file: {}'.format(
+                                            path.join(file_path,file_name)))
+
+    def save_network_parameters(self, file_name, file_path='.'):
+        save_path = saver.save(sess, path.join(file_path+'.nnprm',file_name))
+        print('  -> Network parameters saved in file: {}'.format(save_path))
