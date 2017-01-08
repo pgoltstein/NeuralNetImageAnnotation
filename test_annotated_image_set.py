@@ -23,7 +23,7 @@ Created on Fri Jan  6 16:38:41 2017
 
 an_im_nr = 1
 im_ch_nr = 0
-ann_nr = 13
+ann_nr = 24
 
 [im,zm] = ai_list[an_im_nr].annotation[ann_nr].morphed_zoom( 
             ai_list[an_im_nr].channel[im_ch_nr],rotation=00)

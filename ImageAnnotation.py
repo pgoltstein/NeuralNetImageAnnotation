@@ -33,14 +33,20 @@ from scipy.io import loadmat,savemat
 from os import path
 import glob
 
+
+########################################################################
+### Constants
+########################################################################
+
+DEFAULT_ZOOM = (33,33)
+
+
 ########################################################################
 ### Class Annotation
 ########################################################################
 
 class Annotation(object):
     """Class that holds an individual image annotation"""
-
-    DEFAULT_ZOOM = (27,27)
 
     def __init__(self,body_pixels_yx,annotation_name,type_nr=1,group_nr=None):
         """Initialize.
@@ -305,6 +311,41 @@ class AnnotatedImage(object):
                         dilation_factor=dilation_factor, mask_value=mask_value)
         return annotated_centroids
 
+    def zoom(self, y, x, zoom_size=DEFAULT_ZOOM ):
+        """Returns an image list, cropped to an area of tuple/list zoom_size
+            around coordinates x and y
+        zoom_size: (y size, x size), accepts only uneven numbers"""
+        assert zoom_size[0] % 2 and zoom_size[1] % 2, \
+            "zoom_size cannot contain even numbers: (%r,%r)" % zoom_size
+        top_y  = np.int16( 1 + y - ((zoom_size[0]+1) / 2) )
+        left_x = np.int16( 1 + x - ((zoom_size[1]+1) / 2) )
+        ix_y = top_y + list(range( 0, zoom_size[0] ))
+        ix_x = left_x + list(range( 0, zoom_size[1] ))
+        zoom_list = []
+        for ch in range(self.n_channels):
+            zoom_list.append(self.channel[ch][ np.ix_(ix_y,ix_x) ])
+        return zoom_list
+
+    def zoom_1d(self, y, x, zoom_size=DEFAULT_ZOOM ):
+        """Returns an single image vector, cropped to an area of tuple/list
+            zoom_size around coordinates x & y, with all channels concatenated
+        zoom_size: (y size, x size), accepts only uneven numbers"""
+        zoom_list = self.zoom( y, x, zoom_size=zoom_size )
+        return self.image_list_2d_to_1d( zoom_list )
+
+    def image_list_2d_to_1d( self, image_list ):
+        zoom_list_1d = []
+        for ch in range(self.n_channels):
+            zoom_list_1d.append(image_list[ch].ravel())
+        return np.concatenate( zoom_list_1d )
+
+    def image_list_1d_to_2d( self, lin_im, image_size=DEFAULT_ZOOM ):
+        channels = np.split( lin_im, self.n_channels )
+        image_list = []
+        for ch in range(self.n_channels):
+            image_list.append( np.reshape( channels[ch], image_size ) )
+        return image_list
+
     def export_annotations_to_mat(self,file_name,file_path='.'):
         """Writes annotations to ROI_py.mat file"""
         roi_list = []
@@ -338,6 +379,67 @@ class AnnotatedImage(object):
         combined_annotated_image['image_data'] = self.channel
         combined_annotated_image['annotation_data'] = self.annotation
         np.save(path.join(file_path,file_name), combined_annotated_image)
+
+    def centroid_detection_training_batch( self, m_samples=100,
+                                           zoom_size=DEFAULT_ZOOM ):
+        """Returns a 2d matrix (m samples x n pixels) with linearized data
+            half of which is from within a centroid, and half from outside"""
+        # Calculate number of positive and negative samples
+        m_samples_pos = np.int16( m_samples * (0.5) )
+        m_samples_neg = m_samples - m_samples_pos
+
+        # Calculate size of image, and zoom
+        (y_len,x_len) = self.channel[0].shape
+        zoom_half_y = np.int16(zoom_size[0] / 2)
+        zoom_half_x = np.int16(zoom_size[0] / 2)
+
+        # Get coordinates of pixels within and outside of centroids
+        (pix_x,pix_y) = np.meshgrid( np.arange(y_len),np.arange(x_len) )
+        im_label = self.centroids( dilation_factor=1, mask_value=1)
+        roi_positive_x = pix_x.ravel()[im_label.ravel() == 1]
+        roi_positive_y = pix_y.ravel()[im_label.ravel() == 1]
+        roi_negative_x = pix_x.ravel()[im_label.ravel() == 0]
+        roi_negative_y = pix_y.ravel()[im_label.ravel() == 0]
+
+        # Exclude all pixels that are within half-zoom from the border
+        roi_positive_inclusion = np.logical_and( np.logical_and(
+            roi_positive_x>zoom_half_x, roi_positive_x<(x_len-zoom_half_x) ),
+            roi_positive_y>zoom_half_y, roi_positive_y<(y_len-zoom_half_y) )
+        roi_positive_x = roi_positive_x[ roi_positive_inclusion ]
+        roi_positive_y = roi_positive_y[ roi_positive_inclusion ]
+        roi_negative_inclusion = np.logical_and( np.logical_and( np.logical_and(
+            roi_negative_x>zoom_half_x, roi_negative_x<(x_len-(zoom_half_x)) ),
+            roi_negative_y>zoom_half_y ), roi_negative_y<(y_len-(zoom_half_y)) )
+        roi_negative_x = roi_negative_x[ roi_negative_inclusion ]
+        roi_negative_y = roi_negative_y[ roi_negative_inclusion ]
+
+        # Get list of random indices for pixel coordinates
+        random_pos = np.random.choice( len(roi_positive_x),
+                                        m_samples_pos, replace=False )
+        random_neg = np.random.choice( len(roi_negative_x),
+                                        m_samples_neg, replace=False )
+
+        # Predefine output matrices
+        samples = np.zeros( (m_samples,
+            self.n_channels*zoom_size[0]*zoom_size[1]) )
+        labels = np.zeros( (m_samples, 2) )
+        count = 0
+
+        # Positive examples
+        for p in random_pos:
+            samples[count,:] = self.zoom_1d(
+                roi_positive_y[p], roi_positive_x[p], zoom_size )
+            labels[count,1] = 1
+            count = count + 1
+
+        # Negative examples
+        for p in random_neg:
+            samples[count,:] = self.zoom_1d(
+                roi_negative_y[p], roi_negative_x[p], zoom_size )
+            labels[count,0] = 1
+            count = count + 1
+
+        return samples,labels
 
 
 ########################################################################

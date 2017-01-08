@@ -23,8 +23,8 @@ filepath = '/Users/pgoltstein/Dropbox/TEMP'
 roifile = 'F03-Loc5-V1-20160209-ROI2.mat'
 imfile = 'F03-Loc5-V1-20160209-OverlayL2.tiff'
 
-#anim.import_annotations_from_mat(file_name=roifile,file_path=filepath)
-anim.import_annotations_from_mat(file_name='0test_rois.mat',file_path=filepath)
+anim.import_annotations_from_mat(file_name=roifile,file_path=filepath)
+#anim.import_annotations_from_mat(file_name='0test_rois.mat',file_path=filepath)
 print(anim)
 
 anim.add_image_from_file(file_name=imfile,file_path=filepath)
@@ -36,10 +36,25 @@ plt.imshow(anim.channel[0],interpolation='nearest')
 plt.figure()
 plt.imshow(anim.bodies(),interpolation='nearest')
 
-image = anim.channel[0]
-image[anim.centroids(dilation_factor=5)==1]=0
-plt.figure()
-plt.imshow(image,interpolation='nearest')
+ims = anim.zoom(114,213)
+_, ax = plt.subplots(1,len(ims))
+for nr,im in enumerate(ims):
+    ax[nr].imshow(im,interpolation='nearest')
+
+lin_im = anim.zoom_1d(114,213)
+
+ims = anim.image_list_1d_to_2d( lin_im )
+_, ax = plt.subplots(1,len(ims))
+for nr,im in enumerate(ims):
+    ax[nr].imshow(im,interpolation='nearest')
+
+samples,labels = anim.centroid_detection_training_batch( m_samples=100 )
+    
+#image = anim.channel[0]
+#image[anim.centroids(dilation_factor=5)==1]=0
+#plt.figure()
+#plt.imshow(image,interpolation='nearest')
+
 
 #anim.export_annotations_to_mat(file_name='0test_rois',file_path=filepath)
 
@@ -47,13 +62,13 @@ plt.imshow(image,interpolation='nearest')
 #mat_data2 = loadmat(os.path.join(filepath,roifile))
 
 
-anim2 = ia.AnnotatedImage()
-print(anim2)
-
-filepath = '/Users/pgoltstein/Dropbox/TEMP'
-roifile = 'F03-Loc5-V1-20160209-ROI2.mat'
-imfile = 'F03-Loc5-V1-20160209-OverlayL2.tiff'
-
-anim2.import_annotations_from_mat(file_name=roifile,file_path=filepath)
+#anim2 = ia.AnnotatedImage()
+#print(anim2)
+#
+#filepath = '/Users/pgoltstein/Dropbox/TEMP'
+#roifile = 'F03-Loc5-V1-20160209-ROI2.mat'
+#imfile = 'F03-Loc5-V1-20160209-OverlayL2.tiff'
+#
+#anim2.import_annotations_from_mat(file_name=roifile,file_path=filepath)
 
 
