@@ -173,29 +173,13 @@ class ConvNetCnv2Fc1(object):
         self.sess = tf.Session()
         self.sess.run(init)
 
-    def report_progress_accuracy(self, test_image_set,
-                                    step_no, t_start, m_samples=100):
-        """Report progress and accuracy on single line"""
-        # Get m samples and labels from a single AnnotatedImage
-        samples,labels = \
-            test_image_set.centroid_detection_sample(
-                m_samples=m_samples, zoom_size=(self.y_res,self.y_res) )
-
-        # Calculate network accuracy
-        result = self.sess.run( [self.accuracy], feed_dict={
-            self.x: samples, self.y_trgt: labels,
-            self.fc1_keep_prob: 1.0 })
-        acc = result[0]
-        t_curr = time.time()
-        print('\nStep {:4d}: Acc = {:6.4f} (t={})'.format( step_no, acc,
-            str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
-            end="", flush=True)
-
-    def report_F1(self, test_image_set, m_samples=100):
+    def report_F1(self, test_image_set, annotation_type='Bodies',
+                    dilation_factor=-3, m_samples=100):
         """Report accuracy, precision, recall and F1 score"""
         # Get m samples and labels from a single AnnotatedImage
         samples,labels = \
-            test_image_set.centroid_detection_sample(
+            test_image_set.annotation_detection_sample(
+                annotation_type=annotation_type, dilation_factor=dilation_factor,
                 m_samples=m_samples, zoom_size=(self.y_res,self.y_res) )
 
         # Calculate network accuracy
@@ -221,27 +205,46 @@ class ConvNetCnv2Fc1(object):
         print(' - Recall = {:6.4f}'.format( final_recall ))
         print(' - F1-score = {:6.4f}'.format( final_F1 ))
 
-    def train(self, training_image_set, m_samples=100, n_epochs=100,
-                    display_every_n=10):
+    def report_progress_accuracy(self, samples, labels, batch_no, t_start):
+        """Report progress and accuracy on single line"""
+        result = self.sess.run( [self.accuracy], feed_dict={
+            self.x: samples, self.y_trgt: labels,
+            self.fc1_keep_prob: 1.0 })
+        acc = result[0]
+        t_curr = time.time()
+        print('\nBatch no {:4d}: Acc = {:6.4f} (t={})'.format( batch_no, acc,
+            str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
+            end="", flush=True)
+
+    def train(self, training_image_set,
+            annotation_type='Bodies', dilation_factor=-3,
+            batch_size=1000, m_samples=100, n_batches=10, n_epochs=100):
         """Trains network on training_image_set"""
         t_start = time.time()
         print("\nStart training network @ {}".format(
             str(datetime.timedelta(seconds=np.round(t_start))) ) )
 
         # Loop across training epochs
-        for step_no in range(n_epochs):
-            # Dipslay progress if necessary
-            if step_no % display_every_n == 0:
-                self.report_progress_accuracy( training_image_set,
-                                                step_no, t_start, m_samples)
+        for batch_no in range(n_batches):
 
-            # Train the network on m samples and labels
-            samples,labels = \
-                training_image_set.centroid_detection_sample(
-                    m_samples=m_samples, zoom_size=(self.y_res,self.y_res) )
-            self.sess.run( self.train_step, feed_dict={ self.x: samples,
-                self.y_trgt: labels, self.fc1_keep_prob: self.fc1_dropout } )
-            print('.', end="", flush=True)
+            # Get batch of samples and labels
+            samples,labels = training_image_set.annotation_detection_sample(
+                annotation_type=annotation_type, dilation_factor=dilation_factor,
+                m_samples=batch_size, zoom_size=(self.y_res,self.y_res) )
+
+            # Report progress at start of training
+            self.report_progress_accuracy( samples, labels, batch_no, t_start)
+
+            # Train the network on subsets of m_samples
+            for epoch_no in range(n_epochs):
+                sample_ixs = np.random.choice(
+                                batch_size, m_samples, replace=False )
+                epoch_samples = samples[ sample_ixs, : ]
+                epoch_labels = labels[ sample_ixs, : ]
+                self.sess.run( self.train_step, feed_dict={
+                    self.x: epoch_samples, self.y_trgt: epoch_labels,
+                    self.fc1_keep_prob: self.fc1_dropout } )
+                print('.', end="", flush=True)
 
     def load_network_parameters(self, file_name, file_path='.'):
         self.saver.restore( self.sess,

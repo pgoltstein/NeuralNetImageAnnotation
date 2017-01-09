@@ -373,10 +373,10 @@ class AnnotatedImage(object):
         combined_annotated_image['annotation_data'] = self.annotation
         np.save(path.join(file_path,file_name), combined_annotated_image)
 
-    def centroid_detection_training_batch( self, m_samples=100,
-                                           zoom_size=DEFAULT_ZOOM ):
+    def annotation_detection_training_batch( self, annotation_type='Bodies',
+            m_samples=100, zoom_size=DEFAULT_ZOOM, dilation_factor=-3 ):
         """Returns a 2d matrix (m samples x n pixels) with linearized data
-            half of which is from within a centroid, and half from outside"""
+            half of which is from within an annotation, and half from outside"""
         # Calculate number of positive and negative samples
         m_samples_pos = np.int16( m_samples * (0.5) )
         m_samples_neg = m_samples - m_samples_pos
@@ -388,7 +388,12 @@ class AnnotatedImage(object):
 
         # Get coordinates of pixels within and outside of centroids
         (pix_x,pix_y) = np.meshgrid( np.arange(y_len),np.arange(x_len) )
-        im_label = self.centroids( dilation_factor=1, mask_value=1)
+        if annotation_type.lower() == 'centroid':
+            im_label = self.centroids(
+                dilation_factor=dilation_factor, mask_value=1 )
+        elif annotation_type.lower() == 'bodies':
+            im_label = self.bodies(
+                dilation_factor=dilation_factor, mask_value=1 )
         roi_positive_x = pix_x.ravel()[im_label.ravel() == 1]
         roi_positive_y = pix_y.ravel()[im_label.ravel() == 1]
         roi_negative_x = pix_x.ravel()[im_label.ravel() == 0]
@@ -459,8 +464,9 @@ class AnnotatedImageSet(object):
         """Returns the (read-only) entire data set"""
         return self._an_im_list
 
-    def centroid_detection_sample(self, m_samples=100, zoom_size=DEFAULT_ZOOM):
-        """Return a random sample of centroid data"""
+    def annotation_detection_sample(self, annotation_type='bodies',
+            m_samples=100, zoom_size=DEFAULT_ZOOM, dilation_factor=-3 ):
+        """Return a random sample of annotation data"""
         n_pix_lin = self._an_im_list[0].n_channels * zoom_size[0] * zoom_size[1]
         m_set_samples_list = np.round( np.linspace( 0, m_samples,
             self.n_annot_images+1 ) )
@@ -469,8 +475,9 @@ class AnnotatedImageSet(object):
         for s in range(self.n_annot_images):
             m_set_samples = int(m_set_samples_list[s+1]-m_set_samples_list[s])
             s_samples,s_labels = \
-                self._an_im_list[s].centroid_detection_training_batch(
-                    m_samples=m_set_samples, zoom_size=zoom_size )
+                self._an_im_list[s].annotation_detection_training_batch(
+                    annotation_type=annotation_type, m_samples=m_set_samples,
+                    zoom_size=zoom_size, dilation_factor=1 )
             samples[int(m_set_samples_list[s]):int(m_set_samples_list[s+1]),:] \
                 = s_samples
             labels[int(m_set_samples_list[s]):int(m_set_samples_list[s+1]),:] \
