@@ -258,12 +258,16 @@ class AnnotatedImage(object):
     def add_image_from_file(self,file_name,file_path='.'):
         """Loads image and adds it as a new extra channel"""
         im = np.float64(imread(path.join(file_path,file_name)))
+        # Perform normalization and add to channels
         if im.ndim == 3:
             n_channels = np.size(im,axis=2)
             for ch in range(n_channels):
-                self.channel.append(im[:,:,ch])
+                im_x = im[:,:,ch]
+                im_norm = im_x / im_x.max()
+                self.channel.append(im_norm)
         else:
-            self.channel.append(im)
+            im_norm = im / im.max()
+            self.channel.append(im_norm)
 
     def import_annotations_from_mat(self,file_name,file_path='.'):
         """Reads data from ROI.mat file and fills the annotation_list"""
