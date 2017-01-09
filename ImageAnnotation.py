@@ -136,7 +136,7 @@ class Annotation(object):
         else:
             # Draw mask on temp image, dilate, get pixels, then draw in image
             temp_mask = np.zeros_like(image,dtype=bool)
-            temp_mask[ np.ix_(self._body[:,0],self._body[:,1]) ] = True
+            temp_mask[ self._body[:,0],self._body[:,1] ] = True
             if dilation_factor>0:
                 for _ in range(dilation_factor):
                     temp_mask = ndimage.binary_dilation(temp_mask)
@@ -210,6 +210,8 @@ class Annotation(object):
         if noise_level:
             noise_mask = np.random.normal(size=temp_zoom.shape) * noise_level
             temp_zoom = temp_zoom + noise_mask
+            temp_zoom[temp_zoom<0] = 0
+            temp_zoom[temp_zoom>1] = 1
 
         # Make mask 0 or 1
         temp_ann[temp_ann<0.5] = 0
@@ -238,8 +240,16 @@ class AnnotatedImage(object):
         """Initialize.
             channel    = list or tuple of same size images
             annotation = list or tuple of Annotation objects"""
-        self.channel = image_data
-        self.annotation = annotation_data
+        if not image_data:
+            self.channel = []
+            self._expanded_channel = []
+        else:
+            self.channel = list(image_data)
+            self._expanded_channel = list(image_data)
+        if not annotation_data:
+            self.annotation = []
+        else:
+            self.annotation = list(annotation_data)
 
     def __str__(self):
         return "AnnotatedImage (n_channels={:.0f}, n_annotations={:.0f}" \
@@ -265,9 +275,19 @@ class AnnotatedImage(object):
                 im_x = im[:,:,ch]
                 im_norm = im_x / im_x.max()
                 self.channel.append(im_norm)
+                y_res,x_res = im_norm.shape
+                temp_im = np.append( im_norm, np.zeros((y_res,x_res)), axis=0)
+                y_res,x_res = temp_im.shape
+                temp_im = np.append( temp_im, np.zeros((y_res,x_res)), axis=1)
+                self._expanded_channel.append( temp_im )
         else:
             im_norm = im / im.max()
             self.channel.append(im_norm)
+            y_res,x_res = im_norm.shape
+            temp_im = np.append( im_norm, np.ones((y_res,x_res)), axis=0)
+            y_res,x_res = temp_im.shape
+            temp_im = np.append( temp_im, np.ones((y_res,x_res)), axis=1)
+            self._expanded_channel.append( temp_im )
 
     def import_annotations_from_mat(self,file_name,file_path='.'):
         """Reads data from ROI.mat file and fills the annotation_list"""
@@ -310,7 +330,7 @@ class AnnotatedImage(object):
                         dilation_factor=dilation_factor, mask_value=mask_value)
         return annotated_centroids
 
-    def zoom(self, y, x, zoom_size=DEFAULT_ZOOM ):
+    def zoom(self, y, x, source=None, zoom_size=DEFAULT_ZOOM ):
         """Returns an image list, cropped to an area of tuple/list zoom_size
             around coordinates x and y
         zoom_size: (y size, x size)"""
@@ -320,14 +340,74 @@ class AnnotatedImage(object):
         ix_x = left_x + list(range( 0, zoom_size[1] ))
         zoom_list = []
         for ch in range(self.n_channels):
-            zoom_list.append(self.channel[ch][ np.ix_(ix_y,ix_x) ])
+            if source is None:
+                zoom_list.append(self._expanded_channel[ch][ np.ix_(ix_y,ix_x) ])
+            else:
+                zoom_list.append(source[ np.ix_(ix_y,ix_x) ])
         return zoom_list
 
-    def zoom_1d(self, y, x, zoom_size=DEFAULT_ZOOM ):
+    def morphed_zoom(self, y, x, source=None, zoom_size=DEFAULT_ZOOM,
+                            rotation=0, scale_xy=(1,1), noise_level=0 ):
+        """Crops image to area of tuple/list zoom_size around x,y coordinates
+        zoom_size:   (y size, x size)
+        rotation:    Rotation of annotation in degrees (0-360 degrees)
+        scale_xy:    Determines fractional scaling on x/y axis.
+                     Min-Max = (0.5,0.5) - (2,2)
+        noise_level: Level of random noise
+        source:      None for using the 'image channels', or np.ndarray()
+        returns morped_zoom"""
+
+        # Get large, annotation centered, zoom image
+        temp_zoom_size = (zoom_size[0]*4+1,zoom_size[1]*4+1)
+        temp_zoom = self.zoom( y, x, source=source, zoom_size=temp_zoom_size )
+
+        # Rotate
+        if rotation != 0:
+            for ch in range(self.n_channels):
+                temp_zoom[ch] = ndimage.interpolation.rotate(temp_zoom[ch],
+                                rotation, reshape=False)
+
+        # Scale
+        if scale_xy[0] != 1 or scale_xy[1] != 1:
+            for ch in range(self.n_channels):
+                temp_zoom[ch] = ndimage.interpolation.zoom( temp_zoom[ch], scale_xy )
+            temp_zoom_size = temp_zoom[0].shape
+
+        # Add noise
+        if noise_level:
+            for ch in range(self.n_channels):
+                noise_mask = np.random.normal(scale=noise_level,
+                                              size=temp_zoom[ch].shape)
+                temp_zoom[ch] = temp_zoom[ch] + noise_mask
+                temp_zoom[ch][temp_zoom[ch]<0] = 0
+                temp_zoom[ch][temp_zoom[ch]>1] = 1
+
+        # Cut out real zoom image from center of temp_zoom
+        mid_y = np.int16(temp_zoom_size[0] / 2)
+        mid_x = np.int16(temp_zoom_size[1] / 2)
+        top_y  = np.int16( np.round( 1 + mid_y - (zoom_size[0] / 2) ) )
+        left_x = np.int16( np.round( 1 + mid_x - (zoom_size[1] / 2) ) )
+        ix_y = top_y + list(range( 0, zoom_size[0] ))
+        ix_x = left_x + list(range( 0, zoom_size[1] ))
+        final_zoom_list = []
+        for ch in range(self.n_channels):
+            final_zoom_list.append(temp_zoom[ch][ np.ix_(ix_y,ix_x) ])
+        return final_zoom_list
+
+    def zoom_1d(self, y, x, source=None, zoom_size=DEFAULT_ZOOM ):
         """Returns an single image vector, cropped to an area of tuple/list
             zoom_size around coordinates x & y, with all channels concatenated
         zoom_size: (y size, x size), accepts only uneven numbers"""
-        zoom_list = self.zoom( y, x, zoom_size=zoom_size )
+        zoom_list = self.zoom( y, x, source=source, zoom_size=zoom_size )
+        return self.image_list_2d_to_1d( zoom_list )
+
+    def morphed_zoom_1d(self, y, x, source=None, zoom_size=DEFAULT_ZOOM, rotation=0,
+                    scale_xy=(1,1), noise_level=0):
+        """Returns an single image vector, cropped to an area of tuple/list
+            zoom_size around coordinates x & y, with all channels concatenated
+        zoom_size: (y size, x size), accepts only uneven numbers"""
+        zoom_list = self.morphed_zoom( y, x, source=source, zoom_size=zoom_size,
+            rotation=rotation, scale_xy=scale_xy, noise_level=noise_level )
         return self.image_list_2d_to_1d( zoom_list )
 
     def image_list_2d_to_1d( self, image_list ):
@@ -342,6 +422,63 @@ class AnnotatedImage(object):
         for ch in range(self.n_channels):
             image_list.append( np.reshape( channels[ch], image_size ) )
         return image_list
+
+    def image_list_1d_to_RGB( self, lin_im,
+                        channel_order=(0,1,2), image_size=DEFAULT_ZOOM,
+                        amplitude_scaling=(1,1,1) ):
+        channels = np.split( lin_im, self.n_channels )
+        image_list = []
+        for ch in range(self.n_channels):
+            scaled_im = channels[ch] * amplitude_scaling[ch]
+            scaled_im[scaled_im>1]=1
+            image_list.append( np.reshape( scaled_im, image_size ) )
+        RGB = np.zeros((image_size[0],image_size[1],3))
+        for ch in range(3):
+            RGB[:,:,channel_order[ch]] = image_list[ch]
+        return RGB
+
+    def image_grid_RGB( self, lin_im_mat, n_x=10, n_y=6,
+                        channel_order=(0,1,2), image_size=DEFAULT_ZOOM,
+                        amplitude_scaling=(1.33,1.33,1), line_color=0 ):
+        """Returns am RGB grid with images"""
+
+        # Get indices of images to show
+        n_images,_ = lin_im_mat.shape
+        if n_images < n_x*n_y:
+            im_ix = list(range(n_images))
+        else:
+            im_ix = np.random.choice( n_images, n_x*n_y, replace=False )
+
+        # Get coordinates of where images will go
+        y_coords = []
+        offset = 0
+        for i in range(n_y):
+            offset = i * (image_size[0] + 1)
+            y_coords.append(offset+np.array(range(image_size[0])))
+        max_y = np.max(y_coords[i]) + 1
+        x_coords = []
+        offset = 0
+        for i in range(n_x):
+            offset = i * (image_size[1] + 1)
+            x_coords.append(offset+np.array(range(image_size[1])))
+        max_x = np.max(x_coords[i]) + 1
+        rgb_coords = np.array(list(range(3)))
+
+        # Fill grid
+        im_count = 0
+        grid = np.zeros((max_y,max_x,3))+line_color
+        for y in range(n_y):
+            for x in range(n_x):
+                if im_count < n_images:
+                    rgb_im = self.image_list_1d_to_RGB(
+                            lin_im_mat[ im_ix[ im_count ], : ],
+                            channel_order=channel_order, image_size=image_size,
+                            amplitude_scaling=amplitude_scaling )
+                    grid[np.ix_(y_coords[y],x_coords[x],rgb_coords)] = rgb_im
+                else:
+                    break
+                im_count += 1
+        return grid
 
     def export_annotations_to_mat(self,file_name,file_path='.'):
         """Writes annotations to ROI_py.mat file"""
@@ -378,7 +515,8 @@ class AnnotatedImage(object):
         np.save(path.join(file_path,file_name), combined_annotated_image)
 
     def annotation_detection_training_batch( self, annotation_type='Bodies',
-            m_samples=100, zoom_size=DEFAULT_ZOOM, dilation_factor=-3 ):
+            m_samples=100, zoom_size=DEFAULT_ZOOM, dilation_factor=-3,
+            exclude_border=(0,0,0,0), morph_annotations=False ):
         """Returns a 2d matrix (m samples x n pixels) with linearized data
             half of which is from within an annotation, and half from outside"""
         # Calculate number of positive and negative samples
@@ -387,8 +525,8 @@ class AnnotatedImage(object):
 
         # Calculate size of image, and zoom
         (y_len,x_len) = self.channel[0].shape
-        zoom_half_y = np.int16(zoom_size[0] / 2)
-        zoom_half_x = np.int16(zoom_size[0] / 2)
+        # zoom_half_y = np.int16(zoom_size[0] / 2)
+        # zoom_half_x = np.int16(zoom_size[0] / 2)
 
         # Get coordinates of pixels within and outside of centroids
         (pix_x,pix_y) = np.meshgrid( np.arange(y_len),np.arange(x_len) )
@@ -403,17 +541,17 @@ class AnnotatedImage(object):
         roi_negative_x = pix_x.ravel()[im_label.ravel() == 0]
         roi_negative_y = pix_y.ravel()[im_label.ravel() == 0]
 
-        # Exclude all pixels that are within half-zoom from the border
-        roi_positive_inclusion = np.logical_and( np.logical_and( np.logical_and(
-            roi_positive_x>zoom_half_x, roi_positive_x<(x_len-(zoom_half_x+1)) ),
-            roi_positive_y>zoom_half_y ), roi_positive_y<(y_len-(zoom_half_y+1)) )
-        roi_positive_x = roi_positive_x[ roi_positive_inclusion ]
-        roi_positive_y = roi_positive_y[ roi_positive_inclusion ]
-        roi_negative_inclusion = np.logical_and( np.logical_and( np.logical_and(
-            roi_negative_x>zoom_half_x, roi_negative_x<(x_len-(zoom_half_x+1)) ),
-            roi_negative_y>zoom_half_y ), roi_negative_y<(y_len-(zoom_half_y+1)) )
-        roi_negative_x = roi_negative_x[ roi_negative_inclusion ]
-        roi_negative_y = roi_negative_y[ roi_negative_inclusion ]
+        # # Exclude all pixels that are within half-zoom from the border
+        # roi_positive_inclusion = np.logical_and( np.logical_and( np.logical_and(
+        #     roi_positive_x>zoom_half_x, roi_positive_x<(x_len-(zoom_half_x+1)) ),
+        #     roi_positive_y>zoom_half_y ), roi_positive_y<(y_len-(zoom_half_y+1)) )
+        # roi_positive_x = roi_positive_x[ roi_positive_inclusion ]
+        # roi_positive_y = roi_positive_y[ roi_positive_inclusion ]
+        # roi_negative_inclusion = np.logical_and( np.logical_and( np.logical_and(
+        #     roi_negative_x>zoom_half_x, roi_negative_x<(x_len-(zoom_half_x+1)) ),
+        #     roi_negative_y>zoom_half_y ), roi_negative_y<(y_len-(zoom_half_y+1)) )
+        # roi_negative_x = roi_negative_x[ roi_negative_inclusion ]
+        # roi_negative_y = roi_negative_y[ roi_negative_inclusion ]
 
         # Get list of random indices for pixel coordinates
         random_pos = np.random.choice( len(roi_positive_x),
@@ -424,24 +562,66 @@ class AnnotatedImage(object):
         # Predefine output matrices
         samples = np.zeros( (m_samples,
             self.n_channels*zoom_size[0]*zoom_size[1]) )
+        if morph_annotations:
+            y_res,x_res = im_label.shape
+            im_label = np.append( im_label, np.zeros((y_res,x_res)), axis=0)
+            y_res,x_res = im_label.shape
+            im_label = np.append( im_label, np.zeros((y_res,x_res)), axis=1)
+            annotations = np.zeros( (m_samples,
+                self.n_channels*zoom_size[0]*zoom_size[1]) )
         labels = np.zeros( (m_samples, 2) )
         count = 0
 
         # Positive examples
         for p in random_pos:
-            samples[count,:] = self.zoom_1d(
-                roi_positive_y[p], roi_positive_x[p], zoom_size )
+            if not morph_annotations:
+                samples[count,:] = self.zoom_1d(
+                    roi_positive_y[p], roi_positive_x[p], zoom_size=zoom_size )
+            else:
+                rotation = np.random.randint(0,359)
+                # scale = ( np.random.randint(950,1050) / 1000,
+                #           np.random.randint(950,1050) / 1000 )
+                # noise_level = np.random.randint(0,50) / 1000
+                # rotation = 0
+                scale = ( 1, 1 )
+                noise_level = 0
+                samples[count,:] = self.morphed_zoom_1d(
+                    roi_positive_y[p], roi_positive_x[p], zoom_size=zoom_size,
+                    rotation=rotation, scale_xy=scale, noise_level=noise_level )
+                annotations[count,:] = self.morphed_zoom_1d( roi_positive_y[p],
+                    roi_positive_x[p], source=im_label, zoom_size=zoom_size,
+                    rotation=rotation, scale_xy=scale, noise_level=noise_level )
             labels[count,1] = 1
             count = count + 1
 
         # Negative examples
         for p in random_neg:
-            samples[count,:] = self.zoom_1d(
-                roi_negative_y[p], roi_negative_x[p], zoom_size )
+            if not morph_annotations:
+                samples[count,:] = self.zoom_1d(
+                    roi_negative_y[p], roi_negative_x[p], zoom_size=zoom_size )
+            else:
+                rotation = np.random.randint(0,359)
+                # scale = ( np.random.randint(950,1050) / 1000,
+                #           np.random.randint(950,1050) / 1000 )
+                # noise_level = np.random.randint(0,50) / 1000
+                # rotation = 0
+                scale = ( 1, 1 )
+                noise_level = 0
+                samples[count,:] = self.morphed_zoom_1d( roi_negative_y[p],
+                    roi_negative_x[p], source=None, zoom_size=zoom_size,
+                    rotation=rotation, scale_xy=scale, noise_level=noise_level )
+                annotations[count,:] = self.morphed_zoom_1d( roi_negative_y[p],
+                    roi_negative_x[p], source=im_label, zoom_size=zoom_size,
+                    rotation=rotation, scale_xy=scale, noise_level=noise_level )
             labels[count,0] = 1
             count = count + 1
 
-        return samples,labels
+        if not morph_annotations:
+            return samples,labels
+        else:
+            annotations[annotations<0.5]=0
+            annotations[annotations>=0.5]=1
+            return samples,labels,annotations
 
 
 ########################################################################
@@ -453,7 +633,7 @@ class AnnotatedImageSet(object):
     the dataset for feeding in machine learning algorithms"""
 
     def __init__(self):
-        self._an_im_list = []
+        self.ai_list = []
 
     def __str__(self):
         return "AnnotatedImageSet (# Annotated Images = {:.0f}" \
@@ -461,17 +641,13 @@ class AnnotatedImageSet(object):
 
     @property
     def n_annot_images(self):
-        return len(self._an_im_list)
-
-    @property
-    def full_data_set(self):
-        """Returns the (read-only) entire data set"""
-        return self._an_im_list
+        return len(self.ai_list)
 
     def annotation_detection_sample(self, annotation_type='bodies',
-            m_samples=100, zoom_size=DEFAULT_ZOOM, dilation_factor=-3 ):
+            m_samples=100, zoom_size=DEFAULT_ZOOM, dilation_factor=-3,
+            morph_annotations=False ):
         """Return a random sample of annotation data"""
-        n_pix_lin = self._an_im_list[0].n_channels * zoom_size[0] * zoom_size[1]
+        n_pix_lin = self.ai_list[0].n_channels * zoom_size[0] * zoom_size[1]
         m_set_samples_list = np.round( np.linspace( 0, m_samples,
             self.n_annot_images+1 ) )
         samples = np.zeros( (m_samples, n_pix_lin) )
@@ -479,9 +655,10 @@ class AnnotatedImageSet(object):
         for s in range(self.n_annot_images):
             m_set_samples = int(m_set_samples_list[s+1]-m_set_samples_list[s])
             s_samples,s_labels = \
-                self._an_im_list[s].annotation_detection_training_batch(
+                self.ai_list[s].annotation_detection_training_batch(
                     annotation_type=annotation_type, m_samples=m_set_samples,
-                    zoom_size=zoom_size, dilation_factor=1 )
+                    zoom_size=zoom_size, dilation_factor=dilation_factor,
+                    morph_annotations=morph_annotations )
             samples[int(m_set_samples_list[s]):int(m_set_samples_list[s+1]),:] \
                 = s_samples
             labels[int(m_set_samples_list[s]):int(m_set_samples_list[s+1]),:] \
@@ -501,4 +678,4 @@ class AnnotatedImageSet(object):
             anim = AnnotatedImage(image_data=[], annotation_data=[])
             anim.add_image_from_file(tiff_filename,tiff_filepath)
             anim.import_annotations_from_mat(mat_filename,mat_filepath)
-            self._an_im_list.append(anim)
+            self.ai_list.append(anim)

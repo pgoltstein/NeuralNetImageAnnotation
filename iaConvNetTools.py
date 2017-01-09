@@ -15,6 +15,7 @@ Contains functions that set up a convolutional neural net for image annotation
 
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 import time, datetime
 from os import path
 
@@ -173,48 +174,16 @@ class ConvNetCnv2Fc1(object):
         self.sess = tf.Session()
         self.sess.run(init)
 
-    def report_F1(self, test_image_set, annotation_type='Bodies',
-                    dilation_factor=-3, m_samples=100):
-        """Report accuracy, precision, recall and F1 score"""
-        # Get m samples and labels from a single AnnotatedImage
-        samples,labels = \
-            test_image_set.annotation_detection_sample(
-                annotation_type=annotation_type, dilation_factor=dilation_factor,
-                m_samples=m_samples, zoom_size=(self.y_res,self.y_res) )
+    def load_network_parameters(self, file_name, file_path='.'):
+        self.saver.restore( self.sess,
+                            path.join(file_path,file_name+'.nnprm'))
+        print('\nLoaded network parameters from file:\n{}'.format(
+                                    path.join(file_path,file_name+'.nnprm')))
 
-        # Calculate network accuracy
-        result = self.sess.run( [self.network_prediction], feed_dict={
-            self.x: samples, self.y_trgt: labels,
-            self.fc1_keep_prob: 1.0 })
-        pred = result[0]
-
-        # Calculate true/false pos/neg
-        true_pos = np.sum( pred[labels[:,1]==1]==1 )
-        false_neg = np.sum( pred[labels[:,1]==1]==0 )
-        true_neg = np.sum( pred[labels[:,1]==0]==0 )
-        false_pos = np.sum( pred[labels[:,1]==0]==1 )
-
-        # Calculate accuracy, precision, recall, F1
-        final_accuracy = (true_pos+true_neg) / len(pred)
-        final_precision = true_pos / (true_pos+false_pos)
-        final_recall = true_pos / (true_pos+false_neg)
-        final_F1 = 2 * ((final_precision*final_recall)/(final_precision+final_recall))
-        print('\nLabeled image set (m={}):'.format(m_samples))
-        print(' - Accuracy = {:6.4f}'.format( final_accuracy ))
-        print(' - Precision = {:6.4f}'.format( final_precision ))
-        print(' - Recall = {:6.4f}'.format( final_recall ))
-        print(' - F1-score = {:6.4f}'.format( final_F1 ))
-
-    def report_progress_accuracy(self, samples, labels, batch_no, t_start):
-        """Report progress and accuracy on single line"""
-        result = self.sess.run( [self.accuracy], feed_dict={
-            self.x: samples, self.y_trgt: labels,
-            self.fc1_keep_prob: 1.0 })
-        acc = result[0]
-        t_curr = time.time()
-        print('\nBatch no {:4d}: Acc = {:6.4f} (t={})'.format( batch_no, acc,
-            str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
-            end="", flush=True)
+    def save_network_parameters(self, file_name, file_path='.'):
+        save_path = self.saver.save( self.sess,
+                                     path.join(file_path,file_name+'.nnprm'))
+        print('\nNetwork parameters saved in file:\n{}'.format(save_path))
 
     def train(self, training_image_set,
             annotation_type='Bodies', dilation_factor=-3,
@@ -246,13 +215,89 @@ class ConvNetCnv2Fc1(object):
                     self.fc1_keep_prob: self.fc1_dropout } )
                 print('.', end="", flush=True)
 
-    def load_network_parameters(self, file_name, file_path='.'):
-        self.saver.restore( self.sess,
-                            path.join(file_path,file_name+'.nnprm'))
-        print('\nLoaded network parameters from file:\n{}'.format(
-                                    path.join(file_path,file_name+'.nnprm')))
+    def report_progress_accuracy(self, samples, labels, batch_no, t_start):
+        """Report progress and accuracy on single line"""
+        result = self.sess.run( [self.accuracy], feed_dict={
+            self.x: samples, self.y_trgt: labels,
+            self.fc1_keep_prob: 1.0 })
+        acc = result[0]
+        t_curr = time.time()
+        print('\nBatch no {:4d}: Acc = {:6.4f} (t={})'.format( batch_no, acc,
+            str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
+            end="", flush=True)
 
-    def save_network_parameters(self, file_name, file_path='.'):
-        save_path = self.saver.save( self.sess,
-                                     path.join(file_path,file_name+'.nnprm'))
-        print('\nNetwork parameters saved in file:\n{}'.format(save_path))
+    def report_F1(self, test_image_set, annotation_type='Bodies',
+                    dilation_factor=-3, m_samples=100, figure='Off'):
+        """Report accuracy, precision, recall and F1 score"""
+        # Get m samples and labels from a single AnnotatedImage
+        samples,labels = \
+            test_image_set.annotation_detection_sample(
+                annotation_type=annotation_type, dilation_factor=dilation_factor,
+                m_samples=m_samples, zoom_size=(self.y_res,self.y_res) )
+
+        # Calculate network accuracy
+        result = self.sess.run( [self.network_prediction], feed_dict={
+            self.x: samples, self.y_trgt: labels,
+            self.fc1_keep_prob: 1.0 })
+        pred = result[0]
+
+        # Calculate true/false pos/neg
+        true_pos = np.sum( pred[labels[:,1]==1]==1 )
+        false_pos = np.sum( pred[labels[:,1]==0]==1 )
+        false_neg = np.sum( pred[labels[:,1]==1]==0 )
+        true_neg = np.sum( pred[labels[:,1]==0]==0 )
+
+        # Calculate accuracy, precision, recall, F1
+        final_accuracy = (true_pos+true_neg) / len(pred)
+        final_precision = true_pos / (true_pos+false_pos)
+        final_recall = true_pos / (true_pos+false_neg)
+        final_F1 = 2 * ((final_precision*final_recall)/(final_precision+final_recall))
+        print('\nLabeled image set (m={}):'.format(m_samples))
+        print(' - # true positives = {:6.0f}'.format( true_pos ))
+        print(' - # false positives = {:6.0f}'.format( false_pos ))
+        print(' - # false negatives = {:6.0f}'.format( false_neg ))
+        print(' - # true negatives = {:6.0f}'.format( true_neg ))
+        print(' - Accuracy = {:6.4f}'.format( final_accuracy ))
+        print(' - Precision = {:6.4f}'.format( final_precision ))
+        print(' - Recall = {:6.4f}'.format( final_recall ))
+        print(' - F1-score = {:6.4f}'.format( final_F1 ))
+
+        # Display figure with examples if necessary
+        if figure.lower() == 'on':
+            samples_tp = samples[ np.logical_and(pred[:]==1,labels[:,1]==1), : ]
+            samples_fp = samples[ np.logical_and(pred[:]==1,labels[:,1]==0), : ]
+            samples_fn = samples[ np.logical_and(pred[:]==0,labels[:,1]==1), : ]
+            samples_tn = samples[ np.logical_and(pred[:]==0,labels[:,1]==0), : ]
+
+            grid = test_image_set.ai_list[0].image_grid_RGB( samples_tp,
+                                    n_x=20, n_y=10, channel_order=(0,1,2),
+                                    image_size=(self.y_res,self.y_res),
+                                    amplitude_scaling=(1.33,1.33,1) )
+            f, ax = plt.subplots(figsize=(16,8))
+            ax.imshow(grid, interpolation='nearest')
+            ax.set_title("true positives")
+
+            grid = test_image_set.ai_list[0].image_grid_RGB( samples_fp,
+                                    n_x=20, n_y=10, channel_order=(0,1,2),
+                                    image_size=(self.y_res,self.y_res),
+                                    amplitude_scaling=(1.33,1.33,1) )
+            f, ax = plt.subplots(figsize=(16,8))
+            ax.imshow(grid, interpolation='nearest')
+            ax.set_title("false positives")
+
+            grid = test_image_set.ai_list[0].image_grid_RGB( samples_fn,
+                                    n_x=20, n_y=10, channel_order=(0,1,2),
+                                    image_size=(self.y_res,self.y_res),
+                                    amplitude_scaling=(1.33,1.33,1) )
+            f, ax = plt.subplots(figsize=(16,8))
+            ax.imshow(grid, interpolation='nearest')
+            ax.set_title("false negatives")
+
+            grid = test_image_set.ai_list[0].image_grid_RGB( samples_tn,
+                                    n_x=20, n_y=10, channel_order=(0,1,2),
+                                    image_size=(self.y_res,self.y_res),
+                                    amplitude_scaling=(1.33,1.33,1) )
+            f, ax = plt.subplots(figsize=(16,8))
+            ax.imshow(grid, interpolation='nearest')
+            ax.set_title("true negatives")
+            plt.show()

@@ -38,3 +38,5 @@ plt.figure()
 plt.imshow(c,interpolation='nearest')
 plt.figure()
 plt.imshow(d,interpolation='nearest')
+
+
