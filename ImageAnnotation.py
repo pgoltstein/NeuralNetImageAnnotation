@@ -3,19 +3,22 @@
 """
 Created on Wed Dec 14 19:25:32 2016
 
-Contains functions that represent (sets of) images and their annotations
+Contains classes and functions that represent (sets of) images
+and their annotations
 
+Classes:
 1. class Annotation(object):
     Class that holds an individual image annotation
-
 2. class AnnotatedImage(object):
     Class that hold a multichannel image and its annotations
     Images are represented in a [x * y * n_channels] matrix
     Annotations are represented as a list of Annotation objects
-
 3. class AnnotatedImageSet(object):
     Class that represents a dataset of annotated images and organizes
     the dataset for feeding in machine learning algorithms
+
+Functions:
+
 
 @author: pgoltstein
 """
