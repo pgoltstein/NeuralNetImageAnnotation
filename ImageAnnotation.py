@@ -19,10 +19,19 @@ Classes:
 
 Functions:
 
+def zoom(self, image, y, x, zoom_size ):
+    Crops an image to the area of tuple/list zoom_size around the
+    supplied y, x coordinates. Pads out of range values.
+
+def morph( image, rotation=0, scale_xy=(1,1), noise_level=0 ):
+    Morphs image based on supplied parameters
 
 @author: pgoltstein
 """
 
+
+
+DEFAULT_ZOOM=(33,33)
 
 ########################################################################
 ### Imports
@@ -38,10 +47,51 @@ import glob
 
 
 ########################################################################
-### Constants
+### Functions
 ########################################################################
 
-DEFAULT_ZOOM = (33,33)
+def zoom( image, y, x, zoom_size, pad_value=0 ):
+    """Crops an image to the area of tuple/list zoom_size around the
+    supplied y, x coordinates. Pads out of range values.
+    image:      Single 2d numpy.ndarray
+    y, x:       Center coordinates
+    zoom_size:  Size of zoomed image (y,x)
+    pad_value:  Value for out of range coordinates
+    returns zoomed image"""
+    ix_y  = np.int16( np.round( 1 + y - ((zoom_size[0]+1) / 2) )
+                + np.arange( 0, zoom_size[0] ) )
+    ix_x  = np.int16( np.round( 1 + x - ((zoom_size[1]+1) / 2) )
+                + np.arange( 0, zoom_size[0] ) )
+    max_ix_exceed = np.max((np.abs(np.min(ix_y)), np.abs(np.min(ix_x)),
+                np.max(ix_y)-image.shape[0], np.max(ix_x)-image.shape[1] ))
+    if max_ix_exceed > 0:
+        image_temp = np.zeros((image.shape+max_ix_exceed+1))+pad_value
+        image_temp[0:image.shape[0],0:image.shape[1]] = image
+        return image_temp[ np.ix_(ix_y,ix_x) ]
+    else:
+        return image[ np.ix_(ix_y,ix_x) ]
+
+
+def morph( image, rotation=0, scale_xy=(1,1), noise_level=0 ):
+    """Morphs image based on supplied parameters
+    image:        Single 2d numpy.ndarray
+    rotation:     Rotation of annotation in degrees (0-360 degrees)
+    scale_xy:     Determines fractional scaling on x/y axis.
+                    Min-Max = (0.5,0.5) - (2,2)
+    noise_level:  Standard deviation of random Gaussian noise
+    returns morped_image"""
+    # Rotate
+    if rotation != 0:
+        image = ndimage.interpolation.rotate(image, rotation, reshape=False)
+    # Scale
+    if scale_xy[0] != 1 or scale_xy[1] != 1:
+        image = ndimage.interpolation.zoom( image, scale_xy )
+        print(image.shape)
+    # Add noise
+    if noise_level:
+        noise_mask = np.random.normal(size=image.shape) * noise_level
+        image = image + noise_mask
+    return image
 
 
 ########################################################################
@@ -51,9 +101,10 @@ DEFAULT_ZOOM = (33,33)
 class Annotation(object):
     """Class that holds an individual image annotation"""
 
-    def __init__(self,body_pixels_yx,annotation_name,type_nr=1,group_nr=None):
+    def __init__( self, body_pixels_yx, annotation_name="",
+                                    type_nr=1, group_nr=None):
         """Initialize.
-            body_pixels_yx: list/tuple of (y,x)'s or [y,x]'s
+            body_pixels_yx: list/tuple of (y,x) coordinates
             annotation_name: string
             type_nr: int
             group_nr: int
@@ -70,8 +121,8 @@ class Annotation(object):
 
     @property
     def body(self):
-        """Returns body coordinates"""
-        return self._body
+        """Returns body coordinates as tuple (y,x)"""
+        return self._body[:,0], self._body[:,1]
 
     @body.setter
     def body(self,body_pixels_yx):
@@ -130,9 +181,42 @@ class Annotation(object):
         """Returns read-only size of annotation (number of pixels)"""
         return self._size
 
+    def zoom(self, image, zoom_size, pad_value=0 ):
+        """Crops image to area of tuple/list zoom_size around centroid
+        image:      Single 2d numpy.ndarray
+        zoom_size:  (y size, x size)
+        pad_value:  Value for out of range coordinates
+        returns zoomed image"""
+        return zoom( image=image, y=self._y, x=self._x,
+                        zoom_size=zoom_size, pad_value=pad_value )
+
+    def morphed_zoom(self, image, zoom_size, pad_value=0,
+                        rotation=0, scale_xy=(1,1), noise_level=0 ):
+        """Crops image to area of tuple/list zoom_size around centroid
+        image:        Single 2d numpy.ndarray
+        zoom_size:    (y size, x size)
+        pad_value:  Value for out of range coordinates
+        rotation:     Rotation of annotation in degrees (0-360 degrees)
+        scale_xy:     Determines fractional scaling on x/y axis.
+                      Min-Max = (0.5,0.5) - (2,2)
+        noise_level:  Level of random noise
+        returns tuple holding (morped_zoom, morped_annotation)"""
+
+        # Get large, annotation centered, zoom image
+        im = self.zoom( image=image,
+            zoom_size=(zoom_size[0]*3,zoom_size[1]*3), pad_value=pad_value )
+        im = morph( image=im,
+                rotation=rotation, scale_xy=scale_xy, noise_level=noise_level )
+        return zoom( im, y=(im.shape[0]-1)/2,
+                         x=(im.shape[1]-1)/2,
+                         zoom_size=zoom_size, pad_value=pad_value )
+
     def mask_body(self, image, dilation_factor=0, mask_value=1):
         """Draws mask of all body pixels in image
-        dilation_factor: >0 for dilation, <0 for erosion"""
+        image:            Single 2d numpy.ndarray
+        dilation_factor:  >0 for dilation, <0 for erosion
+        mask_value:       Value to place in image
+        returns masked image"""
         if dilation_factor==0:
             # Just mask the incoming image
             image[ self._body[:,0], self._body[:,1] ] = mask_value
@@ -151,7 +235,10 @@ class Annotation(object):
 
     def mask_centroid(self, image, dilation_factor=0, mask_value=1):
         """Draws mask of centroid pixel in image
-        dilation_factor: >0 for padding the centroid with surrounding points"""
+        image:            Single 2d numpy.ndarray
+        dilation_factor:  >0 for padding the centroid with surrounding points
+        mask_value:       Value to place in image
+        returns masked image"""
         if dilation_factor==0:
             # Just mask the incoming image
             image[self._y.astype(int),self._x.astype(int)] = mask_value
@@ -163,71 +250,6 @@ class Annotation(object):
                 temp_mask = ndimage.binary_dilation(temp_mask)
             temp_body = np.array(np.where(temp_mask == True)).transpose()
             image[ temp_body[:,0], temp_body[:,1] ] = mask_value
-
-    def zoom(self, image, zoom_size=DEFAULT_ZOOM ):
-        """Crops image to area of tuple/list zoom_size around centroid
-        zoom_size: (y size, x size)"""
-        top_y  = np.int16( np.round( 1 + self._y - ((zoom_size[0]+1) / 2) ) )
-        left_x = np.int16( np.round( 1 + self._x - ((zoom_size[1]+1) / 2) ) )
-        ix_y = top_y + list(range( 0, zoom_size[0] ))
-        ix_x = left_x + list(range( 0, zoom_size[1] ))
-        return image[ np.ix_(ix_y,ix_x) ]
-
-    def morphed_zoom(self, image, zoom_size=DEFAULT_ZOOM, rotation=0,
-                    scale_xy=(1,1), noise_level=0 ):
-        """Crops image to area of tuple/list zoom_size around centroid
-        zoom_size:   (y size, x size)
-        rotation:    Rotation of annotation in degrees (0-360 degrees)
-        scale_xy:    Determines fractional scaling on x/y axis.
-                     Min-Max = (0.5,0.5) - (2,2)
-        noise_level: Level of random noise
-        returns tuple holding (morped_zoom, morped_annotation)"""
-
-        # Get large, annotation centered, zoom image
-        temp_zoom_size = (zoom_size[0]*4+1,zoom_size[1]*4+1)
-        temp_zoom = self.zoom(image, temp_zoom_size )
-
-        # Get large, annotation centered, mask image
-        mid_y = np.int16(temp_zoom_size[0] / 2)
-        mid_x = np.int16(temp_zoom_size[1] / 2)
-        top_y  = np.int16( np.round( 1 + mid_y - (zoom_size[0] / 2) ) )
-        left_x = np.int16( np.round( 1 + mid_x - (zoom_size[1] / 2) ) )
-        temp_ann = np.zeros_like(temp_zoom)
-        temp_ann[ np.int16((self._body[:,0]-self._y) + zoom_size[0]*2),
-                  np.int16((self._body[:,1]-self._x) + zoom_size[0]*2) ] = 1
-
-        # Rotate
-        if rotation != 0:
-            temp_zoom = ndimage.interpolation.rotate(temp_zoom,
-                            rotation, reshape=False)
-            temp_ann = ndimage.interpolation.rotate(temp_ann,
-                            rotation, reshape=False)
-
-        # Scale
-        if scale_xy[0] != 1 or scale_xy[1] != 1:
-            temp_zoom = ndimage.interpolation.zoom( temp_zoom, scale_xy )
-            temp_ann = ndimage.interpolation.zoom( temp_ann, scale_xy )
-            temp_zoom_size = temp_zoom.shape
-
-        # Add noise
-        if noise_level:
-            noise_mask = np.random.normal(size=temp_zoom.shape) * noise_level
-            temp_zoom = temp_zoom + noise_mask
-            temp_zoom[temp_zoom<0] = 0
-            temp_zoom[temp_zoom>1] = 1
-
-        # Make mask 0 or 1
-        temp_ann[temp_ann<0.5] = 0
-        temp_ann[temp_ann>=0.5] = 1
-
-        # Cut out real zoom image from center of temp_zoom
-        mid_y = np.int16(temp_zoom_size[0] / 2)
-        mid_x = np.int16(temp_zoom_size[1] / 2)
-        top_y  = np.int16( np.round( 1 + mid_y - (zoom_size[0] / 2) ) )
-        left_x = np.int16( np.round( 1 + mid_x - (zoom_size[1] / 2) ) )
-        ix_y = top_y + list(range( 0, zoom_size[0] ))
-        ix_x = left_x + list(range( 0, zoom_size[1] ))
-        return (temp_zoom[ np.ix_(ix_y,ix_x) ],temp_ann[ np.ix_(ix_y,ix_x) ])
 
 
 ########################################################################
