@@ -19,12 +19,34 @@ Classes:
 
 Functions:
 
-def zoom(self, image, y, x, zoom_size ):
+def zoom( image, y, x, zoom_size ):
     Crops an image to the area of tuple/list zoom_size around the
     supplied y, x coordinates. Pads out of range values.
 
 def morph( image, rotation=0, scale_xy=(1,1), noise_level=0 ):
     Morphs image based on supplied parameters
+    >> To do: recenter morphed image??
+
+def morphed_zoom( image, y, x, zoom_size, pad_value=0,
+                    rotation=0, scale_xy=(1,1), noise_level=0 ):
+    Crops image or image list to area of zoom_size around centroid
+
+def image2vec( image ):
+    Concatenates a 2d image or image_list to a single 1d vector
+
+def vec2image( lin_image, n_channels, image_size ):
+    Constructs an image_list from a single 1d vector
+
+def vec2RGB( lin_image, n_channels, image_size,
+                    channel_order=(0,1,2), amplitude_scaling=(1,1,1) ):
+    Constructs a 3d RGB image from a single 1d vector
+
+def image_grid_RGB( lin_im_mat, n_x=10, n_y=6, image_size,
+                    channel_order=(0,1,2),
+                    amplitude_scaling=(1.33,1.33,1), line_color=0 ):
+    Constructs a 3d numpy.ndarray tiled with a grid of RGB images. If
+    more images are supplied that can be tiled, it chooses and displays
+    a random subset.
 
 @author: pgoltstein
 """
@@ -51,47 +73,183 @@ import glob
 ########################################################################
 
 def zoom( image, y, x, zoom_size, pad_value=0 ):
-    """Crops an image to the area of tuple/list zoom_size around the
-    supplied y, x coordinates. Pads out of range values.
-    image:      Single 2d numpy.ndarray
+    """Crops a(n) (list of) image(s) to the area of tuple/list zoom_size
+    around the supplied y, x coordinates. Pads out of range values.
+    image:      Single 2d numpy.ndarray or list of 2d numpy.ndarrays
     y, x:       Center coordinates
     zoom_size:  Size of zoomed image (y,x)
     pad_value:  Value for out of range coordinates
     returns zoomed image"""
-    ix_y  = np.int16( np.round( 1 + y - ((zoom_size[0]+1) / 2) )
-                + np.arange( 0, zoom_size[0] ) )
-    ix_x  = np.int16( np.round( 1 + x - ((zoom_size[1]+1) / 2) )
-                + np.arange( 0, zoom_size[0] ) )
-    max_ix_exceed = np.max((np.abs(np.min(ix_y)), np.abs(np.min(ix_x)),
-                np.max(ix_y)-image.shape[0], np.max(ix_x)-image.shape[1] ))
-    if max_ix_exceed > 0:
-        image_temp = np.zeros((image.shape+max_ix_exceed+1))+pad_value
-        image_temp[0:image.shape[0],0:image.shape[1]] = image
-        return image_temp[ np.ix_(ix_y,ix_x) ]
+    if isinstance(zoom,list):
+        image_list = []
+        for ch in range(len(image)):
+            image_list.append( zoom( image[ch], y, x, zoom_size, pad_value ) )
+        return image_list
     else:
-        return image[ np.ix_(ix_y,ix_x) ]
-
+        ix_y  = np.int16( np.round( 1 + y - ((zoom_size[0]+1) / 2) )
+                    + np.arange( 0, zoom_size[0] ) )
+        ix_x  = np.int16( np.round( 1 + x - ((zoom_size[1]+1) / 2) )
+                    + np.arange( 0, zoom_size[0] ) )
+        max_ix_exceed = np.max((np.abs(np.min(ix_y)), np.abs(np.min(ix_x)),
+                    np.max(ix_y)-image.shape[0], np.max(ix_x)-image.shape[1] ))
+        if max_ix_exceed > 0:
+            image_temp = np.zeros((image.shape+max_ix_exceed+1))+pad_value
+            image_temp[0:image.shape[0],0:image.shape[1]] = image
+            return image_temp[ np.ix_(ix_y,ix_x) ]
+        else:
+            return image[ np.ix_(ix_y,ix_x) ]
 
 def morph( image, rotation=0, scale_xy=(1,1), noise_level=0 ):
-    """Morphs image based on supplied parameters
-    image:        Single 2d numpy.ndarray
+    """Morphs (list of) image(s) based on supplied parameters
+    image:        Single 2d numpy.ndarray or list of 2d numpy.ndarrays
     rotation:     Rotation of annotation in degrees (0-360 degrees)
     scale_xy:     Determines fractional scaling on x/y axis.
                     Min-Max = (0.5,0.5) - (2,2)
     noise_level:  Standard deviation of random Gaussian noise
     returns morped_image"""
-    # Rotate
-    if rotation != 0:
-        image = ndimage.interpolation.rotate(image, rotation, reshape=False)
-    # Scale
-    if scale_xy[0] != 1 or scale_xy[1] != 1:
-        image = ndimage.interpolation.zoom( image, scale_xy )
-        print(image.shape)
-    # Add noise
-    if noise_level:
-        noise_mask = np.random.normal(size=image.shape) * noise_level
-        image = image + noise_mask
+    if isinstance( zoom, list ):
+        image_list = []
+        for ch in range(len(image)):
+            image_list.append( morph( image[ch],
+                                        rotation, scale_xy, noise_level ) )
+        return image_list
+    else:
+        # Rotate
+        if rotation != 0:
+            image = ndimage.interpolation.rotate(image, rotation, reshape=False)
+        # Scale
+        if scale_xy[0] != 1 or scale_xy[1] != 1:
+            image = ndimage.interpolation.zoom( image, scale_xy )
+        # Add noise
+        if noise_level:
+            noise_mask = np.random.normal(size=image.shape) * noise_level
+            image = image + noise_mask
+        return image
+
+def morphed_zoom( image, y, x, zoom_size, pad_value=0,
+                    rotation=0, scale_xy=(1,1), noise_level=0 ):
+    """Crops image or image list to area of zoom_size around centroid
+    image:        Single 2d numpy.ndarray or list of 2d numpy.ndarrays
+    y, x:         Center coordinates
+    zoom_size:    (y size, x size)
+    pad_value:    Value for out of range coordinates
+    rotation:     Rotation of annotation in degrees (0-360 degrees)
+    scale_xy:     Determines fractional scaling on x/y axis.
+                  Min-Max = (0.5,0.5) - (2,2)
+    noise_level:  Level of random noise
+    returns tuple holding (morped_zoom, morped_annotation)"""
+    im = zoom( image=image, y=y, x=x,
+        zoom_size=(zoom_size[0]*3,zoom_size[1]*3), pad_value=pad_value )
+    im = morph( image=im,
+            rotation=rotation, scale_xy=scale_xy, noise_level=noise_level )
+    if isinstance( im, list ):
+        y_pos, x_pos = (im.shape[0][0]-1)/2, (im.shape[0][1]-1)/2
+    else:
+        y_pos, x_pos = (im.shape[0]-1)/2, (im.shape[1]-1)/2
+    return zoom( im, y=y_pos, x=x_pos,
+                     zoom_size=zoom_size, pad_value=pad_value )
+
+def image2vec( image ):
+    """Concatenates a 2d image or image_list to a single 1d vector
+    image:  single 2d numpy.ndarray or list of 2d numpy.ndarrays
+    returns 1d vector with all pixels concatenated"""
+    image_1d = []
+    if isinstance( image, list ):
+        for ch in range(len(image_list)):
+            image_1d.append(image_list[ch].ravel())
+    else:
+            image_1d.append(image_list.ravel())
+    return np.concatenate( image_1d )
+
+def vec2image( lin_image, n_channels, image_size ):
+    """Constructs an image_list from a single 1d vector
+    lin_image:   1d image vector with all pixels concatenated
+    n_channels:  Number of image channels
+    image_size:  2 dimensional size of the image (y,x)
+    returns single or list of 2d numpy.ndarrays"""
+    if n_channels > 1:
+        channels = np.split( lin_im, n_channels )
+        image = []
+        for ch in range(n_channels):
+            image.append( np.reshape( channels[ch], image_size ) )
+    else:
+        image = np.reshape( lin_image, image_size )
     return image
+
+def vec2RGB( lin_image, n_channels, image_size,
+                    channel_order=(0,1,2), amplitude_scaling=(1,1,1) ):
+    """Constructs a 3d RGB image from a single 1d vector
+    lin_image:   1d image vector with all pixels concatenated
+    n_channels:  Number of image channels
+    image_size:  2 dimensional size of the image (y,x)
+    channel_order:  tuple indicating which channels are R, G and B
+    amplitude_scaling:  Additional scaling of each channel separately
+    returns 3d numpy.ndarray"""
+    image = vec2image( lin_image, n_channels, image_size )
+    RGB = np.zeros((image_size[0],image_size[1],3))
+    for ch in range(3):
+        RGB[:,:,channel_order[ch]] = image[ch]
+    return RGB
+
+def image_grid_RGB( images, image_size, n_x=10, n_y=6, channel_order=(0,1,2),
+                    amplitude_scaling=(1.33,1.33,1), line_color=0 ):
+    """ Constructs a 3d numpy.ndarray tiled with a grid of RGB images. If
+        more images are supplied that can be tiled, it chooses and displays
+        a random subset.
+    images:         2d matrix with on each row an image vector with all pixels
+                    concatenated or a list with images
+    n_x:            Number of images to show on x axis of grid
+    n_y:            Number of images to show on y axis of grid
+    image_size:     2 dimensional size of the image (y,x)
+    channel_order:  tuple indicating which channels are R, G and B
+    line_color:     Intensity (gray scale) of line between images
+    Returns numpy.ndarray (x,y,RGB)
+    """
+
+    # Get indices of images to show
+    if isinstance( images, list ):
+        n_images = len(images)
+    else:
+        n_images,_ = images.shape
+    if n_images < n_x*n_y:
+        im_ix = list(range(n_images))
+    else:
+        im_ix = np.random.choice( n_images, n_x*n_y, replace=False )
+
+    # Get coordinates of where images will go
+    y_coords = []
+    offset = 0
+    for i in range(n_y):
+        offset = i * (image_size[0] + 1)
+        y_coords.append(offset+np.array(range(image_size[0])))
+    max_y = np.max(y_coords[i]) + 1
+    x_coords = []
+    offset = 0
+    for i in range(n_x):
+        offset = i * (image_size[1] + 1)
+        x_coords.append(offset+np.array(range(image_size[1])))
+    max_x = np.max(x_coords[i]) + 1
+    rgb_coords = np.array(list(range(3)))
+
+    # Fill grid
+    im_count = 0
+    grid = np.zeros((max_y,max_x,3))+line_color
+    for y in range(n_y):
+        for x in range(n_x):
+            if im_count < n_images:
+                if isinstance( images, list ):
+                    rgb_im = []
+                else:
+                    rgb_im = []
+                    # rgb_im = self.image_list_1d_to_RGB(
+                    #         lin_im_mat[ im_ix[ im_count ], : ],
+                    #         channel_order=channel_order, image_size=image_size,
+                    #         amplitude_scaling=amplitude_scaling )
+                grid[np.ix_(y_coords[y],x_coords[x],rgb_coords)] = rgb_im
+            else:
+                break
+            im_count += 1
+    return grid
 
 
 ########################################################################
@@ -102,7 +260,7 @@ class Annotation(object):
     """Class that holds an individual image annotation"""
 
     def __init__( self, body_pixels_yx, annotation_name="",
-                                    type_nr=1, group_nr=None):
+                                    type_nr=1, group_nr=0):
         """Initialize.
             body_pixels_yx: list/tuple of (y,x) coordinates
             annotation_name: string
@@ -110,10 +268,16 @@ class Annotation(object):
             group_nr: int
         """
         # Store supplied parameters
-        self.body = np.int16(body_pixels_yx)
-        self.name = annotation_name
-        self.type_nr = type_nr
-        self.group_nr = group_nr
+        if isinstance( body_pixels_yx, list ):
+            self.body = np.array(np.int16(body_pixels_yx))
+        elif body_pixels_yx.shape[1] == 2:
+            self.body = np.array(np.int16(body_pixels_yx))
+        else:
+            self.body = np.transpose( \
+                np.nonzero( np.array( np.int16(body_pixels_yx) ) ) )
+        self.name = str(annotation_name)
+        self.type_nr = int(type_nr)
+        self.group_nr = int(group_nr)
 
     def __str__(self):
         return "Annotation at (y={:.1f},x={:.1f}), group={:.0f}, "\
@@ -121,8 +285,8 @@ class Annotation(object):
 
     @property
     def body(self):
-        """Returns body coordinates as tuple (y,x)"""
-        return self._body[:,0], self._body[:,1]
+        """Returns body coordinates"""
+        return self._body
 
     @body.setter
     def body(self,body_pixels_yx):
@@ -130,9 +294,9 @@ class Annotation(object):
         self._body = np.array(body_pixels_yx)
         self._y = self._body[:,0].mean()
         self._x = self._body[:,1].mean()
-        temp_mask = np.zeros( self._body.max(axis=0)+1 )
-        temp_mask[ self._body[:,0], self._body[:,1] ] = 1
-        self._perimeter = measure.find_contours(temp_mask, 0.5)[0]
+        temp_mask = np.zeros( self._body.max(axis=0)+3 )
+        temp_mask[ self._body[:,0]+1, self._body[:,1]+1 ] = 1
+        self._perimeter = measure.find_contours(temp_mask, 0.5)[0]-1
         self._size = self._body.shape[0]
 
     @property
@@ -152,11 +316,8 @@ class Annotation(object):
 
     @group_nr.setter
     def group_nr(self,group_nr):
-        """Sets group number to integer or 0"""
-        if isinstance(group_nr, (int,float)):
-            self._group_nr = int(group_nr)
-        else:
-            self._group_nr = 0
+        """Sets group number"""
+        self._group_nr = int(group_nr)
 
     @property
     def type_nr(self):
@@ -165,11 +326,8 @@ class Annotation(object):
 
     @type_nr.setter
     def type_nr(self,type_nr):
-        """Sets type number to integer or 0"""
-        if isinstance(type_nr, (int,float)):
-            self._type_nr = int(type_nr)
-        else:
-            self._type_nr = 0
+        """Sets type number to integer"""
+        self._type_nr = int(type_nr)
 
     @property
     def perimeter(self):
@@ -201,15 +359,9 @@ class Annotation(object):
                       Min-Max = (0.5,0.5) - (2,2)
         noise_level:  Level of random noise
         returns tuple holding (morped_zoom, morped_annotation)"""
-
-        # Get large, annotation centered, zoom image
-        im = self.zoom( image=image,
-            zoom_size=(zoom_size[0]*3,zoom_size[1]*3), pad_value=pad_value )
-        im = morph( image=im,
-                rotation=rotation, scale_xy=scale_xy, noise_level=noise_level )
-        return zoom( im, y=(im.shape[0]-1)/2,
-                         x=(im.shape[1]-1)/2,
-                         zoom_size=zoom_size, pad_value=pad_value )
+        return morphed_zoom( image, self._y, self._x, zoom_size=zoom_size,
+                    pad_value=pad_value, rotation=rotation,
+                    scale_xy=scale_xy, noise_level=noise_level )
 
     def mask_body(self, image, dilation_factor=0, mask_value=1):
         """Draws mask of all body pixels in image
@@ -261,63 +413,145 @@ class AnnotatedImage(object):
     Images are represented in a list of [x * y] matrices
     Annotations are represented as a list of Annotation objects"""
 
-    def __init__( self, image_data=[], annotation_data=[] ):
-        """Initialize.
-            channel    = list or tuple of same size images
-            annotation = list or tuple of Annotation objects"""
-        if not image_data:
-            self.channel = []
-            self._expanded_channel = []
-        else:
-            self.channel = list(image_data)
-            self._expanded_channel = list(image_data)
-        if not annotation_data:
-            self.annotation = []
-        else:
-            self.annotation = list(annotation_data)
+    def __init__( self, image_data=None, annotation_data=None ):
+        """Initialize image list and channel list
+            channel:     list or tuple of same size images
+            annotation:  list or tuple of Annotation objects"""
+        self._bodies = None
+        self._body_dilation_factor = 0
+        self._body_mask_value = 1
+        self._centroids = None
+        self._centroid_dilation_factor = 0
+        self._centroid_mask_value = 1
+        self._y_res = 0
+        self._x_res = 0
+        if image_data is not None:
+            self.channel = image_data
+        if annotation_data is not None:
+            self.annotation = annotation_data
 
     def __str__(self):
-        return "AnnotatedImage (n_channels={:.0f}, n_annotations={:.0f}" \
+        return "AnnotatedImage (#channels={:.0f}, #annotations={:.0f}" \
                 ")".format(self.n_channels, self.n_annotations)
+
+    # **********************************
+    # *****  Describing properties *****
+    @property
+    def y_res(self):
+        """Returns the (read-only) size of the y-dimension of the images"""
+        return self._y_res
+
+    @property
+    def x_res(self):
+        """Returns the (read-only) size of the x-dimension of the images"""
+        return self._x_res
+
+    @property
+    def im_size(self):
+        """Returns the (read-only) size of the image as tuple"""
+        return (self._y_res,self._x_res)
 
     @property
     def n_channels(self):
         """Returns the (read-only) number of image channels"""
-        return len(self.channel)
+        return len(self._channels)
 
     @property
     def n_annotations(self):
         """Returns the (read-only) number of annotations"""
-        return len(self.annotation)
+        return len(self._annotation)
 
-    def add_image_from_file(self,file_name,file_path='.'):
-        """Loads image and adds it as a new extra channel"""
+    # ************************************
+    # *****  Handling the image data *****
+    @property
+    def channel(self):
+        """Returns list with all image channels"""
+        return self._channel
+
+    @channel.setter
+    def channel(self, image_data):
+        """Sets the internal list with all image channels to np.ndarray copies
+        of the supplied list with -to numpy.ndarray convertable- image data
+        image_data:  single image, or list with images that are converable to
+                     a numpy.ndarray"""
+        self._channel = []
+        self._bodies = None
+        self._centroids = None
+        y_res_old,x_res_old = self.y_res,self.x_res
+        if isinstance( image_data, list):
+            for ch in len(image_data):
+                self._channel.append = np.array(image_data[ch])
+        else:
+            self._channel.append = np.array(image_data)
+        self._y_res,self._x_res = self._channel[0].shape
+        # Update masks if there are annotations and the image resolution changed
+        if n_annotations > 0 and ( (y_res_old != self.y_res)
+                                    or (x_res_old != self.x_res) ):
+            self._set_bodies()
+            self._set_centroids()
+
+
+    def add_image_from_file(self, file_name, file_path='.', normalize=True):
+        """Loads image and adds it as a new image channel
+        file_name:  String holding name of image file
+        file_path:  String holding file path
+        normalize:  Normalize to maximum of image"""
+        y_res_old,x_res_old = self.y_res,self.x_res
         im = np.float64(imread(path.join(file_path,file_name)))
-        # Perform normalization and add to channels
+        # Perform normalization (max=1) and add to channels
         if im.ndim == 3:
             n_channels = np.size(im,axis=2)
             for ch in range(n_channels):
                 im_x = im[:,:,ch]
-                im_norm = im_x / im_x.max()
-                self.channel.append(im_norm)
-                y_res,x_res = im_norm.shape
-                temp_im = np.append( im_norm, np.zeros((y_res,x_res)), axis=0)
-                y_res,x_res = temp_im.shape
-                temp_im = np.append( temp_im, np.zeros((y_res,x_res)), axis=1)
-                self._expanded_channel.append( temp_im )
+                if normalize:
+                    im_x = im_x / im_x.max()
+                self._channel.append(im_x)
         else:
-            im_norm = im / im.max()
-            self.channel.append(im_norm)
-            y_res,x_res = im_norm.shape
-            temp_im = np.append( im_norm, np.ones((y_res,x_res)), axis=0)
-            y_res,x_res = temp_im.shape
-            temp_im = np.append( temp_im, np.ones((y_res,x_res)), axis=1)
-            self._expanded_channel.append( temp_im )
+            if normalize:
+                im = im / im.max()
+            self._channel.append(im)
+        self._y_res,self._x_res = self._channel[0].shape
+        # Update masks if there are annotations and the image resolution changed
+        if n_annotations > 0 and ( (y_res_old != self.y_res)
+                                    or (x_res_old != self.x_res) ):
+            self._set_bodies()
+            self._set_centroids()
 
-    def import_annotations_from_mat(self,file_name,file_path='.'):
-        """Reads data from ROI.mat file and fills the annotation_list"""
+    # *****************************************
+    # *****  Handling the annotation data *****
+    @property
+    def annotation(self):
+        """Returns list with all image annotations"""
+        return self._annotation
+
+    @annotation.setter
+    def annotation(self, annotation_data):
+        """Sets the internal list of all image annotations to copies of the
+        supplied list of class annotation() annotations
+        annotation_data:  instance of, or list with annotations of the
+                          annotation class"""
+        self._annotation = []
+        if not isinstance( annotation_data, list):
+            annotation_data = [annotation_data]
+        for nr in len(annotation_data):
+            self._annotation.append = Annotation(
+                body_pixels_yx=annotation_data[nr].body,
+                annotation_name=annotation_data[nr].name,
+                type_nr=annotation_data[nr].type_nr,
+                group_nr=annotation_data[nr].group_nr)
+        # Update masks if there is at least one image channel
+        if self.n_channels > 0:
+            self._set_bodies()
+            self._set_centroids()
+
+    def import_annotations_from_mat(self, file_name, file_path='.'):
+        """Reads data from ROI.mat file and fills the annotation_list. Can
+        handle .mat files holding either a ROI or a ROIpy structure
+        file_name:  String holding name of ROI file
+        file_path:  String holding file path"""
         # Load mat file with ROI data
         mat_data = loadmat(path.join(file_path,file_name))
+        annotation_list = []
         if 'ROI' in mat_data.keys():
             nROIs = len(mat_data['ROI'][0])
             for c in range(nROIs):
@@ -326,7 +560,7 @@ class AnnotatedImage(object):
                 type_nr = int(mat_data['ROI'][0][c]['type'][0][0])
                 name = str(mat_data['ROI'][0][c]['typename'][0])
                 group_nr = int(mat_data['ROI'][0][c]['group'][0][0])
-                self.annotation.append( Annotation( body_pixels_yx=body,
+                annotation_list.append( Annotation( body_pixels_yx=body,
                         annotation_name=name, type_nr=type_nr, group_nr=group_nr ) )
         elif 'ROIpy' in mat_data.keys():
             nROIs = len(mat_data['ROIpy'][0])
@@ -336,131 +570,113 @@ class AnnotatedImage(object):
                 type_nr = int(mat_data['ROIpy'][0][c]['type'][0][0][0][0])
                 name = str(mat_data['ROIpy'][0][c]['typename'][0][0][0])
                 group_nr = int(mat_data['ROIpy'][0][c]['group'][0][0][0][0])
-                self.annotation.append( Annotation( body_pixels_yx=body,
+                annotation_list.append( Annotation( body_pixels_yx=body,
                         annotation_name=name, type_nr=type_nr, group_nr=group_nr ) )
+        self.annotation = annotation_list
 
-    def bodies(self, dilation_factor=0, mask_value=1):
+    def export_annotations_to_mat(self, file_name, file_path='.'):
+        """Writes annotations to ROI_py.mat file
+        file_name:  String holding name of ROI file
+        file_path:  String holding file path"""
+        roi_list = []
+        for nr in range(self.n_annotations):
+            roi_dict = {}
+            roi_dict['nr']=nr
+            roi_dict['group']=self.annotation[nr].group_nr
+            roi_dict['type']=self.annotation[nr].type_nr
+            roi_dict['typename']=self.annotation[nr].name
+            roi_dict['x']=self.annotation[nr].x
+            roi_dict['y']=self.annotation[nr].y
+            roi_dict['size']=self.annotation[nr].size
+            roi_dict['perimeter']=self.annotation[nr].perimeter
+            body = np.array([self.annotation[nr].body[:,1],
+                             self.annotation[nr].body[:,0]]).transpose()
+            roi_dict['body']=body
+            roi_list.append(roi_dict)
+        savedata = {}
+        savedata['ROIpy']=roi_list
+        savemat(path.join(file_path,file_name),savedata)
+
+    # ******************************************
+    # *****  Handling the annotated bodies *****
+    @property
+    def bodies(self):
         """Returns an image with annotation bodies masked"""
-        annotated_bodies = np.zeros_like(self.channel[0])
-        for nr in range(self.n_annotations):
-            self.annotation[nr].mask_body(annotated_bodies,
-                        dilation_factor=dilation_factor, mask_value=mask_value)
-        return annotated_bodies
+        return self._bodies
 
-    def centroids(self, dilation_factor=0, mask_value=1):
+    def _set_bodies(self):
+        """Sets the internal body annotation mask with specified parameters"""
+        self._bodies = np.zeros_like(self._channel[0])
+        for nr in range(self._n_annotations):
+            self._annotation[nr].mask_body(self._bodies,
+                dilation_factor=self._body_dilation_factor,
+                mask_value=self._body_mask_value)
+
+    @property
+    def body_dilation_factor(self):
+        """Returns the body dilation factor"""
+        return(self._body_dilation_factor)
+
+    @body_dilation_factor.setter
+    def body_dilation_factor(self, dilation_factor):
+        """Updates the internal body annotation mask with dilation_factor"""
+        self._body_dilation_factor = dilation_factor
+        self._set_bodies()
+
+    @property
+    def body_mask_value(self):
+        """Returns the body mask value"""
+        return(self._body_mask_value)
+
+    @body_mask_value.setter
+    def body_mask_value(self, mask_value):
+        """Updates the internal body annotation mask with mask_value"""
+        self._body_mask_value = mask_value
+        self._set_bodies()
+
+    # *********************************************
+    # *****  Handling the annotated centroids *****
+    @property
+    def centroids(self):
         """Returns an image with annotation centroids masked"""
-        annotated_centroids = np.zeros_like(self.channel[0])
-        for nr in range(self.n_annotations):
-            self.annotation[nr].mask_centroid(annotated_centroids,
-                        dilation_factor=dilation_factor, mask_value=mask_value)
-        return annotated_centroids
+        return self._centroids
 
-    def zoom(self, y, x, source=None, zoom_size=DEFAULT_ZOOM ):
-        """Returns an image list, cropped to an area of tuple/list zoom_size
-            around coordinates x and y
-        zoom_size: (y size, x size)"""
-        top_y  = np.int16( np.round( 1 + y - ((zoom_size[0]+1) / 2) ) )
-        left_x = np.int16( np.round( 1 + x - ((zoom_size[1]+1) / 2) ) )
-        ix_y = top_y + list(range( 0, zoom_size[0] ))
-        ix_x = left_x + list(range( 0, zoom_size[1] ))
-        zoom_list = []
-        for ch in range(self.n_channels):
-            if source is None:
-                zoom_list.append(self._expanded_channel[ch][ np.ix_(ix_y,ix_x) ])
-            else:
-                zoom_list.append(source[ np.ix_(ix_y,ix_x) ])
-        return zoom_list
+    def _set_centroids(self):
+        """Sets the internal centroids annotation mask with specified
+        parameters"""
+        self._centroids = np.zeros_like(self._channel[0])
+        for nr in range(self._n_annotations):
+            self._annotation[nr].mask_centroid(self._centroids,
+                dilation_factor=self._centroid_dilation_factor,
+                mask_value=self._centroid_mask_value)
 
-    def morphed_zoom(self, y, x, source=None, zoom_size=DEFAULT_ZOOM,
-                            rotation=0, scale_xy=(1,1), noise_level=0 ):
-        """Crops image to area of tuple/list zoom_size around x,y coordinates
-        zoom_size:   (y size, x size)
-        rotation:    Rotation of annotation in degrees (0-360 degrees)
-        scale_xy:    Determines fractional scaling on x/y axis.
-                     Min-Max = (0.5,0.5) - (2,2)
-        noise_level: Level of random noise
-        source:      None for using the 'image channels', or np.ndarray()
-        returns morped_zoom"""
+    @property
+    def centroid_dilation_factor(self):
+        """Returns the centroid dilation factor"""
+        return(self._centroid_dilation_factor)
 
-        # Get large, annotation centered, zoom image
-        temp_zoom_size = (zoom_size[0]*4+1,zoom_size[1]*4+1)
-        temp_zoom = self.zoom( y, x, source=source, zoom_size=temp_zoom_size )
+    @centroid_dilation_factor.setter
+    def centroid_dilation_factor(self, dilation_factor):
+        """Updates the internal centroid annotation mask with dilation_factor"""
+        self._centroid_dilation_factor = dilation_factor
+        self._set_centroids()
 
-        # Rotate
-        if rotation != 0:
-            for ch in range(self.n_channels):
-                temp_zoom[ch] = ndimage.interpolation.rotate(temp_zoom[ch],
-                                rotation, reshape=False)
+    @property
+    def centroid_mask_value(self):
+        """Returns the centroid mask value"""
+        return(self._centroid_mask_value)
 
-        # Scale
-        if scale_xy[0] != 1 or scale_xy[1] != 1:
-            for ch in range(self.n_channels):
-                temp_zoom[ch] = ndimage.interpolation.zoom( temp_zoom[ch], scale_xy )
-            temp_zoom_size = temp_zoom[0].shape
+    @centroid_mask_value.setter
+    def centroid_mask_value(self, mask_value):
+        """Updates the internal centroid annotation mask with mask_value"""
+        self._centroid_mask_value = mask_value
+        self._set_centroids()
 
-        # Add noise
-        if noise_level:
-            for ch in range(self.n_channels):
-                noise_mask = np.random.normal(scale=noise_level,
-                                              size=temp_zoom[ch].shape)
-                temp_zoom[ch] = temp_zoom[ch] + noise_mask
-                temp_zoom[ch][temp_zoom[ch]<0] = 0
-                temp_zoom[ch][temp_zoom[ch]>1] = 1
+# **********************************************************
+# **********************************************************
+# **********************************************************
+# CONTINUE HERE !!!
 
-        # Cut out real zoom image from center of temp_zoom
-        mid_y = np.int16(temp_zoom_size[0] / 2)
-        mid_x = np.int16(temp_zoom_size[1] / 2)
-        top_y  = np.int16( np.round( 1 + mid_y - (zoom_size[0] / 2) ) )
-        left_x = np.int16( np.round( 1 + mid_x - (zoom_size[1] / 2) ) )
-        ix_y = top_y + list(range( 0, zoom_size[0] ))
-        ix_x = left_x + list(range( 0, zoom_size[1] ))
-        final_zoom_list = []
-        for ch in range(self.n_channels):
-            final_zoom_list.append(temp_zoom[ch][ np.ix_(ix_y,ix_x) ])
-        return final_zoom_list
-
-    def zoom_1d(self, y, x, source=None, zoom_size=DEFAULT_ZOOM ):
-        """Returns an single image vector, cropped to an area of tuple/list
-            zoom_size around coordinates x & y, with all channels concatenated
-        zoom_size: (y size, x size), accepts only uneven numbers"""
-        zoom_list = self.zoom( y, x, source=source, zoom_size=zoom_size )
-        return self.image_list_2d_to_1d( zoom_list )
-
-    def morphed_zoom_1d(self, y, x, source=None, zoom_size=DEFAULT_ZOOM, rotation=0,
-                    scale_xy=(1,1), noise_level=0):
-        """Returns an single image vector, cropped to an area of tuple/list
-            zoom_size around coordinates x & y, with all channels concatenated
-        zoom_size: (y size, x size), accepts only uneven numbers"""
-        zoom_list = self.morphed_zoom( y, x, source=source, zoom_size=zoom_size,
-            rotation=rotation, scale_xy=scale_xy, noise_level=noise_level )
-        return self.image_list_2d_to_1d( zoom_list )
-
-    def image_list_2d_to_1d( self, image_list ):
-        zoom_list_1d = []
-        for ch in range(self.n_channels):
-            zoom_list_1d.append(image_list[ch].ravel())
-        return np.concatenate( zoom_list_1d )
-
-    def image_list_1d_to_2d( self, lin_im, image_size=DEFAULT_ZOOM ):
-        channels = np.split( lin_im, self.n_channels )
-        image_list = []
-        for ch in range(self.n_channels):
-            image_list.append( np.reshape( channels[ch], image_size ) )
-        return image_list
-
-    def image_list_1d_to_RGB( self, lin_im,
-                        channel_order=(0,1,2), image_size=DEFAULT_ZOOM,
-                        amplitude_scaling=(1,1,1) ):
-        channels = np.split( lin_im, self.n_channels )
-        image_list = []
-        for ch in range(self.n_channels):
-            scaled_im = channels[ch] * amplitude_scaling[ch]
-            scaled_im[scaled_im>1]=1
-            image_list.append( np.reshape( scaled_im, image_size ) )
-        RGB = np.zeros((image_size[0],image_size[1],3))
-        for ch in range(3):
-            RGB[:,:,channel_order[ch]] = image_list[ch]
-        return RGB
 
     def image_grid_RGB( self, lin_im_mat, n_x=10, n_y=6,
                         channel_order=(0,1,2), image_size=DEFAULT_ZOOM,
@@ -504,27 +720,6 @@ class AnnotatedImage(object):
                     break
                 im_count += 1
         return grid
-
-    def export_annotations_to_mat(self,file_name,file_path='.'):
-        """Writes annotations to ROI_py.mat file"""
-        roi_list = []
-        for nr in range(self.n_annotations):
-            roi_dict = {}
-            roi_dict['nr']=nr
-            roi_dict['group']=self.annotation[nr].group_nr
-            roi_dict['type']=self.annotation[nr].type_nr
-            roi_dict['typename']=self.annotation[nr].name
-            roi_dict['x']=self.annotation[nr].x
-            roi_dict['y']=self.annotation[nr].y
-            roi_dict['size']=self.annotation[nr].size
-            roi_dict['perimeter']=self.annotation[nr].perimeter
-            body = np.array([self.annotation[nr].body[:,1],
-                             self.annotation[nr].body[:,0]]).transpose()
-            roi_dict['body']=body
-            roi_list.append(roi_dict)
-        savedata = {}
-        savedata['ROIpy']=roi_list
-        savemat(path.join(file_path,file_name),savedata)
 
     def load(self,file_name,file_path='.'):
         """Loads image and annotations from .npy file"""

@@ -24,7 +24,8 @@ import iaConvNetTools as cn
 
 training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
 cv_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet2'
-zoom_size = (27,27)
+# zoom_size = (27,27)
+zoom_size = (36,36)
 training_image_set = ia.AnnotatedImageSet()
 training_image_set.load_data_dir(training_data_path)
 cv_image_set = ia.AnnotatedImageSet()
@@ -35,21 +36,26 @@ cv_image_set.load_data_dir(cv_data_path)
 
 ########################################################################
 # Set up network
+# nn = cn.ConvNetCnv2Fc1(
+#         input_image_size=zoom_size, n_input_channels=3, output_size=(1,2),
+#         conv1_size=5, conv1_n_chan=16, conv1_n_pool=3,
+#         conv2_size=5, conv2_n_chan=32, conv2_n_pool=3,
+#         fc1_n_chan=256, fc1_dropout=0.5, alpha=5e-4 )
 nn = cn.ConvNetCnv2Fc1(
         input_image_size=zoom_size, n_input_channels=3, output_size=(1,2),
-        conv1_size=5, conv1_n_chan=16, conv1_n_pool=3,
-        conv2_size=5, conv2_n_chan=32, conv2_n_pool=3,
-        fc1_n_chan=256, fc1_dropout=0.5, alpha=5e-4 )
+        conv1_size=7, conv1_n_chan=32, conv1_n_pool=2,
+        conv2_size=7, conv2_n_chan=64, conv2_n_pool=2,
+        fc1_n_chan=512, fc1_dropout=0.5, alpha=3e-4 )
 nn.start()
-nn.load_network_parameters('centroid_net_5x5_simple',training_data_path)
-# nn.load_network_parameters('centroid_net_7x7',training_data_path)
+# nn.load_network_parameters('centroid_net_5x5_simple',training_data_path)
+nn.load_network_parameters('centroid_net_7x7',training_data_path)
 
 ########################################################################
 # Train network and save network parameters
 nn.train( training_image_set, annotation_type='Bodies', dilation_factor=-3,
-                batch_size=10000, n_batches=100, m_samples=200, n_epochs=50)
-nn.save_network_parameters('centroid_net_5x5_simple',training_data_path)
-# nn.save_network_parameters('centroid_net_7x7',training_data_path)
+                batch_size=10000, n_batches=40, m_samples=200, n_epochs=50)
+# nn.save_network_parameters('centroid_net_5x5_simple',training_data_path)
+nn.save_network_parameters('centroid_net_7x7',training_data_path)
 
 ########################################################################
 # Display final performance
