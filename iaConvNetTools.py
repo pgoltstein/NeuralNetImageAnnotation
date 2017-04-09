@@ -379,22 +379,26 @@ class ConvNetCnv2Fc1(object):
         # Display figure with examples if necessary
         if show_figure.lower() == 'on':
             titles = ["true positives","false positives","false negatives","true negatives"]
+            plot_positions = [(0,0),(0,1),(1,0),(1,1)]
             samples_mat = []
             samples_mat.append(samples[ np.logical_and(pred[:]==1,labels[:,1]==1), : ])
             samples_mat.append(samples[ np.logical_and(pred[:]==1,labels[:,1]==0), : ])
             samples_mat.append(samples[ np.logical_and(pred[:]==0,labels[:,1]==1), : ])
             samples_mat.append(samples[ np.logical_and(pred[:]==0,labels[:,1]==0), : ])
+
+            plt.figure(figsize=(10,10), facecolor='w', edgecolor='w')
             for cnt in range(4):
                 grid,_ = ia.image_grid_RGB( samples_mat[cnt],
                     n_channels=annotated_image_set.n_channels,
-                    image_size=(self.y_res,self.y_res), n_x=20, n_y=10,
+                    image_size=(self.y_res,self.y_res), n_x=10, n_y=10,
                     channel_order=(0,1,2), amplitude_scaling=(1.33,1.33,1),
-                    line_color=0, auto_scale=True )
+                    line_color=1, auto_scale=True )
+                grid[:,:,2] = 0 # only show red and green channel
                 with sns.axes_style("white"):
-                    plt.figure(figsize=(12,6), facecolor='w', edgecolor='w')
-                    ax1 = plt.subplot2grid( (2,1), (0,0) )
+                    ax1 = plt.subplot2grid( (2,2), plot_positions[cnt] )
                     ax1.imshow( grid, interpolation='nearest', vmax=grid.max()*0.8 )
                     ax1.set_title(titles[cnt])
                     plt.axis('tight')
                     plt.axis('off')
+            plt.tight_layout()
             plt.show()
