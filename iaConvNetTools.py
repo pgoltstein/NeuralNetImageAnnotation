@@ -385,7 +385,7 @@ class ConvNetCnv2Fc1(object):
             samples_mat.append(samples[ np.logical_and(pred[:]==0,labels[:,1]==1), : ])
             samples_mat.append(samples[ np.logical_and(pred[:]==0,labels[:,1]==0), : ])
             for cnt in range(4):
-                grid = ia.image_grid_RGB( samples_mat[cnt],
+                grid,_ = ia.image_grid_RGB( samples_mat[cnt],
                     n_channels=annotated_image_set.n_channels,
                     image_size=(self.y_res,self.y_res), n_x=20, n_y=10,
                     channel_order=(0,1,2), amplitude_scaling=(1.33,1.33,1),
