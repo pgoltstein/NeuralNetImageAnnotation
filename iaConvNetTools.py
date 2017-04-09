@@ -18,6 +18,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import time, datetime
 from os import path
+import ImageAnnotation as ia
 
 
 ########################################################################
@@ -185,27 +186,96 @@ class ConvNetCnv2Fc1(object):
                                      path.join(file_path,file_name+'.nnprm'))
         print('\nNetwork parameters saved in file:\n{}'.format(save_path))
 
-    def train(self, training_image_set,
-            annotation_type='Bodies', dilation_factor=-3,
-            batch_size=1000, m_samples=100, n_batches=10, n_epochs=100):
-        """Trains network on training_image_set"""
+    def train_epochs(self, annotated_image_set, n_epochs=100,
+            annotation_type='Bodies', m_samples=100, exclude_border=(0,0,0,0),
+            morph_annotations=False, rotation_list=None,
+            scale_list_x=None, scale_list_y=None, noise_level_list=None):
+        """Trains the network on a training set for a specified number of
+            epochs. It loads a random training set from the annotated_image_set
+            on every epoch
+            annotated_image_set:  Instance of class AnnotatedImageSet holding
+                                  the image and annotation data to train on
+            n_epochs:             Number of training epochs
+            annotation_type:      'Bodies' or 'Centroids'
+            m_samples:            number of training samples
+            exclude_border:    exclude annotations that are a certain distance
+                               to each border. Pix from (left, right, up, down)
+            morph_annotations: Randomly morph the annotations
+            rotation_list:     List of rotation values to choose from in degrees
+            scale_list_x:      List of horizontal scale factors to choose from
+            scale_list_y:      List of vertical scale factors to choose from
+            noise_level_list:  List of noise levels to choose from
+            """
         t_start = time.time()
         print("\nStart training network @ {}".format(
             str(datetime.timedelta(seconds=np.round(t_start))) ) )
 
         # Loop across training epochs
-        for batch_no in range(n_batches):
+        for epoch_no in range(n_epochs):
 
-            # Get batch of samples and labels
-            samples,labels = training_image_set.annotation_detection_sample(
-                annotation_type=annotation_type, dilation_factor=dilation_factor,
-                m_samples=batch_size, zoom_size=(self.y_res,self.y_res) )
+            # Get samples and labels for this epoch
+            samples,labels,annotations = annotated_image_set.data_sample(
+                zoom_size=(self.y_res,self.y_res), annotation_type=annotation_type,
+                m_samples=m_samples, exclude_border=exclude_border,
+                return_annotations=False, morph_annotations=morph_annotations,
+                rotation_list=rotation_list, scale_list_x=scale_list_x,
+                scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
             # Report progress at start of training
             self.report_progress_accuracy( samples, labels, batch_no, t_start)
 
-            # Train the network on subsets of m_samples
+            # Train the network on samples and labels
+            self.sess.run( self.train_step, feed_dict={
+                self.x: samples, self.y_trgt: labels,
+                self.fc1_keep_prob: self.fc1_dropout } )
+            print('.', end="", flush=True)
+
+    def train_epochs(self, annotated_image_set, n_batches=10, n_epochs=100,
+            annotation_type='Bodies', batch_size=1000, m_samples=100,
+            exclude_border=(0,0,0,0), morph_annotations=False, rotation_list=None,
+            scale_list_x=None, scale_list_y=None, noise_level_list=None):
+        """Trains the network on a training set for a specified number of
+            batches of size batch_size. Every batch iteration it loads a
+            random training batch from the annotated_image_set. Per batch,
+            training is done for n_epochs on a random sample of size m_samples
+            that is selected from the current batch.
+            annotated_image_set:  Instance of class AnnotatedImageSet holding
+                                  the image and annotation data to train on
+            n_batches:            Number of batches to run
+            n_epochs:             Number of training epochs
+            annotation_type:      'Bodies' or 'Centroids'
+            batch_size:           Number of training samples in batch
+            m_samples:            Number of training samples in epoch
+            exclude_border:    exclude annotations that are a certain distance
+                               to each border. Pix from (left, right, up, down)
+            morph_annotations: Randomly morph the annotations
+            rotation_list:     List of rotation values to choose from in degrees
+            scale_list_x:      List of horizontal scale factors to choose from
+            scale_list_y:      List of vertical scale factors to choose from
+            noise_level_list:  List of noise levels to choose from
+            """
+
+        t_start = time.time()
+        print("\nStart training network @ {}".format(
+            str(datetime.timedelta(seconds=np.round(t_start))) ) )
+
+        # Loop across training batches
+        for batch_no in range(n_batches):
+
+            # Get batch of samples and labels
+            samples,labels,annotations = annotated_image_set.data_sample(
+                zoom_size=(self.y_res,self.y_res), annotation_type=annotation_type,
+                m_samples=m_samples, exclude_border=exclude_border,
+                return_annotations=False, morph_annotations=morph_annotations,
+                rotation_list=rotation_list, scale_list_x=scale_list_x,
+                scale_list_y=scale_list_y, noise_level_list=noise_level_list )
+
+            # Report progress at start of training
+            self.report_progress_accuracy( samples, labels, batch_no, t_start)
+
+            # Train the network for n_epochs on random subsets of m_samples
             for epoch_no in range(n_epochs):
+                # indices of random samples
                 sample_ixs = np.random.choice(
                                 batch_size, m_samples, replace=False )
                 epoch_samples = samples[ sample_ixs, : ]
@@ -215,8 +285,29 @@ class ConvNetCnv2Fc1(object):
                     self.fc1_keep_prob: self.fc1_dropout } )
                 print('.', end="", flush=True)
 
-    def report_progress_accuracy(self, samples, labels, batch_no, t_start):
-        """Report progress and accuracy on single line"""
+    def report_epoch_progress_accuracy(self, samples, labels, epoch_no, t_start):
+        """Report progress and accuracy on single line for epoch training
+            samples:    2d matrix containing training samples
+            labels:     2d matrix containing labels
+            epoch_no:   Number of current epoch
+            t_start:    'time.time()' time stamp of start training
+        """
+        result = self.sess.run( [self.accuracy], feed_dict={
+            self.x: samples, self.y_trgt: labels,
+            self.fc1_keep_prob: 1.0 })
+        acc = result[0]
+        t_curr = time.time()
+        print('\nEpoch no {:4d}: Acc = {:6.4f} (t={})'.format( batch_no, acc,
+            str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
+            end="", flush=True)
+
+    def report_minibatch_progress_accuracy(self, samples, labels, batch_no, t_start):
+        """Report progress and accuracy on single line for mini_batch training
+            samples:    2d matrix containing training samples
+            labels:     2d matrix containing labels
+            batch_no:   Number of current batch
+            t_start:    'time.time()' time stamp of start training
+        """
         result = self.sess.run( [self.accuracy], feed_dict={
             self.x: samples, self.y_trgt: labels,
             self.fc1_keep_prob: 1.0 })
@@ -226,14 +317,31 @@ class ConvNetCnv2Fc1(object):
             str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
             end="", flush=True)
 
-    def report_F1(self, test_image_set, annotation_type='Bodies',
-                    dilation_factor=-3, m_samples=100, figure='Off'):
-        """Report accuracy, precision, recall and F1 score"""
-        # Get m samples and labels from a single AnnotatedImage
-        samples,labels = \
-            test_image_set.annotation_detection_sample(
-                annotation_type=annotation_type, dilation_factor=dilation_factor,
-                m_samples=m_samples, zoom_size=(self.y_res,self.y_res) )
+    def report_F1(self, annotated_image_set,
+            annotation_type='Bodies', m_samples=100, exclude_border=(0,0,0,0),
+            morph_annotations=False, rotation_list=None,
+            scale_list_x=None, scale_list_y=None, noise_level_list=None):
+        """Loads a random training set from the annotated_image_set and
+            reports accuracy, precision, recall and F1 score.
+            annotated_image_set:  Instance of class AnnotatedImageSet holding
+                                  the image and annotation data to train on
+            annotation_type:      'Bodies' or 'Centroids'
+            m_samples:            number of test samples
+            exclude_border:    exclude annotations that are a certain distance
+                               to each border. Pix from (left, right, up, down)
+            morph_annotations: Randomly morph the annotations
+            rotation_list:     List of rotation values to choose from in degrees
+            scale_list_x:      List of horizontal scale factors to choose from
+            scale_list_y:      List of vertical scale factors to choose from
+            noise_level_list:  List of noise levels to choose from
+            """
+        # Get m samples and labels from the AnnotatedImageSet
+        samples,labels,annotations = annotated_image_set.data_sample(
+            zoom_size=(self.y_res,self.y_res), annotation_type=annotation_type,
+            m_samples=m_samples, exclude_border=exclude_border,
+            return_annotations=False, morph_annotations=morph_annotations,
+            rotation_list=rotation_list, scale_list_x=scale_list_x,
+            scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
         # Calculate network accuracy
         result = self.sess.run( [self.network_prediction], feed_dict={
@@ -264,40 +372,23 @@ class ConvNetCnv2Fc1(object):
 
         # Display figure with examples if necessary
         if figure.lower() == 'on':
-            samples_tp = samples[ np.logical_and(pred[:]==1,labels[:,1]==1), : ]
-            samples_fp = samples[ np.logical_and(pred[:]==1,labels[:,1]==0), : ]
-            samples_fn = samples[ np.logical_and(pred[:]==0,labels[:,1]==1), : ]
-            samples_tn = samples[ np.logical_and(pred[:]==0,labels[:,1]==0), : ]
-
-            grid = test_image_set.ai_list[0].image_grid_RGB( samples_tp,
-                                    n_x=20, n_y=10, channel_order=(0,1,2),
-                                    image_size=(self.y_res,self.y_res),
-                                    amplitude_scaling=(1.33,1.33,1) )
-            f, ax = plt.subplots(figsize=(16,8))
-            ax.imshow(grid, interpolation='nearest')
-            ax.set_title("true positives")
-
-            grid = test_image_set.ai_list[0].image_grid_RGB( samples_fp,
-                                    n_x=20, n_y=10, channel_order=(0,1,2),
-                                    image_size=(self.y_res,self.y_res),
-                                    amplitude_scaling=(1.33,1.33,1) )
-            f, ax = plt.subplots(figsize=(16,8))
-            ax.imshow(grid, interpolation='nearest')
-            ax.set_title("false positives")
-
-            grid = test_image_set.ai_list[0].image_grid_RGB( samples_fn,
-                                    n_x=20, n_y=10, channel_order=(0,1,2),
-                                    image_size=(self.y_res,self.y_res),
-                                    amplitude_scaling=(1.33,1.33,1) )
-            f, ax = plt.subplots(figsize=(16,8))
-            ax.imshow(grid, interpolation='nearest')
-            ax.set_title("false negatives")
-
-            grid = test_image_set.ai_list[0].image_grid_RGB( samples_tn,
-                                    n_x=20, n_y=10, channel_order=(0,1,2),
-                                    image_size=(self.y_res,self.y_res),
-                                    amplitude_scaling=(1.33,1.33,1) )
-            f, ax = plt.subplots(figsize=(16,8))
-            ax.imshow(grid, interpolation='nearest')
-            ax.set_title("true negatives")
+            titles = ["true positives","false positives","false negatives","true negatives"]
+            samples_mat = []
+            samples_mat.append(samples[ np.logical_and(pred[:]==1,labels[:,1]==1), : ])
+            samples_mat.append(samples[ np.logical_and(pred[:]==1,labels[:,1]==0), : ])
+            samples_mat.append(samples[ np.logical_and(pred[:]==0,labels[:,1]==1), : ])
+            samples_mat.append(samples[ np.logical_and(pred[:]==0,labels[:,1]==0), : ])
+            for cnt in range(4):
+                grid = ia.image_grid_RGB( samples_mat[cnt],
+                    n_channels=annotated_image_set.n_channels,
+                    image_size=(self.y_res,self.y_res), n_x=20, n_y=10,
+                    channel_order=(0,1,2), amplitude_scaling=(1.33,1.33,1),
+                    line_color=0, auto_scale=True )
+                with sns.axes_style("white"):
+                    plt.figure(figsize=(12,6), facecolor='w', edgecolor='w')
+                    ax1 = plt.subplot2grid( (2,1), (0,0) )
+                    ax1.imshow( grid, interpolation='nearest', vmax=grid.max()*0.8 )
+                    ax1.set_title(titles[cnt])
+                    plt.axis('tight')
+                    plt.axis('off')
             plt.show()
