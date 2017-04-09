@@ -120,6 +120,25 @@ annotations_grid_mrph,shift_mrph = ia.image_grid_RGB( annotations_mrph,
     image_size=im_size, n_x=4, n_y=4, channel_order=(0,1,2),
     amplitude_scaling=(1.33,1.33,1), line_color=1, auto_scale=True )
 
+# Save anim
+print(" ")
+print("Exporting anim1 annotations to zzROIpy.mat")
+anim1.export_annotations_to_mat( 'zzROIpy.mat', file_path=filepath)
+
+# Load anim
+print(" ")
+print("Define new annotated image (anim3) and copy image data from anim1")
+anim3 = ia.AnnotatedImage(image_data=anim1.channel)
+print("String output of anim3:")
+print(" >> " + anim3.__str__())
+
+# Import annotations from ROI file (matlab)
+roifile = 'F03-Loc5-V1-20160209-ROI2.mat'
+print(" ")
+print("Importing annotations from zzROIpy.mat file to anim3:")
+print(os.path.join(filepath,'zzROIpy.mat'))
+anim3.import_annotations_from_mat(file_name='zzROIpy.mat',file_path=filepath)
+print(" >> " + anim3.__str__())
 
 
 # ************************************************************
@@ -246,73 +265,27 @@ with sns.axes_style("white"):
     plt.axis('tight')
     plt.axis('off')
 
+# Show channels
+with sns.axes_style("white"):
+    plt.figure(figsize=(12,6), facecolor='w', edgecolor='w')
+    axr = plt.subplot2grid( (1,2), (0,0) )
+    axr.imshow(anim1.RGB(),interpolation='nearest')
+    for an in anim3.annotation:
+        axr.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    axr.set_title("anim1 with annotations of anim3")
+    plt.axis('tight')
+    plt.axis('off')
 
-#plt.figure()
-#plt.imshow(anim.bodies(),interpolation='nearest')
-#
-#ims = anim.zoom(114,213)
-#_, ax = plt.subplots(1,len(ims))
-#for nr,im in enumerate(ims):
-#    ax[nr].imshow(im,interpolation='nearest')
-#
-#lin_im = anim.zoom_1d(114,213)
-#
-#ims = anim.image_list_1d_to_2d( lin_im )
-#_, ax = plt.subplots(1,len(ims))
-#for nr,im in enumerate(ims):
-#    ax[nr].imshow(im,interpolation='nearest')
-#
-# samples,labels,annotations = anim.annotation_detection_training_batch(
-#                 dilation_factor=-3, m_samples=500, morph_annotations=True )
-#
-# lin_im_mat = samples[labels[:,1]==0,:]
-# grid=anim.image_grid_RGB( lin_im_mat[0:49,:], n_x=10, n_y=5 )
-# f, ax = plt.subplots(figsize=(12,6))
-# ax.imshow(grid, interpolation='nearest')
-# ax.set_title("negatives")
-#
-# lin_im_mat = annotations[labels[:,1]==0,:]
-# grid=anim.image_grid_RGB( lin_im_mat[0:49,:], n_x=10, n_y=5, line_color=1 )
-# f, ax = plt.subplots(figsize=(12,6))
-# ax.imshow(grid, interpolation='nearest')
-# ax.set_title("negatives")
-#
-# lin_im_mat = samples[labels[:,1]==1,:]
-# grid=anim.image_grid_RGB( lin_im_mat[0:49,:], n_x=10, n_y=5 )
-# f, ax = plt.subplots(figsize=(12,6))
-# ax.imshow(grid, interpolation='nearest')
-# ax.set_title("positives")
-#
-# lin_im_mat = annotations[labels[:,1]==1,:]
-# grid=anim.image_grid_RGB( lin_im_mat[0:49,:], n_x=10, n_y=5, line_color=1 )
-# f, ax = plt.subplots(figsize=(12,6))
-# ax.imshow(grid, interpolation='nearest')
-# ax.set_title("positives")
-
-
-#image = anim.channel[0]
-#image[anim.centroids(dilation_factor=5)==1]=0
-#plt.figure()
-#plt.imshow(image,interpolation='nearest')
-
-
-#anim.export_annotations_to_mat(file_name='0test_rois',file_path=filepath)
-
-#mat_data = loadmat(os.path.join(filepath,'0test_rois'))
-#mat_data2 = loadmat(os.path.join(filepath,roifile))
-
-
-#anim2 = ia.AnnotatedImage()
-#print(anim2)
-#
-#filepath = '/Users/pgoltstein/Dropbox/TEMP'
-#roifile = 'F03-Loc5-V1-20160209-ROI2.mat'
-#imfile = 'F03-Loc5-V1-20160209-OverlayL2.tiff'
-#
-#anim2.import_annotations_from_mat(file_name=roifile,file_path=filepath)
-
+    axr = plt.subplot2grid( (1,2), (0,1) )
+    axr.imshow(anim3.RGB(),interpolation='nearest')
+    for an in anim1.annotation:
+        axr.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    axr.set_title("anim3 with annotations of anim1")
+    plt.axis('tight')
+    plt.axis('off')
 
 # Show plots
-# sns.set_context("talk")
 plt.tight_layout()
 plt.show()

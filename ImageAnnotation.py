@@ -916,14 +916,22 @@ class AnnotatedImageSet(object):
         # initializes the list of annotated images
         self.ai_list = []
         self._body_dilation_factor = 0
+        self._centroid_dilation_factor = 0
+        self._n_channels = 0
 
     def __str__(self):
         return "AnnotatedImageSet (# Annotated Images = {:.0f}" \
                 ")".format(self.n_annot_images)
 
+    # **********************************
+    # *****  Read only properties  *****
     @property
     def n_annot_images(self):
         return len(self.ai_list)
+
+    @property
+    def n_channels(self):
+        return self._n_channels
 
     # *******************************************
     # *****  Handling the annotated bodies  *****
@@ -935,10 +943,10 @@ class AnnotatedImageSet(object):
     @body_dilation_factor.setter
     def body_dilation_factor(self, dilation_factor):
         """Updates the internal body annotation mask with dilation_factor"""
-        if dilation_factor != self._body_dilation_factor
+        if dilation_factor != self._body_dilation_factor:
             for nr in range(self.n_annot_images):
                 self.ai_list[nr].body_dilation_factor = dilation_factor
-        self._body_dilation_factor = dilation_factor
+            self._body_dilation_factor = dilation_factor
 
     # **********************************************
     # *****  Handling the annotated centroids  *****
@@ -950,14 +958,14 @@ class AnnotatedImageSet(object):
     @centroid_dilation_factor.setter
     def centroid_dilation_factor(self, dilation_factor):
         """Updates the internal centroid annotation mask with dilation_factor"""
-        if dilation_factor != self._centroid_dilation_factor
+        if dilation_factor != self._centroid_dilation_factor:
             for nr in range(self.n_annot_images):
                 self.ai_list[nr].centroid_dilation_factor = dilation_factor
-        self._centroid_dilation_factor = dilation_factor
+            self._centroid_dilation_factor = dilation_factor
 
     # ********************************************
     # *****  Produce training/test data set  *****
-    def annotation_detection_sample(self, zoom_size, annotation_type='Bodies',
+    def data_sample(self, zoom_size, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
             morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None ):
@@ -1004,7 +1012,7 @@ class AnnotatedImageSet(object):
 
             # Get samples, labels, annotations
             s_samples,s_labels,s_annotations = \
-                self.ai_list[s].annotation_detection_training_batch(
+                self.ai_list[s].get_batch(
                     zoom_size, annotation_type=annotation_type,
                     m_samples=m_set_samples, exclude_border=exclude_border,
                     return_annotations=return_annotations,
@@ -1024,10 +1032,10 @@ class AnnotatedImageSet(object):
 
     # **************************************
     # *****  Load data from directory  *****
-    def load_data_dir(self,data_directory):
-        """Loads all images and accompanying ROI.mat files from a single
-        directory that contains matching sets of .tiffs and .mat files
-        data_directory:  path to data directory
+    def load_data_dir_tiff_mat(self,data_directory):
+        """Loads all Tiff images and accompanying ROI.mat files from a single
+        directory that contains matching sets of .tiff and .mat files
+        data_directory:  path
         """
         # Get list of all .tiff file and .mat files
         tiff_files = glob.glob(path.join(data_directory,'*.tiff'))
@@ -1041,9 +1049,18 @@ class AnnotatedImageSet(object):
             print("{:2.0f}) {} -- {}".format(f+1,tiff_filename,mat_filename))
 
             # Create new AnnotatedImage, add images and annotations
-            anim = AnnotatedImage(image_data=[], annotation_data=[])
+            anim = AnnotatedImage()
             anim.add_image_from_file(tiff_filename,tiff_filepath)
             anim.import_annotations_from_mat(mat_filename,mat_filepath)
 
+            # Check if the number of channels is the same
+            if len(self.ai_list) == 0:
+                self._n_channels = anim.n_channels
+            else:
+                if self._n_channels != anim.n_channels:
+                    print("!!! CRITICAL WARNING !!!")
+                    print("-- Number of channels is not equal for all annotated images --")
+
             # Append AnnotatedImage to the internal list
+            print("    - "+anim.__str__())
             self.ai_list.append(anim)
