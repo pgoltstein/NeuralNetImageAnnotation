@@ -16,6 +16,7 @@ Contains functions that set up a convolutional neural net for image annotation
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import seaborn as sns
 import time, datetime
 from os import path
 import ImageAnnotation as ia
@@ -152,7 +153,7 @@ class ConvNetCnv2Fc1(object):
         # Define cost function and optimizer algorithm
         self.cross_entropy = tf.reduce_mean(
                     tf.nn.softmax_cross_entropy_with_logits(
-                                            self.fc_out_lin, self.y_trgt ) )
+                                logits=self.fc_out_lin, labels=self.y_trgt ) )
         self.train_step = tf.train.AdamOptimizer(self.alpha).minimize(
                                                         self.cross_entropy )
 
@@ -171,9 +172,8 @@ class ConvNetCnv2Fc1(object):
 
     def start(self):
         """Initializes all variables and starts session"""
-        init = tf.initialize_all_variables()
         self.sess = tf.Session()
-        self.sess.run(init)
+        tf.global_variables_initializer().run(session=self.sess)
 
     def load_network_parameters(self, file_name, file_path='.'):
         self.saver.restore( self.sess,
@@ -224,7 +224,8 @@ class ConvNetCnv2Fc1(object):
 
             # Report progress at start of training
             if (epoch_no % report_every) == 0:
-                self.report_progress_accuracy( samples, labels, batch_no, t_start)
+                self.report_epoch_progress_accuracy( \
+                            samples, labels, epoch_no, t_start)
 
             # Train the network on samples and labels
             self.sess.run( self.train_step, feed_dict={
@@ -273,7 +274,8 @@ class ConvNetCnv2Fc1(object):
                 scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
             # Report progress at start of training
-            self.report_progress_accuracy( samples, labels, batch_no, t_start)
+            self.report_minibatch_progress_accuracy( \
+                                samples, labels, batch_no, t_start)
 
             # Train the network for n_epochs on random subsets of m_samples
             for epoch_no in range(n_epochs):
@@ -299,7 +301,7 @@ class ConvNetCnv2Fc1(object):
             self.fc1_keep_prob: 1.0 })
         acc = result[0]
         t_curr = time.time()
-        print('\nEpoch no {:4d}: Acc = {:6.4f} (t={})'.format( batch_no, acc,
+        print('\nEpoch no {:4d}: Acc = {:6.4f} (t={})'.format( epoch_no, acc,
             str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
             end="", flush=True)
 
@@ -319,10 +321,10 @@ class ConvNetCnv2Fc1(object):
             str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
             end="", flush=True)
 
-    def report_F1(self, annotated_image_set,
-            annotation_type='Bodies', m_samples=100, exclude_border=(0,0,0,0),
-            morph_annotations=False, rotation_list=None,
-            scale_list_x=None, scale_list_y=None, noise_level_list=None):
+    def report_F1(self, annotated_image_set, annotation_type='Bodies',
+            m_samples=100, exclude_border=(0,0,0,0), morph_annotations=False,
+            rotation_list=None, scale_list_x=None, scale_list_y=None,
+            noise_level_list=None, show_figure='Off'):
         """Loads a random training set from the annotated_image_set and
             reports accuracy, precision, recall and F1 score.
             annotated_image_set:  Instance of class AnnotatedImageSet holding
@@ -336,6 +338,8 @@ class ConvNetCnv2Fc1(object):
             scale_list_x:      List of horizontal scale factors to choose from
             scale_list_y:      List of vertical scale factors to choose from
             noise_level_list:  List of noise levels to choose from
+            show_figure:       Show a figure with example samples containing
+                                true/false positives/negatives
             """
         # Get m samples and labels from the AnnotatedImageSet
         samples,labels,annotations = annotated_image_set.data_sample(
@@ -373,7 +377,7 @@ class ConvNetCnv2Fc1(object):
         print(' - F1-score = {:6.4f}'.format( final_F1 ))
 
         # Display figure with examples if necessary
-        if figure.lower() == 'on':
+        if show_figure.lower() == 'on':
             titles = ["true positives","false positives","false negatives","true negatives"]
             samples_mat = []
             samples_mat.append(samples[ np.logical_and(pred[:]==1,labels[:,1]==1), : ])
