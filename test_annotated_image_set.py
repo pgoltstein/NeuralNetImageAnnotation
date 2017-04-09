@@ -11,7 +11,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-from skimage import measure
 
 print(" ")
 print("----------------------------------------------------------")
