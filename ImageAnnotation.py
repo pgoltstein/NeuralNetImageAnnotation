@@ -723,7 +723,8 @@ class AnnotatedImage(object):
             scale_list_y:      List of vertical scale factors to choose from
             noise_level_list:  List of noise levels to choose from
             Returns tuple with samples as 2d numpy matrix, labels as
-            2d numpy matrix and if requested annotations as 2d numpy matrix"""
+            2d numpy matrix and if requested annotations as 2d numpy matrix
+            or otherwise an empty list as third item"""
 
         # Calculate number of positive and negative samples
         m_samples_pos = np.int16( m_samples * (0.5) )
@@ -827,7 +828,7 @@ class AnnotatedImage(object):
             annotations[annotations>=0.5]=1
             return samples,labels,annotations
         else:
-            return samples,labels
+            return samples,labels,[]
 
     def image_grid_RGB( self, image_size, image_type='image', annotation_nrs=None,
                         n_x=10, n_y=6, channel_order=(0,1,2), auto_scale=False,
@@ -912,7 +913,9 @@ class AnnotatedImageSet(object):
     the dataset for feeding in machine learning algorithms"""
 
     def __init__(self):
+        # initializes the list of annotated images
         self.ai_list = []
+        self._body_dilation_factor = 0
 
     def __str__(self):
         return "AnnotatedImageSet (# Annotated Images = {:.0f}" \
@@ -922,39 +925,125 @@ class AnnotatedImageSet(object):
     def n_annot_images(self):
         return len(self.ai_list)
 
-    def annotation_detection_sample(self, annotation_type='bodies',
-            m_samples=100, zoom_size=DEFAULT_ZOOM, dilation_factor=-3,
-            morph_annotations=False ):
-        """Return a random sample of annotation data"""
+    # *******************************************
+    # *****  Handling the annotated bodies  *****
+    @property
+    def body_dilation_factor(self):
+        """Returns the body dilation factor"""
+        return(self._body_dilation_factor)
+
+    @body_dilation_factor.setter
+    def body_dilation_factor(self, dilation_factor):
+        """Updates the internal body annotation mask with dilation_factor"""
+        if dilation_factor != self._body_dilation_factor
+            for nr in range(self.n_annot_images):
+                self.ai_list[nr].body_dilation_factor = dilation_factor
+        self._body_dilation_factor = dilation_factor
+
+    # **********************************************
+    # *****  Handling the annotated centroids  *****
+    @property
+    def centroid_dilation_factor(self):
+        """Returns the centroid dilation factor"""
+        return(self._centroid_dilation_factor)
+
+    @centroid_dilation_factor.setter
+    def centroid_dilation_factor(self, dilation_factor):
+        """Updates the internal centroid annotation mask with dilation_factor"""
+        if dilation_factor != self._centroid_dilation_factor
+            for nr in range(self.n_annot_images):
+                self.ai_list[nr].centroid_dilation_factor = dilation_factor
+        self._centroid_dilation_factor = dilation_factor
+
+    # ********************************************
+    # *****  Produce training/test data set  *****
+    def annotation_detection_sample(self, zoom_size, annotation_type='Bodies',
+            m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
+            morph_annotations=False, rotation_list=None,
+            scale_list_x=None, scale_list_y=None, noise_level_list=None ):
+        """Constructs a random sample of with linearized annotation data,
+            organized in a 2d matrix (m samples x n pixels) half of which is
+            from within an annotation, and half from outside. It takes equal
+            amounts of data from each annotated image in the list.
+            zoom_size:         2 dimensional size of the image (y,x)
+            annotation_type:   'Bodies' or 'Centroids'
+            m_samples:         number of training samples
+            exclude_border:    exclude annotations that are a certain distance
+                               to each border. Pix from (left, right, up, down)
+            return_annotations:  Returns annotations in addition to
+                                 samples and labels
+            morph_annotations: Randomly morph the annotations
+            rotation_list:     List of rotation values to choose from in degrees
+            scale_list_x:      List of horizontal scale factors to choose from
+            scale_list_y:      List of vertical scale factors to choose from
+            noise_level_list:  List of noise levels to choose from
+            Returns tuple with samples as 2d numpy matrix, labels as
+            2d numpy matrix and if requested annotations as 2d numpy matrix
+            or otherwise an empty list as third item"""
+
+        # Calculate number of pixels in linearized image
         n_pix_lin = self.ai_list[0].n_channels * zoom_size[0] * zoom_size[1]
+
+        # List with start and end sample per AnnotatedImage
         m_set_samples_list = np.round( np.linspace( 0, m_samples,
-            self.n_annot_images+1 ) )
+                                                    self.n_annot_images+1 ) )
+
+        # Predefine output matrices
         samples = np.zeros( (m_samples, n_pix_lin) )
+        if return_annotations:
+            annotations = np.zeros( (m_samples, zoom_size[0]*zoom_size[1]) )
+        else:
+            annotations = []
         labels = np.zeros( (m_samples, 2) )
+
+        # Loop AnnotatedImages
         for s in range(self.n_annot_images):
+
+            # Number of samples for this AnnotatedImage
             m_set_samples = int(m_set_samples_list[s+1]-m_set_samples_list[s])
-            s_samples,s_labels = \
+
+            # Get samples, labels, annotations
+            s_samples,s_labels,s_annotations = \
                 self.ai_list[s].annotation_detection_training_batch(
-                    annotation_type=annotation_type, m_samples=m_set_samples,
-                    zoom_size=zoom_size, dilation_factor=dilation_factor,
-                    morph_annotations=morph_annotations )
+                    zoom_size, annotation_type=annotation_type,
+                    m_samples=m_set_samples, exclude_border=exclude_border,
+                    return_annotations=return_annotations,
+                    morph_annotations=morph_annotations,
+                    rotation_list=rotation_list, scale_list_x=scale_list_x,
+                    scale_list_y=scale_list_y, noise_level_list=noise_level_list )
+
+            # put samples, labels and possibly annotations in
             samples[int(m_set_samples_list[s]):int(m_set_samples_list[s+1]),:] \
                 = s_samples
             labels[int(m_set_samples_list[s]):int(m_set_samples_list[s+1]),:] \
                 = s_labels
-        return samples,labels
+            if return_annotations:
+                annotations[int(m_set_samples_list[s]):int(m_set_samples_list[s+1]),:] \
+                    = s_annotations
+        return samples,labels,annotations
 
+    # **************************************
+    # *****  Load data from directory  *****
     def load_data_dir(self,data_directory):
-        """Loads all images and accompanying ROI.mat files from a
-        single directory"""
+        """Loads all images and accompanying ROI.mat files from a single
+        directory that contains matching sets of .tiffs and .mat files
+        data_directory:  path to data directory
+        """
+        # Get list of all .tiff file and .mat files
         tiff_files = glob.glob(path.join(data_directory,'*.tiff'))
         mat_files = glob.glob(path.join(data_directory,'*.mat'))
+
+        # Loop files and load images and annotations
         print("\nLoading .tiff and annotation files:")
         for f, (tiff_file, mat_file) in enumerate(zip(tiff_files,mat_files)):
             tiff_filepath, tiff_filename = path.split(tiff_file)
             mat_filepath, mat_filename = path.split(mat_file)
             print("{:2.0f}) {} -- {}".format(f+1,tiff_filename,mat_filename))
+
+            # Create new AnnotatedImage, add images and annotations
             anim = AnnotatedImage(image_data=[], annotation_data=[])
             anim.add_image_from_file(tiff_filename,tiff_filepath)
             anim.import_annotations_from_mat(mat_filename,mat_filepath)
+
+            # Append AnnotatedImage to the internal list
             self.ai_list.append(anim)

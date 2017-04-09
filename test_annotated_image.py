@@ -11,7 +11,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-from scipy.io import loadmat,savemat
 print(" ")
 print("----------------------------------------------------------")
 print("Importing ImageAnnotation as ia")
