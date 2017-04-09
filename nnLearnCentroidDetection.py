@@ -22,7 +22,8 @@ import iaConvNetTools as cn
 ########################################################################
 # Load data
 annotation_size = (27,27)
-training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet_small'
+training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
+network_path = '/Users/pgoltstein/Dropbox/TEMP'
 print("\nLoading data from directory into training_image_set:")
 print(training_data_path)
 training_image_set = ia.AnnotatedImageSet()
@@ -42,18 +43,18 @@ nn = cn.ConvNetCnv2Fc1( \
         conv2_size=5, conv2_n_chan=32, conv2_n_pool=3,
         fc1_n_chan=256, fc1_dropout=0.5, alpha=4e-4 )
 nn.start()
-# nn.load_network_parameters('centroid_net',training_data_path)
+nn.load_network_parameters('centroid_net',network_path)
 
 ########################################################################
 # Train network and save network parameters
 nn.train_epochs( training_image_set,
-    annotation_type='Bodies', m_samples=500, n_epochs=50)
-nn.save_network_parameters('centroid_net',training_data_path)
+    annotation_type='Centroids', m_samples=500, n_epochs=100)
+nn.save_network_parameters('centroid_net',network_path)
 
 ########################################################################
 # Display performance
 print("\nTraining set performance:")
 nn.report_F1( training_image_set,
-    annotation_type='Bodies', m_samples=2000, show_figure='On')
+    annotation_type='Centroids', m_samples=2000, show_figure='On')
 
 print('Done!\n')
