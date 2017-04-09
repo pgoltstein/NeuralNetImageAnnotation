@@ -186,7 +186,7 @@ class ConvNetCnv2Fc1(object):
                                      path.join(file_path,file_name+'.nnprm'))
         print('\nNetwork parameters saved in file:\n{}'.format(save_path))
 
-    def train_epochs(self, annotated_image_set, n_epochs=100,
+    def train_epochs(self, annotated_image_set, n_epochs=100, report_every=10,
             annotation_type='Bodies', m_samples=100, exclude_border=(0,0,0,0),
             morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None):
@@ -196,6 +196,7 @@ class ConvNetCnv2Fc1(object):
             annotated_image_set:  Instance of class AnnotatedImageSet holding
                                   the image and annotation data to train on
             n_epochs:             Number of training epochs
+            report_every:         Print a report every # of epochs
             annotation_type:      'Bodies' or 'Centroids'
             m_samples:            number of training samples
             exclude_border:    exclude annotations that are a certain distance
@@ -222,7 +223,8 @@ class ConvNetCnv2Fc1(object):
                 scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
             # Report progress at start of training
-            self.report_progress_accuracy( samples, labels, batch_no, t_start)
+            if (epoch_no % report_every) == 0:
+                self.report_progress_accuracy( samples, labels, batch_no, t_start)
 
             # Train the network on samples and labels
             self.sess.run( self.train_step, feed_dict={
@@ -230,7 +232,7 @@ class ConvNetCnv2Fc1(object):
                 self.fc1_keep_prob: self.fc1_dropout } )
             print('.', end="", flush=True)
 
-    def train_epochs(self, annotated_image_set, n_batches=10, n_epochs=100,
+    def train_minibatch(self, annotated_image_set, n_batches=10, n_epochs=100,
             annotation_type='Bodies', batch_size=1000, m_samples=100,
             exclude_border=(0,0,0,0), morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None):
