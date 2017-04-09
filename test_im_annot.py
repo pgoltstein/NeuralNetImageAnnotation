@@ -74,7 +74,7 @@ for an in a:
 
 with sns.axes_style("white"):
     # Display masked annotation a1 and its outline
-    plt.figure(num=None, figsize=(8,8), dpi=80, facecolor='w', edgecolor='w')
+    plt.figure(figsize=(8,8), facecolor='w', edgecolor='w')
     ax1 = plt.subplot2grid( (2,2), (0,0) )
     ax1.imshow(im1,interpolation='nearest')
     ax1.plot( a1.perimeter[:,1], a1.perimeter[:,0], color="#aa00aa" )
