@@ -48,7 +48,7 @@ nn.load_network_parameters('centroid_net',network_path)
 ########################################################################
 # Train network and save network parameters
 nn.train_epochs( training_image_set,
-    annotation_type='Centroids', m_samples=500, n_epochs=100)
+    annotation_type='Centroids', m_samples=500, n_epochs=2500)
 nn.save_network_parameters('centroid_net',network_path)
 
 ########################################################################
@@ -56,5 +56,18 @@ nn.save_network_parameters('centroid_net',network_path)
 print("\nTraining set performance:")
 nn.report_F1( training_image_set,
     annotation_type='Centroids', m_samples=2000, show_figure='On')
+
+########################################################################
+# Test morphed performance
+print("\nMorphed training set performance:")
+rotation_list = np.array(range(360))
+scale_list_x = np.array(range(900,1100)) / 1000
+scale_list_y = np.array(range(900,1100)) / 1000
+noise_level_list = np.array(range(200)) / 10000
+nn.report_F1( training_image_set, annotation_type='Centroids',
+        m_samples=5000, exclude_border=(40,40,40,40), morph_annotations=True,
+        rotation_list=rotation_list, scale_list_x=scale_list_x,
+        scale_list_y=scale_list_y, noise_level_list=noise_level_list,
+        show_figure='On')
 
 print('Done!\n')
