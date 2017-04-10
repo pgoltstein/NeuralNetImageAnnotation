@@ -304,21 +304,22 @@ class ConvNetCnv2Fc1(object):
 
         # Annotate line by line
         line_samples = np.zeros( (anim.x_res,
-            self.n_channels * self.y_res * self.x_res) )
+            anim.n_channels * self.y_res * self.x_res) )
         # Loop through all lines
         print("Classifying image")
-        print("Line no:{}"".format(y), end="", flush=True)
+        print("Line no:", end="", flush=True)
         for y in range(anim.y_res):
             # Loop through all pixels to fill the line-samples
             for x in range(anim.x_res):
-                line_samples[x,:] = image2vec( zoom( anim.channel,
+                line_samples[x,:] = ia.image2vec( ia.zoom( anim.channel,
                     y, x, zoom_size=(self.y_res,self.x_res) ) )
 
             # Calculate network prediction
             result = self.sess.run( [self.network_prediction], feed_dict={
                 self.x: line_samples, self.fc1_keep_prob: 1.0 })
             classified_image[y,:] = result[0]
-            print(",{}".format(y), end="", flush=True)
+            print("{},".format(y), end="", flush=True)
+        print("done!")
         return classified_image
 
 
