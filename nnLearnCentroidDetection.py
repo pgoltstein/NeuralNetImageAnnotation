@@ -60,7 +60,7 @@ nn = cn.ConvNetCnv2Fc1( \
 nn.start()
 
 # Load network parameters
-# nn.load_network_parameters(network_name,network_path)
+nn.load_network_parameters(network_name,network_path)
 
 ########################################################################
 # Train network and save network parameters
