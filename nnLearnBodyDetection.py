@@ -21,7 +21,7 @@ import argparse
 # Arguments
 parser = argparse.ArgumentParser( \
     description="Trains a deep convolutional neural network to detect " +\
-                    "cell bodies in an annotated image set")
+                    "full cell bodies in an annotated image set")
 parser.add_argument('nEpochs', help='Number of epochs to train')
 args = parser.parse_args()
 n_epochs = int(args.nEpochs)
