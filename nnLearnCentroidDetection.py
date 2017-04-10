@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser( \
                     "centroids in an annotated image set")
 parser.add_argument('nEpochs', help='Number of epochs to train')
 args = parser.parse_args()
-n_epochs = args.nEpochs
+n_epochs = int(args.nEpochs)
 
 ########################################################################
 # Settings and variables
