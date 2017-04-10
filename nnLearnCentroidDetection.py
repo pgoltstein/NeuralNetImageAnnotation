@@ -21,10 +21,18 @@ import iaConvNetTools as cn
 
 
 ########################################################################
-# Load data
+# Settings and variables
 annotation_size = (27,27)
 training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
 network_path = '/Users/pgoltstein/Dropbox/TEMP'
+rotation_list = np.array(range(360))
+scale_list_x = np.array(range(800,1200)) / 1000
+scale_list_y = np.array(range(800,1200)) / 1000
+noise_level_list = np.array(range(200)) / 10000
+
+
+########################################################################
+# Load data
 print("\nLoading data from directory into training_image_set:")
 print(training_data_path)
 training_image_set = ia.AnnotatedImageSet()
@@ -61,10 +69,6 @@ nn.report_F1( training_image_set,
 ########################################################################
 # Test morphed performance
 print("\nMorphed training set performance:")
-rotation_list = np.array(range(360))
-scale_list_x = np.array(range(900,1100)) / 1000
-scale_list_y = np.array(range(900,1100)) / 1000
-noise_level_list = np.array(range(200)) / 10000
 nn.report_F1( training_image_set, annotation_type='Centroids',
         m_samples=5000, exclude_border=(40,40,40,40), morph_annotations=True,
         rotation_list=rotation_list, scale_list_x=scale_list_x,

@@ -39,7 +39,7 @@ training_image_set = ia.AnnotatedImageSet()
 training_image_set.load_data_dir_tiff_mat(training_data_path)
 print(" >> " + training_image_set.__str__())
 
-# Dilate centroids
+# Dilate bodies
 print("Changing body dilation factor of the image set to -3")
 training_image_set.body_dilation_factor = -3
 
@@ -56,16 +56,16 @@ nn.load_network_parameters('body1step_net',network_path)
 
 ########################################################################
 # Train network and save network parameters
-nn.train_epochs( training_image_set,
-    annotation_type='Bodies', m_samples=200, n_epochs=100, report_every=10,
-    exclude_border=(40,40,40,40), morph_annotations=True,
-    rotation_list=rotation_list, scale_list_x=scale_list_x,
-    scale_list_y=scale_list_y, noise_level_list=noise_level_list )
-# nn.train_minibatch( training_image_set, annotation_type='Bodies',
-#     n_batches=10, n_epochs=20, batch_size=2000, m_samples=200,
+# nn.train_epochs( training_image_set,
+#     annotation_type='Bodies', m_samples=200, n_epochs=100, report_every=10,
 #     exclude_border=(40,40,40,40), morph_annotations=True,
 #     rotation_list=rotation_list, scale_list_x=scale_list_x,
 #     scale_list_y=scale_list_y, noise_level_list=noise_level_list )
+nn.train_minibatch( training_image_set, annotation_type='Bodies',
+    n_batches=10, n_epochs=20, batch_size=2000, m_samples=200,
+    exclude_border=(40,40,40,40), morph_annotations=True,
+    rotation_list=rotation_list, scale_list_x=scale_list_x,
+    scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 nn.save_network_parameters('body1step_net',network_path)
 
 ########################################################################
