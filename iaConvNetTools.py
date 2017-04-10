@@ -216,7 +216,8 @@ class ConvNetCnv2Fc1(object):
 
             # Get samples and labels for this epoch
             samples,labels,annotations = annotated_image_set.data_sample(
-                zoom_size=(self.y_res,self.y_res), annotation_type=annotation_type,
+                zoom_size=(self.y_res,self.x_res),
+                annotation_type=annotation_type,
                 m_samples=m_samples, exclude_border=exclude_border,
                 return_annotations=False, morph_annotations=morph_annotations,
                 rotation_list=rotation_list, scale_list_x=scale_list_x,
@@ -235,8 +236,9 @@ class ConvNetCnv2Fc1(object):
 
     def train_minibatch(self, annotated_image_set, n_batches=10, n_epochs=100,
             annotation_type='Bodies', batch_size=1000, m_samples=100,
-            exclude_border=(0,0,0,0), morph_annotations=False, rotation_list=None,
-            scale_list_x=None, scale_list_y=None, noise_level_list=None):
+            exclude_border=(0,0,0,0), morph_annotations=False,
+            rotation_list=None, scale_list_x=None,
+            scale_list_y=None, noise_level_list=None):
         """Trains the network on a training set for a specified number of
             batches of size batch_size. Every batch iteration it loads a
             random training batch from the annotated_image_set. Per batch,
@@ -267,7 +269,8 @@ class ConvNetCnv2Fc1(object):
 
             # Get batch of samples and labels
             samples,labels,annotations = annotated_image_set.data_sample(
-                zoom_size=(self.y_res,self.y_res), annotation_type=annotation_type,
+                zoom_size=(self.y_res,self.x_res),
+                annotation_type=annotation_type,
                 m_samples=batch_size, exclude_border=exclude_border,
                 return_annotations=False, morph_annotations=morph_annotations,
                 rotation_list=rotation_list, scale_list_x=scale_list_x,
@@ -289,7 +292,38 @@ class ConvNetCnv2Fc1(object):
                     self.fc1_keep_prob: self.fc1_dropout } )
                 print('.', end="", flush=True)
 
-    def report_epoch_progress_accuracy(self, samples, labels, epoch_no, t_start):
+    def annotate_image( self, anim ):
+        """Loops through every pixels of an annotated image, classifies
+            the pixels and overwrites the annotation list with newly
+            detected annotations
+            anim:   AnnotatedImage with image channel loaded
+            returns a 2d matrix with the classification result
+        """
+        # Make output matrix
+        classified_image = np.zeros((anim.y_res,anim.x_res))
+
+        # Annotate line by line
+        line_samples = np.zeros( (anim.x_res,
+            self.n_channels * self.y_res * self.x_res) )
+        # Loop through all lines
+        print("Classifying image")
+        print("Line no:{}"".format(y), end="", flush=True)
+        for y in range(anim.y_res):
+            # Loop through all pixels to fill the line-samples
+            for x in range(anim.x_res):
+                line_samples[x,:] = image2vec( zoom( anim.channel,
+                    y, x, zoom_size=(self.y_res,self.x_res) ) )
+
+            # Calculate network prediction
+            result = self.sess.run( [self.network_prediction], feed_dict={
+                self.x: line_samples, self.fc1_keep_prob: 1.0 })
+            classified_image[y,:] = result[0]
+            print(",{}".format(y), end="", flush=True)
+        return classified_image
+
+
+    def report_epoch_progress_accuracy(self,
+                        samples, labels, epoch_no, t_start):
         """Report progress and accuracy on single line for epoch training
             samples:    2d matrix containing training samples
             labels:     2d matrix containing labels
@@ -305,7 +339,8 @@ class ConvNetCnv2Fc1(object):
             str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
             end="", flush=True)
 
-    def report_minibatch_progress_accuracy(self, samples, labels, batch_no, t_start):
+    def report_minibatch_progress_accuracy(self,
+                        samples, labels, batch_no, t_start):
         """Report progress and accuracy on single line for mini_batch training
             samples:    2d matrix containing training samples
             labels:     2d matrix containing labels
@@ -343,7 +378,7 @@ class ConvNetCnv2Fc1(object):
             """
         # Get m samples and labels from the AnnotatedImageSet
         samples,labels,annotations = annotated_image_set.data_sample(
-            zoom_size=(self.y_res,self.y_res), annotation_type=annotation_type,
+            zoom_size=(self.y_res,self.x_res), annotation_type=annotation_type,
             m_samples=m_samples, exclude_border=exclude_border,
             return_annotations=False, morph_annotations=morph_annotations,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
@@ -365,7 +400,8 @@ class ConvNetCnv2Fc1(object):
         final_accuracy = (true_pos+true_neg) / len(pred)
         final_precision = true_pos / (true_pos+false_pos)
         final_recall = true_pos / (true_pos+false_neg)
-        final_F1 = 2 * ((final_precision*final_recall)/(final_precision+final_recall))
+        final_F1 = \
+            2 * ((final_precision*final_recall)/(final_precision+final_recall))
         print('\nLabeled image set (m={}):'.format(m_samples))
         print(' - # true positives = {:6.0f}'.format( true_pos ))
         print(' - # false positives = {:6.0f}'.format( false_pos ))
@@ -378,25 +414,31 @@ class ConvNetCnv2Fc1(object):
 
         # Display figure with examples if necessary
         if show_figure.lower() == 'on':
-            titles = ["true positives","false positives","false negatives","true negatives"]
+            titles = ["true positives","false positives",\
+                        "false negatives","true negatives"]
             plot_positions = [(0,0),(0,1),(1,0),(1,1)]
             samples_mat = []
-            samples_mat.append(samples[ np.logical_and(pred[:]==1,labels[:,1]==1), : ])
-            samples_mat.append(samples[ np.logical_and(pred[:]==1,labels[:,1]==0), : ])
-            samples_mat.append(samples[ np.logical_and(pred[:]==0,labels[:,1]==1), : ])
-            samples_mat.append(samples[ np.logical_and(pred[:]==0,labels[:,1]==0), : ])
+            samples_mat.append(
+                samples[ np.logical_and(pred[:]==1,labels[:,1]==1), : ])
+            samples_mat.append(samples[
+                np.logical_and(pred[:]==1,labels[:,1]==0), : ])
+            samples_mat.append(samples[
+                np.logical_and(pred[:]==0,labels[:,1]==1), : ])
+            samples_mat.append(samples[
+                np.logical_and(pred[:]==0,labels[:,1]==0), : ])
 
             plt.figure(figsize=(10,10), facecolor='w', edgecolor='w')
             for cnt in range(4):
                 grid,_ = ia.image_grid_RGB( samples_mat[cnt],
                     n_channels=annotated_image_set.n_channels,
-                    image_size=(self.y_res,self.y_res), n_x=10, n_y=10,
+                    image_size=(self.y_res,self.x_res), n_x=10, n_y=10,
                     channel_order=(0,1,2), amplitude_scaling=(1.33,1.33,1),
                     line_color=1, auto_scale=True )
                 grid[:,:,2] = 0 # only show red and green channel
                 with sns.axes_style("white"):
                     ax1 = plt.subplot2grid( (2,2), plot_positions[cnt] )
-                    ax1.imshow( grid, interpolation='nearest', vmax=grid.max()*0.8 )
+                    ax1.imshow(
+                        grid, interpolation='nearest', vmax=grid.max()*0.8 )
                     ax1.set_title(titles[cnt])
                     plt.axis('tight')
                     plt.axis('off')
