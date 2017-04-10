@@ -268,7 +268,7 @@ class ConvNetCnv2Fc1(object):
             # Get batch of samples and labels
             samples,labels,annotations = annotated_image_set.data_sample(
                 zoom_size=(self.y_res,self.y_res), annotation_type=annotation_type,
-                m_samples=m_samples, exclude_border=exclude_border,
+                m_samples=batch_size, exclude_border=exclude_border,
                 return_annotations=False, morph_annotations=morph_annotations,
                 rotation_list=rotation_list, scale_list_x=scale_list_x,
                 scale_list_y=scale_list_y, noise_level_list=noise_level_list )
@@ -401,4 +401,3 @@ class ConvNetCnv2Fc1(object):
                     plt.axis('tight')
                     plt.axis('off')
             plt.tight_layout()
-            plt.show()

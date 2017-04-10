@@ -15,15 +15,24 @@ Contains functions that detect bodies of annotations in a single step
 
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 import ImageAnnotation as ia
 import iaConvNetTools as cn
 
 
 ########################################################################
-# Load data
+# Settings and variables
 annotation_size = (36,36)
 training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
 network_path = '/Users/pgoltstein/Dropbox/TEMP'
+rotation_list = np.array(range(360))
+scale_list_x = np.array(range(800,1200)) / 1000
+scale_list_y = np.array(range(800,1200)) / 1000
+noise_level_list = np.array(range(200)) / 10000
+
+
+########################################################################
+# Load data
 print("\nLoading data from directory into training_image_set:")
 print(training_data_path)
 training_image_set = ia.AnnotatedImageSet()
@@ -43,33 +52,37 @@ nn = cn.ConvNetCnv2Fc1( \
         conv2_size=5, conv2_n_chan=32, conv2_n_pool=2,
         fc1_n_chan=256, fc1_dropout=0.5, alpha=4e-4 )
 nn.start()
-# nn.load_network_parameters('body1step_net',network_path)
+nn.load_network_parameters('body1step_net',network_path)
 
 ########################################################################
 # Train network and save network parameters
 nn.train_epochs( training_image_set,
-    annotation_type='Bodies', m_samples=500, n_epochs=2500,
-    exclude_border=(40,40,40,40))
+    annotation_type='Bodies', m_samples=200, n_epochs=100, report_every=10,
+    exclude_border=(40,40,40,40), morph_annotations=True,
+    rotation_list=rotation_list, scale_list_x=scale_list_x,
+    scale_list_y=scale_list_y, noise_level_list=noise_level_list )
+# nn.train_minibatch( training_image_set, annotation_type='Bodies',
+#     n_batches=10, n_epochs=20, batch_size=2000, m_samples=200,
+#     exclude_border=(40,40,40,40), morph_annotations=True,
+#     rotation_list=rotation_list, scale_list_x=scale_list_x,
+#     scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 nn.save_network_parameters('body1step_net',network_path)
 
 ########################################################################
 # Display performance
 print("\nTraining set performance:")
 nn.report_F1( training_image_set,
-    annotation_type='Bodies', m_samples=2000,
+    annotation_type='Bodies', m_samples=1000,
     exclude_border=(40,40,40,40), show_figure='On')
 
 ########################################################################
 # Test morphed performance
 print("\nMorphed training set performance:")
-rotation_list = np.array(range(360))
-scale_list_x = np.array(range(900,1100)) / 1000
-scale_list_y = np.array(range(900,1100)) / 1000
-noise_level_list = np.array(range(200)) / 10000
 nn.report_F1( training_image_set, annotation_type='Bodies',
-        m_samples=2000, exclude_border=(40,40,40,40), morph_annotations=True,
+        m_samples=1000, exclude_border=(40,40,40,40), morph_annotations=True,
         rotation_list=rotation_list, scale_list_x=scale_list_x,
         scale_list_y=scale_list_y, noise_level_list=noise_level_list,
         show_figure='On')
 
 print('Done!\n')
+plt.show()

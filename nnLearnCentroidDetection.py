@@ -15,6 +15,7 @@ Contains functions that detect centroids of annotations
 
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 import ImageAnnotation as ia
 import iaConvNetTools as cn
 
@@ -71,3 +72,4 @@ nn.report_F1( training_image_set, annotation_type='Centroids',
         show_figure='On')
 
 print('Done!\n')
+plt.show()

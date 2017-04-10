@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
+import time, datetime
 import os
 
 print(" ")
@@ -46,9 +47,30 @@ print(" ")
 print("Changing dilation factor of ais1 centroids to 0")
 ais1.centroid_dilation_factor = 0
 
+# Get non-morphed training set
+m_samples = 100
+print(" ")
+print("Get training set (m={}) with non-morphed annotations from ais1".format(m_samples))
+t_start = time.time()
+samples,labels,annotations = ais1.data_sample( \
+        im_size, annotation_type='bodies', return_annotations=False,
+        m_samples=m_samples, exclude_border=(0,0,0,0), morph_annotations=False )
+t_curr = time.time()
+print(' -- Duration = {:.0f} ms'.format(1000*(t_curr-t_start)) )
+
 # Get training set
 print(" ")
-print("Get training set with non-morphed annotations from ais1")
+print("Get training set (m={}) with morphed annotations from ais1".format(m_samples))
+t_start = time.time()
+samples,labels,annotations = ais1.data_sample( \
+        im_size, annotation_type='bodies', return_annotations=True,
+        m_samples=m_samples, exclude_border=(0,0,0,0), morph_annotations=False )
+t_curr = time.time()
+print(' -- Duration = {:.0f} ms'.format(1000*(t_curr-t_start)) )
+
+# Get training set
+print(" ")
+print("Get small training set with morphed annotations from ais1")
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='bodies', return_annotations=True,
         m_samples=30, exclude_border=(0,0,0,0), morph_annotations=False )
