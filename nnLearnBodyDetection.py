@@ -118,10 +118,10 @@ nn.save()
 ########################################################################
 # Display performance
 
-nn.show_learning_curve()
-plt.show()
-
 if args.F1report:
+    print("\nDisplay learning curve:")
+    nn.show_learning_curve()
+
     print("\nTraining set performance:")
     nn.report_F1( training_image_set,
         annotation_type='Bodies', m_samples=2000, morph_annotations=False,

@@ -119,6 +119,9 @@ nn.save()
 # Display performance
 
 if args.F1report:
+    print("\nDisplay learning curve:")
+    nn.show_learning_curve()
+
     print("\nTraining set performance:")
     nn.report_F1( training_image_set,
         annotation_type='Centroids', m_samples=2000, morph_annotations=False,
