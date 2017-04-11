@@ -3,7 +3,7 @@
 """
 Created on April 10 2017
 
-Contains functions that detect centroids of annotations in a single step
+Contains functions that detect bodies of annotations in a single step
 
 @author: pgoltstein
 """
@@ -24,10 +24,15 @@ parser = argparse.ArgumentParser( \
     description="Trains a deep convolutional neural network to detect " +\
                     "full cell bodies in an annotated image set")
 
+parser.add_argument('annotationtype', type=str,
+                    help= "'Centroids' or 'Bodies'")
 parser.add_argument('name', type=str,
                     help= 'Name by which to identify the network')
 parser.add_argument('-z', '--size', type=int, default=27,
                     help='Size of the image annotations (default=27)')
+parser.add_argument('-dl', '--dilationfactor', type=int, default=-999,
+                    help="Dilation factor of annotations (default=0 for " +\
+                    "'Centroid'; default=3 for 'Body'")
 
 parser.add_argument('-t', '--trainingdata', type=str,
                     help= 'Path to training data folder')
@@ -62,6 +67,8 @@ args = parser.parse_args()
 
 # Set variables based on arguments
 network_name = str(args.name)
+annotation_type = str(args.annotationtype)
+dilation_factor = args.dilationfactor
 n_epochs = args.nepochs
 fc1_dropout = args.dropout
 alpha = args.alpha
@@ -83,7 +90,7 @@ else:
     network_path = '/Users/pgoltstein/Dropbox/NeuralNets'
 
 ########################################################################
-# Settings and variables
+# Other variables
 rotation_list = np.array(range(360))
 scale_list_x = np.array(range(900,1100)) / 1000
 scale_list_y = np.array(range(900,1100)) / 1000
@@ -108,14 +115,23 @@ nn = cn.ConvNetCnv2Fc1( \
 
 ########################################################################
 # Set training data
-nn.log("\n\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-nn.log(    "++                New network run                          ++")
-nn.log("    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 nn.log("\nUsing training_image_set from directory:")
 nn.log(training_data_path)
 nn.log(" >> " + training_image_set.__str__())
-nn.log("Setting centroid dilation factor of the image set to 3")
-training_image_set.centroid_dilation_factor = 3
+
+if annotation_type == 'Centroids':
+    if dilation_factor == -999:
+        dilation_factor = 3
+    nn.log("Setting centroid dilation factor of the image " + \
+                                    "to {}".format(dilation_factor))
+    training_image_set.centroid_dilation_factor = dilation_factor
+
+elif annotation_type == 'Bodies':
+    if dilation_factor == -999:
+        dilation_factor = 0
+    nn.log("Setting body dilation factor of the image " + \
+                                    "to {}".format(dilation_factor))
+    training_image_set.body_dilation_factor = dilation_factor
 
 ########################################################################
 # Initialize and start
@@ -130,7 +146,7 @@ nn.display_network_architecture()
 ########################################################################
 # Train network
 nn.train_epochs( training_image_set,
-    annotation_type='Centroids',
+    annotation_type=annotation_type,
     m_samples=m_samples, n_epochs=n_epochs, report_every=10,
     exclude_border=(40,40,40,40), morph_annotations=morph_annotations,
     rotation_list=rotation_list, scale_list_x=scale_list_x,
@@ -148,12 +164,13 @@ if args.F1report:
 
     nn.log("\nTraining set performance:")
     nn.report_F1( training_image_set,
-        annotation_type='Centroids', m_samples=2000, morph_annotations=False,
-        exclude_border=(40,40,40,40), show_figure='On')
+        annotation_type=annotation_type, m_samples=2000,
+        morph_annotations=False, exclude_border=(40,40,40,40),
+        show_figure='On')
 
     # Test morphed performance
     nn.log("\nMorphed training set performance:")
-    nn.report_F1( training_image_set, annotation_type='Centroids',
+    nn.report_F1( training_image_set, annotation_type=annotation_type,
             m_samples=2000, exclude_border=(40,40,40,40),
             morph_annotations=True,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
