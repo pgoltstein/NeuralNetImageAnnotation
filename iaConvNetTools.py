@@ -35,7 +35,7 @@ class ConvNetCnv2Fc1(object):
                 input_image_size, n_input_channels, output_size,
                 conv1_size=5, conv1_n_chan=32, conv1_n_pool=2,
                 conv2_size=5, conv2_n_chan=64, conv2_n_pool=2,
-                fc1_n_chan=1024, fc1_dropout=0.5, alpha=5e-4 ):
+                fc1_n_chan=1024, fc1_dropout=0.5, alpha=4e-4 ):
         """Initializes all variables and sets up the network. If network
         already exists, load the variables from there.
         network_path:      Directory where to store network and architecture

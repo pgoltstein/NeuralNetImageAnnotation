@@ -37,9 +37,9 @@ parser.add_argument('-s', '--size', type=int, default=36,
                     help='Size of the image annotations (default=36)')
 parser.add_argument('-d', '--dropout', type=float, default=0.5,
                     help='Dropout fraction in fully connected " + \
-                    "layer (default=36)')
-parser.add_argument('-a', '--alpha', type=float, default=0.0005,
-                    help="Learning rate 'alpha' (default=0.0005)")
+                    "layer (default=0.5)')
+parser.add_argument('-a', '--alpha', type=float, default=0.0004,
+                    help="Learning rate 'alpha' (default=0.0004)")
 parser.add_argument('-p', '--morph',  action="store_true",
                     help='Enables random morphing of annotations (default=off)')
 parser.add_argument('-f', '--F1report', action="store_true",
