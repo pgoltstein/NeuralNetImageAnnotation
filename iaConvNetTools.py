@@ -99,6 +99,15 @@ class ConvNetCnv2Fc1(object):
             self.alpha = net_architecture['alpha']
             self.n_samples_trained = net_architecture['n_samples_trained']
 
+        # Update values of alpha and dropout if supplied
+        if self.alpha != alpha:
+            self.alpha = alpha
+            print("\nUpdated learning rate 'alpha' to {}".format(self.alpha))
+        if self.fc1_dropout != fc1_dropout:
+            self.fc1_dropout = fc1_dropout
+            print("\nUpdated dropout fraction to {}".format(self.fc1_dropout))
+
+
         #########################################################
         # Input and target variable placeholders
         # x = [ m_samples x [channel_1_data, channel_2_data, etc.] ]

@@ -31,6 +31,11 @@ parser.add_argument('-m', '--msamples', type=int, default=200,
                     help='Number of samples per training step (default=200)')
 parser.add_argument('-s', '--size', type=int, default=36,
                     help='Size of the image annotations (default=36)')
+parser.add_argument('-d', '--dropout', type=float, default=0.5,
+                    help='Dropout fraction in fully connected " + \
+                    "layer (default=36)')
+parser.add_argument('-a', '--alpha', type=float, default=0.0005,
+                    help="Learning rate 'alpha' (default=0.0005)")
 parser.add_argument('-p', '--morph',  action="store_true",
                     help='Enables random morphing of annotations (default=off)')
 parser.add_argument('-f', '--F1report', action="store_true",
@@ -40,6 +45,8 @@ args = parser.parse_args()
 # Set variables based on arguments
 network_name = str(args.name)
 n_epochs = args.nepochs
+fc1_dropout = args.dropout
+alpha = args.alpha
 m_samples = args.msamples
 annotation_size = (args.size,args.size)
 morph_annotations = args.morph
@@ -75,7 +82,7 @@ nn = cn.ConvNetCnv2Fc1( \
         output_size=(1,2),
         conv1_size=7, conv1_n_chan=32, conv1_n_pool=3,
         conv2_size=7, conv2_n_chan=64, conv2_n_pool=3,
-        fc1_n_chan=256, fc1_dropout=0.5, alpha=4e-4 )
+        fc1_n_chan=256, fc1_dropout=fc1_dropout, alpha=alpha )
 
 # Initialize and start
 nn.start()
