@@ -70,6 +70,8 @@ class ConvNetCnv2Fc1(object):
             self.fc1_dropout = fc1_dropout
             self.alpha = alpha
             self.n_samples_trained = 0
+            self.n_samples_list = []
+            self.performance_list = []
 
             # Save network architecture
             self.save_network_architecture( network_path=self.network_path )
@@ -98,6 +100,8 @@ class ConvNetCnv2Fc1(object):
             self.fc1_dropout = net_architecture['fc1_dropout']
             self.alpha = net_architecture['alpha']
             self.n_samples_trained = net_architecture['n_samples_trained']
+            self.n_samples_list = net_architecture['n_samples_list']
+            self.performance_list = net_architecture['performance_list']
 
         # Update values of alpha and dropout if supplied
         if self.alpha != alpha:
@@ -289,6 +293,8 @@ class ConvNetCnv2Fc1(object):
         net_architecture['fc1_dropout'] = self.fc1_dropout
         net_architecture['alpha'] = self.alpha
         net_architecture['n_samples_trained'] = self.n_samples_trained
+        net_architecture['performance_list'] = self.performance_list
+        net_architecture['n_samples_list'] = self.n_samples_list
         np.save(os.path.join( \
             network_path,'net_architecture.npy'), net_architecture)
         print("\nNetwork architecture saved to file:\n{}".format(
@@ -483,6 +489,8 @@ class ConvNetCnv2Fc1(object):
         print('\nEpoch no {:4d}: Acc = {:6.4f} (t={})'.format( epoch_no, acc,
             str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
             end="", flush=True)
+        self.performance_list.append(acc)
+        self.n_samples_list.append(int(self.n_samples_trained))
 
     def report_minibatch_progress_accuracy(self,
                         samples, labels, batch_no, t_start):
@@ -500,6 +508,8 @@ class ConvNetCnv2Fc1(object):
         print('\nBatch no {:4d}: Acc = {:6.4f} (t={})'.format( batch_no, acc,
             str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
             end="", flush=True)
+        self.performance_list.append(float(acc))
+        self.n_samples_list.append(int(self.n_samples_trained))
 
     def report_F1(self, annotated_image_set, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0), morph_annotations=False,
