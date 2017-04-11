@@ -39,7 +39,7 @@ else:
 training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
 network_path = '/Users/pgoltstein/Dropbox/NeuralNets'
 
-annotation_size = (36,36)
+annotation_size = (27,27)
 rotation_list = np.array(range(360))
 scale_list_x = np.array(range(900,1100)) / 1000
 scale_list_y = np.array(range(900,1100)) / 1000
@@ -73,6 +73,9 @@ nn.restore()
 
 # Initialize and start
 nn.start()
+
+# Display network architecture
+nn.display_network_architecture()
 
 ########################################################################
 # Train network
