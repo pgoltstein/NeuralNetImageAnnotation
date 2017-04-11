@@ -71,7 +71,10 @@ class ConvNetCnv2Fc1(object):
             self.alpha = alpha
             self.n_samples_trained = 0
             self.n_samples_list = []
-            self.performance_list = []
+            self.accuracy_list = []
+            self.precision_list = []
+            self.recall_list = []
+            self.F1_list = []
 
             # Save network architecture
             self.save_network_architecture( network_path=self.network_path )
@@ -101,7 +104,10 @@ class ConvNetCnv2Fc1(object):
             self.alpha = net_architecture['alpha']
             self.n_samples_trained = net_architecture['n_samples_trained']
             self.n_samples_list = net_architecture['n_samples_list']
-            self.performance_list = net_architecture['performance_list']
+            self.accuracy_list = net_architecture['accuracy_list']
+            self.precision_list = net_architecture['precision_list']
+            self.recall_list = net_architecture['recall_list']
+            self.F1_list = net_architecture['F1_list']
 
         # Update values of alpha and dropout if supplied
         if self.alpha != alpha:
@@ -293,7 +299,10 @@ class ConvNetCnv2Fc1(object):
         net_architecture['fc1_dropout'] = self.fc1_dropout
         net_architecture['alpha'] = self.alpha
         net_architecture['n_samples_trained'] = self.n_samples_trained
-        net_architecture['performance_list'] = self.performance_list
+        net_architecture['accuracy_list'] = self.accuracy_list
+        net_architecture['precision_list'] = self.precision_list
+        net_architecture['recall_list'] = self.recall_list
+        net_architecture['F1_list'] = self.F1_list
         net_architecture['n_samples_list'] = self.n_samples_list
         np.save(os.path.join( \
             network_path,'net_architecture.npy'), net_architecture)
@@ -355,8 +364,8 @@ class ConvNetCnv2Fc1(object):
 
             # Report progress at start of training
             if (epoch_no % report_every) == 0:
-                self.report_epoch_progress_accuracy( \
-                            samples, labels, epoch_no, t_start)
+                self.report_progress( \
+                            samples, labels, epoch_no, 'Epoch no', t_start)
 
             # Train the network on samples and labels
             self.sess.run( self.train_step, feed_dict={
@@ -364,8 +373,9 @@ class ConvNetCnv2Fc1(object):
                 self.fc1_keep_prob: self.fc1_dropout } )
             print('.', end="", flush=True)
 
-        # Update total number of trained samples
-        self.n_samples_trained = self.n_samples_trained + (m_samples*n_epochs)
+            # Update total number of trained samples
+            self.n_samples_trained = self.n_samples_trained + m_samples
+
         print(" done\n")
         print("Network has now been trained on a total of {} samples\n".format(
                 self.n_samples_trained))
@@ -420,8 +430,8 @@ class ConvNetCnv2Fc1(object):
                 scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
             # Report progress at start of training
-            self.report_minibatch_progress_accuracy( \
-                                samples, labels, batch_no, t_start)
+            self.report_progress( \
+                            samples, labels, batch_no, 'Batch no', t_start)
 
             # Train the network for n_epochs on random subsets of m_samples
             for epoch_no in range(n_epochs):
@@ -435,9 +445,10 @@ class ConvNetCnv2Fc1(object):
                     self.fc1_keep_prob: self.fc1_dropout } )
                 print('.', end="", flush=True)
 
-        # Update total number of trained samples
-        self.n_samples_trained = \
-            self.n_samples_trained + (n_batches * m_samples*n_epochs)
+            # Update total number of trained samples
+            self.n_samples_trained = \
+                self.n_samples_trained + (m_samples*n_epochs)
+
         print(" done\n")
         print("Network has now been trained on a total of {} samples\n".format(
                 self.n_samples_trained))
@@ -473,42 +484,42 @@ class ConvNetCnv2Fc1(object):
         return classified_image
 
 
-    def report_epoch_progress_accuracy(self,
-                        samples, labels, epoch_no, t_start):
+    def report_progress(self,
+                        samples, labels, epoch_no, counter_name, t_start):
         """Report progress and accuracy on single line for epoch training
-            samples:    2d matrix containing training samples
-            labels:     2d matrix containing labels
-            epoch_no:   Number of current epoch
-            t_start:    'time.time()' time stamp of start training
+            samples:      2d matrix containing training samples
+            labels:       2d matrix containing labels
+            counter:      Number of current epoch / batch
+            counter_name: Name to display as counter
+            t_start:      'time.time()' time stamp of start training
         """
-        result = self.sess.run( [self.accuracy], feed_dict={
+        # Calculate network accuracy
+        result = self.sess.run( [self.network_prediction], feed_dict={
             self.x: samples, self.y_trgt: labels,
             self.fc1_keep_prob: 1.0 })
-        acc = result[0]
-        t_curr = time.time()
-        print('\nEpoch no {:4d}: Acc = {:6.4f} (t={})'.format( epoch_no, acc,
-            str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
-            end="", flush=True)
-        self.performance_list.append(acc)
-        self.n_samples_list.append(int(self.n_samples_trained))
+        pred = result[0]
 
-    def report_minibatch_progress_accuracy(self,
-                        samples, labels, batch_no, t_start):
-        """Report progress and accuracy on single line for mini_batch training
-            samples:    2d matrix containing training samples
-            labels:     2d matrix containing labels
-            batch_no:   Number of current batch
-            t_start:    'time.time()' time stamp of start training
-        """
-        result = self.sess.run( [self.accuracy], feed_dict={
-            self.x: samples, self.y_trgt: labels,
-            self.fc1_keep_prob: 1.0 })
-        acc = result[0]
+        # Calculate true/false pos/neg
+        true_pos = np.sum( pred[labels[:,1]==1]==1 )
+        false_pos = np.sum( pred[labels[:,1]==0]==1 )
+        false_neg = np.sum( pred[labels[:,1]==1]==0 )
+        true_neg = np.sum( pred[labels[:,1]==0]==0 )
+
+        # Calculate accuracy, precision, recall, F1
+        accuracy = (true_pos+true_neg) / len(pred)
+        precision = np.nan_to_num(true_pos / (true_pos+false_pos))
+        recall = np.nan_to_num(true_pos / (true_pos+false_neg))
+        F1 = np.nan_to_num(2 * ((precision*recall)/(precision+recall)))
+
         t_curr = time.time()
-        print('\nBatch no {:4d}: Acc = {:6.4f} (t={})'.format( batch_no, acc,
+        print('\n{} {:4d}: Acc = {:6.4f} (t={})'.format( \
+            counter_name, epoch_no, accuracy,
             str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
             end="", flush=True)
-        self.performance_list.append(float(acc))
+        self.accuracy_list.append(float(accuracy))
+        self.precision_list.append(float(precision))
+        self.recall_list.append(float(recall))
+        self.F1_list.append(float(F1))
         self.n_samples_list.append(int(self.n_samples_trained))
 
     def report_F1(self, annotated_image_set, annotation_type='Bodies',
@@ -598,3 +609,48 @@ class ConvNetCnv2Fc1(object):
                     plt.axis('tight')
                     plt.axis('off')
             plt.tight_layout()
+
+    def show_learning_curve(self):
+        """Displays a learning curve of accuracy versus number of
+        trained samples"""
+
+        # Get data
+        x_values = np.array(self.n_samples_list)
+        accuracy = np.array(self.accuracy_list)
+        precision = np.array(self.precision_list)
+        recall = np.array(self.recall_list)
+        F1 = np.array(self.F1_list)
+
+        # Make plot
+        with sns.axes_style("ticks"):
+            fig,ax = plt.subplots()
+            plt.plot([np.min(x_values),np.max(x_values)],[0.5,0.5],
+                        color='#777777',linestyle='--')
+            plt.plot([np.min(x_values),np.max(x_values)],[0.66,0.66],
+                        color='#777777',linestyle=':')
+            plt.plot([np.min(x_values),np.max(x_values)],[0.8,0.8],
+                        color='#777777',linestyle=':')
+            plt.plot([np.min(x_values),np.max(x_values)],[0.9,0.9],
+                        color='#777777',linestyle=':')
+
+            plt.plot( x_values, accuracy, color='#000000',
+                        linewidth=1, label='Accuracy' )
+            plt.plot( x_values, precision, color='#0000aa',
+                        linewidth=1, label='Precision' )
+            plt.plot( x_values, recall, color='#00aa00',
+                        linewidth=1, label='recall' )
+            plt.plot( x_values, F1, color='#aa0000',
+                        linewidth=1, label='F1' )
+
+            plt.yticks( [0, 0.5, 0.66, 0.8, 0.9, 1.0],
+                ['0','0.5','0.66','0.8','0.9','1.0'], ha='right' )
+            plt.xlim(np.max(x_values)*-0.02,np.max(x_values)*1.02)
+            plt.ylim(-0.02,1.02)
+            plt.xlabel('Cumulative number of training samples')
+            plt.ylabel('Performance')
+            plt.title('Network performance')
+            sns.despine(ax=ax, offset=0, trim=True)
+            lgnd = plt.legend(loc=4, ncol=1, frameon=True, fontsize=10)
+            lgnd.get_frame().set_facecolor('#ffffff')
+            ax.spines['left'].set_bounds(0,1)
+            ax.spines['bottom'].set_bounds(np.min(x_values),np.max(x_values))

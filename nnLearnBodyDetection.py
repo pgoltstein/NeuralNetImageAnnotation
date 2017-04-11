@@ -107,7 +107,7 @@ nn.display_network_architecture()
 # Train network
 nn.train_epochs( training_image_set,
     annotation_type='Bodies',
-    m_samples=m_samples, n_epochs=n_epochs, report_every=10,
+    m_samples=m_samples, n_epochs=n_epochs, report_every=1,
     exclude_border=(40,40,40,40), morph_annotations=morph_annotations,
     rotation_list=rotation_list, scale_list_x=scale_list_x,
     scale_list_y=scale_list_y, noise_level_list=noise_level_list )
@@ -117,6 +117,9 @@ nn.save()
 
 ########################################################################
 # Display performance
+
+nn.show_learning_curve()
+plt.show()
 
 if args.F1report:
     print("\nTraining set performance:")
