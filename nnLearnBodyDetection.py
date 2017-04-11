@@ -25,6 +25,10 @@ parser = argparse.ArgumentParser( \
                     "full cell bodies in an annotated image set")
 parser.add_argument('name', type=str,
                     help= 'Name by which to identify the network')
+parser.add_argument('-t', '--trainingdata', type=str,
+                    help= 'Path to training data folder')
+parser.add_argument('-n', '--networkpath', type=str,
+                    help= 'Path to neural network folder')
 parser.add_argument('-e', '--nepochs', type=int, default=100,
                     help='Number of epochs to train (default=100)')
 parser.add_argument('-m', '--msamples', type=int, default=200,
@@ -53,8 +57,14 @@ morph_annotations = args.morph
 
 ########################################################################
 # Settings and variables
-training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
-network_path = '/Users/pgoltstein/Dropbox/NeuralNets'
+if args.trainingdata:
+    training_data_path = args.trainingdata
+else:
+    training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
+if args.networkpath:
+    network_path = args.networkpath
+else:
+    network_path = '/Users/pgoltstein/Dropbox/NeuralNets'
 
 rotation_list = np.array(range(360))
 scale_list_x = np.array(range(900,1100)) / 1000
@@ -117,7 +127,8 @@ if args.F1report:
     # Test morphed performance
     print("\nMorphed training set performance:")
     nn.report_F1( training_image_set, annotation_type='Bodies',
-            m_samples=2000, exclude_border=(40,40,40,40), morph_annotations=True,
+            m_samples=2000, exclude_border=(40,40,40,40),
+            morph_annotations=True,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list,
             show_figure='On')
