@@ -69,6 +69,7 @@ class ConvNetCnv2Fc1(object):
             self.fc1_n_chan = fc1_n_chan
             self.fc1_dropout = fc1_dropout
             self.alpha = alpha
+            self.n_samples_trained = 0
 
             # Save network architecture
             self.save_network_architecture( network_path=self.network_path )
@@ -96,6 +97,7 @@ class ConvNetCnv2Fc1(object):
             self.fc1_n_chan = net_architecture['fc1_n_chan']
             self.fc1_dropout = net_architecture['fc1_dropout']
             self.alpha = net_architecture['alpha']
+            self.n_samples_trained = net_architecture['n_samples_trained']
 
         #########################################################
         # Input and target variable placeholders
@@ -224,7 +226,7 @@ class ConvNetCnv2Fc1(object):
     def restore(self):
         """Restores network parameters to last saved values"""
         if os.path.isfile( \
-            os.path.join(self.network_path,'net_parameters.nnprm')):
+            os.path.join(self.network_path,'net_parameters.nnprm.index')):
             self.load_network_parameters(
                 file_name='net_parameters', file_path=self.network_path)
         else:
@@ -258,6 +260,7 @@ class ConvNetCnv2Fc1(object):
         print("fc1_n_chan :{}".format(self.fc1_n_chan))
         print("fc1_dropout :{}".format(self.fc1_dropout))
         print("alpha :{}\n".format(self.alpha))
+        print("n_samples_trained :{}\n".format(self.n_samples_trained))
 
     def save_network_architecture(self,network_path):
         """Saves the network architecture into the network path"""
@@ -276,6 +279,7 @@ class ConvNetCnv2Fc1(object):
         net_architecture['fc1_n_chan'] = self.fc1_n_chan
         net_architecture['fc1_dropout'] = self.fc1_dropout
         net_architecture['alpha'] = self.alpha
+        net_architecture['n_samples_trained'] = self.n_samples_trained
         np.save(os.path.join( \
             network_path,'net_architecture.npy'), net_architecture)
         print("\nNetwork architecture saved to file:\n{}".format(
@@ -339,7 +343,12 @@ class ConvNetCnv2Fc1(object):
                 self.x: samples, self.y_trgt: labels,
                 self.fc1_keep_prob: self.fc1_dropout } )
             print('.', end="", flush=True)
-        print(" done")
+
+        # Update total number of trained samples
+        self.n_samples_trained = self.n_samples_trained + (m_samples*n_epochs)
+        print(" done\n")
+        print("Network has now been trained on a total of {} samples\n".format(
+                self.n_samples_trained))
 
     def train_minibatch(self, annotated_image_set, n_batches=10, n_epochs=100,
             annotation_type='Bodies', batch_size=1000, m_samples=100,
@@ -398,7 +407,13 @@ class ConvNetCnv2Fc1(object):
                     self.x: epoch_samples, self.y_trgt: epoch_labels,
                     self.fc1_keep_prob: self.fc1_dropout } )
                 print('.', end="", flush=True)
-        print(" done")
+
+        # Update total number of trained samples
+        self.n_samples_trained = \
+            self.n_samples_trained + (n_batches * m_samples*n_epochs)
+        print(" done\n")
+        print("Network has now been trained on a total of {} samples\n".format(
+                self.n_samples_trained))
 
     def annotate_image( self, anim ):
         """Loops through every pixels of an annotated image, classifies
