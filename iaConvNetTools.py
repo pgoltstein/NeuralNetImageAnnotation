@@ -18,7 +18,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time, datetime
-from os import path
+import os
 import ImageAnnotation as ia
 
 
@@ -31,31 +31,71 @@ class ConvNetCnv2Fc1(object):
     multi channel images.
     2 convolutional layers, 1 fully connected layer, 1 output layer"""
 
-    def __init__(self, input_image_size, n_input_channels, output_size,
+    def __init__(self, network_path,
+                input_image_size, n_input_channels, output_size,
                 conv1_size=5, conv1_n_chan=32, conv1_n_pool=2,
                 conv2_size=5, conv2_n_chan=64, conv2_n_pool=2,
                 fc1_n_chan=1024, fc1_dropout=0.5, alpha=5e-4 ):
-        """Initializes all variables and sets up the network
-        input_image_size: Tuple containing (y,x) size of input image
+        """Initializes all variables and sets up the network. If network
+        already exists, load the variables from there.
+        network_path:      Directory where to store network and architecture
+        input_image_size:  Tuple containing (y,x) size of input image
         output_image_size: Tuple containing dimensions of network output"""
-        self.y_res = input_image_size[0]
-        self.x_res = input_image_size[1]
-        self.n_input_channels = n_input_channels
-        self.out_y_res = output_size[0]
-        self.out_x_res = output_size[1]
-        self.conv1_size = conv1_size
-        self.conv1_n_chan = conv1_n_chan
-        self.conv1_n_pool = conv1_n_pool
-        self.conv2_size = conv2_size
-        self.conv2_n_chan = conv2_n_chan
-        self.conv2_n_pool = conv2_n_pool
-        self.fc1_y_size = int( np.ceil( np.ceil(
-            self.y_res/self.conv1_n_pool ) / self.conv2_n_pool ) )
-        self.fc1_x_size = int( np.ceil( np.ceil(
-            self.x_res/self.conv1_n_pool ) / self.conv2_n_pool ) )
-        self.fc1_n_chan = fc1_n_chan
-        self.fc1_dropout = fc1_dropout
-        self.alpha = alpha
+
+        # If network path does not yet exists
+        self.network_path = network_path
+        if not os.path.isdir(self.network_path):
+            print("Network did not exist, " + \
+                  "created new network using supplied and default architecture")
+            # Make network directory
+            os.mkdir(self.network_path)
+
+            # Set up new network
+            self.y_res = input_image_size[0]
+            self.x_res = input_image_size[1]
+            self.n_input_channels = n_input_channels
+            self.out_y_res = output_size[0]
+            self.out_x_res = output_size[1]
+            self.conv1_size = conv1_size
+            self.conv1_n_chan = conv1_n_chan
+            self.conv1_n_pool = conv1_n_pool
+            self.conv2_size = conv2_size
+            self.conv2_n_chan = conv2_n_chan
+            self.conv2_n_pool = conv2_n_pool
+            self.fc1_y_size = int( np.ceil( np.ceil(
+                self.y_res/self.conv1_n_pool ) / self.conv2_n_pool ) )
+            self.fc1_x_size = int( np.ceil( np.ceil(
+                self.x_res/self.conv1_n_pool ) / self.conv2_n_pool ) )
+            self.fc1_n_chan = fc1_n_chan
+            self.fc1_dropout = fc1_dropout
+            self.alpha = alpha
+
+            # Save network architecture
+            self.save_network_architecture( network_path=self.network_path )
+
+        else:
+            # Load network architecture from directory
+            net_architecture = self.load_network_architecture(self.network_path)
+
+            # Set up network variables from loaded architecture
+            self.y_res = net_architecture['y_res']
+            self.x_res = net_architecture['x_res']
+            self.n_input_channels = net_architecture['n_input_channels']
+            self.out_y_res = net_architecture['out_y_res']
+            self.out_x_res = net_architecture['out_x_res']
+            self.conv1_size = net_architecture['conv1_size']
+            self.conv1_n_chan = net_architecture['conv1_n_chan']
+            self.conv1_n_pool = net_architecture['conv1_n_pool']
+            self.conv2_size = net_architecture['conv2_size']
+            self.conv2_n_chan = net_architecture['conv2_n_chan']
+            self.conv2_n_pool = net_architecture['conv2_n_pool']
+            self.fc1_y_size = int( np.ceil( np.ceil(
+                self.y_res/self.conv1_n_pool ) / self.conv2_n_pool ) )
+            self.fc1_x_size = int( np.ceil( np.ceil(
+                self.x_res/self.conv1_n_pool ) / self.conv2_n_pool ) )
+            self.fc1_n_chan = net_architecture['fc1_n_chan']
+            self.fc1_dropout = net_architecture['fc1_dropout']
+            self.alpha = net_architecture['alpha']
 
         #########################################################
         # Input and target variable placeholders
@@ -175,16 +215,63 @@ class ConvNetCnv2Fc1(object):
         self.sess = tf.Session()
         tf.global_variables_initializer().run(session=self.sess)
 
+    def save(self):
+        """Saves network architecture and parameters to network path"""
+        self.save_network_architecture( network_path=self.network_path )
+        self.save_network_parameters(
+            file_name='net_parameters', file_path=self.network_path )
+
+    def restore(self):
+        """Restores network parameters to last saved values"""
+        if os.path.isfile( \
+            os.path.join(self.network_path,'net_parameters.nnprm')):
+            self.load_network_parameters(
+                file_name='net_parameters', file_path=self.network_path)
+        else:
+            print("\nCould not load network parameters from:\n{}".format(\
+                os.path.join(self.network_path,'net_parameters.nnprm') ))
+            print("Going with default (untrained) parameters")
+
+    def load_network_architecture(self,network_path):
+        """Loads the network architecture from the network path"""
+        net_architecture = np.load(
+                os.path.join(network_path,'net_architecture.npy')).item()
+        print("\nNetwork architecture loaded from file:\n{}".format(
+                            os.path.join(network_path,'net_architecture.npy')))
+        return net_architecture
+
+    def save_network_architecture(self,network_path):
+        """Saves the network architecture into the network path"""
+        net_architecture = {}
+        net_architecture['y_res'] = self.y_res
+        net_architecture['x_res'] = self.x_res
+        net_architecture['n_input_channels'] = self.n_input_channels
+        net_architecture['out_y_res'] = self.out_y_res
+        net_architecture['out_x_res'] = self.out_x_res
+        net_architecture['conv1_size'] = self.conv1_size
+        net_architecture['conv1_n_chan'] = self.conv1_n_chan
+        net_architecture['conv1_n_pool'] = self.conv1_n_pool
+        net_architecture['conv2_size'] = self.conv2_size
+        net_architecture['conv2_n_chan'] = self.conv2_n_chan
+        net_architecture['conv2_n_pool'] = self.conv2_n_pool
+        net_architecture['fc1_n_chan'] = self.fc1_n_chan
+        net_architecture['fc1_dropout'] = self.fc1_dropout
+        net_architecture['alpha'] = self.alpha
+        np.save(os.path.join( \
+            network_path,'net_architecture.npy'), net_architecture)
+        print("\nNetwork architecture saved to file:\n{}".format(
+                            os.path.join(network_path,'net_architecture.npy')))
+
     def load_network_parameters(self, file_name, file_path='.'):
         self.saver.restore( self.sess,
-                            path.join(file_path,file_name+'.nnprm'))
-        print('\nLoaded network parameters from file:\n{}'.format(
-                                    path.join(file_path,file_name+'.nnprm')))
+                            os.path.join(file_path,file_name+'.nnprm'))
+        print('\nNetwork parameters loaded from file:\n{}'.format(
+                            os.path.join(file_path,file_name+'.nnprm')))
 
     def save_network_parameters(self, file_name, file_path='.'):
         save_path = self.saver.save( self.sess,
-                                     path.join(file_path,file_name+'.nnprm'))
-        print('\nNetwork parameters saved in file:\n{}'.format(save_path))
+                            os.path.join(file_path,file_name+'.nnprm'))
+        print('\nNetwork parameters saved to file:\n{}'.format(save_path))
 
     def train_epochs(self, annotated_image_set, n_epochs=100, report_every=10,
             annotation_type='Bodies', m_samples=100, exclude_border=(0,0,0,0),
@@ -233,6 +320,7 @@ class ConvNetCnv2Fc1(object):
                 self.x: samples, self.y_trgt: labels,
                 self.fc1_keep_prob: self.fc1_dropout } )
             print('.', end="", flush=True)
+        print(" done")
 
     def train_minibatch(self, annotated_image_set, n_batches=10, n_epochs=100,
             annotation_type='Bodies', batch_size=1000, m_samples=100,
@@ -291,6 +379,7 @@ class ConvNetCnv2Fc1(object):
                     self.x: epoch_samples, self.y_trgt: epoch_labels,
                     self.fc1_keep_prob: self.fc1_dropout } )
                 print('.', end="", flush=True)
+        print(" done")
 
     def annotate_image( self, anim ):
         """Loops through every pixels of an annotated image, classifies
@@ -306,7 +395,7 @@ class ConvNetCnv2Fc1(object):
         line_samples = np.zeros( (anim.x_res,
             anim.n_channels * self.y_res * self.x_res) )
         # Loop through all lines
-        print("Classifying image")
+        print("\nClassifying image")
         print("Line no:", end="", flush=True)
         for y in range(anim.y_res):
             # Loop through all pixels to fill the line-samples

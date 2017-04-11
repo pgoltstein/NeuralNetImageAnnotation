@@ -16,22 +16,30 @@ import matplotlib.pyplot as plt
 import ImageAnnotation as ia
 import iaConvNetTools as cn
 import argparse
+import os
 
 #########################################################
 # Arguments
 parser = argparse.ArgumentParser( \
     description="Trains a deep convolutional neural network to detect " +\
                     "full cell bodies in an annotated image set")
-parser.add_argument('nEpochs', help='Number of epochs to train')
+parser.add_argument('name', type=str,
+                    help= 'Name by which to identify the network')
+parser.add_argument('-e', '--nepochs', type=int,
+                    help='Number of epochs to train')
 args = parser.parse_args()
-n_epochs = int(args.nEpochs)
+network_name = str(args.name)
+if args.nepochs:
+    n_epochs = args.nepochs
+else:
+    n_epochs = 100
 
 ########################################################################
 # Settings and variables
-annotation_size = (27,27)
 training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
-network_path = '/Users/pgoltstein/Dropbox/TEMP'
-network_name = 'nnBodyDetect'
+network_path = '/Users/pgoltstein/Dropbox/NeuralNets'
+
+annotation_size = (36,36)
 rotation_list = np.array(range(360))
 scale_list_x = np.array(range(900,1100)) / 1000
 scale_list_y = np.array(range(900,1100)) / 1000
@@ -52,27 +60,31 @@ training_image_set.body_dilation_factor = 0
 ########################################################################
 # Set up network
 nn = cn.ConvNetCnv2Fc1( \
+        network_path=os.path.join(network_path,network_name),
         input_image_size=annotation_size,
-        n_input_channels=training_image_set.n_channels, output_size=(1,2),
+        n_input_channels=training_image_set.n_channels,
+        output_size=(1,2),
         conv1_size=7, conv1_n_chan=32, conv1_n_pool=3,
         conv2_size=7, conv2_n_chan=64, conv2_n_pool=3,
         fc1_n_chan=256, fc1_dropout=0.5, alpha=4e-4 )
-nn.start()
 
 # Load network parameters
-nn.load_network_parameters(network_name,network_path)
+nn.restore()
+
+# Initialize and start
+nn.start()
 
 ########################################################################
-# Train network and save network parameters
-print("Training network for {} epochs".format(n_epochs))
+# Train network
+print("\nTraining network for {} epochs".format(n_epochs))
 nn.train_epochs( training_image_set,
     annotation_type='Bodies', m_samples=200, n_epochs=n_epochs, report_every=10,
     exclude_border=(40,40,40,40), morph_annotations=True,
     rotation_list=rotation_list, scale_list_x=scale_list_x,
     scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
-# Save network parameters
-nn.save_network_parameters(network_name,network_path)
+# Save network parameters and settings
+nn.save()
 
 ########################################################################
 # Display performance

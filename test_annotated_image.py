@@ -35,7 +35,7 @@ print("String output of anim1:")
 print(" >> " + anim1.__str__())
 
 # Import annotations from ROI file (matlab)
-roifile = 'F03-Loc5-V1-20160209-ROI2.mat'
+roifile = 'F03-Loc5-V1-20160209-ovlSplitROI2.mat'
 print(" ")
 print("Importing annotations from ROI file (matlab) to anim1:")
 print(os.path.join(filepath,roifile))

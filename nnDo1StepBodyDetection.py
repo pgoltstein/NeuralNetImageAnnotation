@@ -23,7 +23,7 @@ import os
 
 ########################################################################
 # Settings and variables
-annotation_size = (36,36)
+annotation_size = (27,27)
 data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet2'
 network_path = '/Users/pgoltstein/Dropbox/TEMP'
 roifile = 'F03-Loc5-V1-20160209-ROI2.mat'
@@ -45,9 +45,9 @@ print(" anim2 >> " + anim2.__str__())
 print("Setting up convolutional neural network")
 nn = cn.ConvNetCnv2Fc1( \
         input_image_size=annotation_size,
-        n_input_channels=anim2.n_channels, output_size=(1,2),
-        conv1_size=5, conv1_n_chan=16, conv1_n_pool=2,
-        conv2_size=5, conv2_n_chan=32, conv2_n_pool=2,
+        n_input_channels=anim1.n_channels, output_size=(1,2),
+        conv1_size=7, conv1_n_chan=32, conv1_n_pool=3,
+        conv2_size=7, conv2_n_chan=64, conv2_n_pool=3,
         fc1_n_chan=256, fc1_dropout=0.5, alpha=4e-4 )
 nn.start()
 nn.load_network_parameters('body1step_net',network_path)
