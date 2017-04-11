@@ -489,7 +489,7 @@ class ConvNetCnv2Fc1(object):
             print(line_text, end="", flush=True)
         else:
             print(line_text)
-        with open(os.path.join(self.network_path,'./activity.log'), 'a+') as f:
+        with open(os.path.join(self.network_path,'activity.log'), 'a+') as f:
             f.write(line_text + os.linesep)
 
     def report_progress(self,
