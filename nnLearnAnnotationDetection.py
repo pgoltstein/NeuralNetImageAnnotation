@@ -21,8 +21,11 @@ import os
 #########################################################
 # Arguments
 parser = argparse.ArgumentParser( \
-    description="Trains a deep convolutional neural network to detect " +\
-                    "full cell bodies in an annotated image set")
+    description="Trains a deep convolutional neural network with 2 " + \
+            "convolutional layers and 1 fully connected layer to detect " + \
+            "centroids, or full cell bodies, in an annotated image set. " + \
+            "Runs on tensorflow framework. Learning is done using the " + \
+            "ADAM optimizer. (written by Pieter Goltstein - April 2017)")
 
 parser.add_argument('annotationtype', type=str,
                     help= "'Centroids' or 'Bodies'")
@@ -61,8 +64,13 @@ parser.add_argument('-fz', '--fcsize', type=int, default=256,
 
 parser.add_argument('-mp', '--morph',  action="store_true",
                     help='Enables random morphing of annotations (default=off)')
+parser.add_argument('-lc', '--learningcurve', action="store_true",
+                    help='Displays the learning curve at the end ' + \
+                            'of training (default=off)')
 parser.add_argument('-f1', '--F1report', action="store_true",
-                    help='Runs F1 report at the end of training (default=off)')
+                    help='Runs F1 report and displays examples of true/' + \
+                        'false positives/negatives at the end of ' + \
+                        'training (default=off)')
 args = parser.parse_args()
 
 # Set variables based on arguments
@@ -158,10 +166,11 @@ nn.save()
 ########################################################################
 # Display performance
 
-if args.F1report:
+if args.learningcurve:
     nn.log("\nDisplay learning curve:")
     nn.show_learning_curve()
 
+if args.F1report:
     nn.log("\nTraining set performance:")
     nn.report_F1( training_image_set,
         annotation_type=annotation_type, m_samples=2000,
@@ -177,6 +186,7 @@ if args.F1report:
             scale_list_y=scale_list_y, noise_level_list=noise_level_list,
             show_figure='On')
 
+if args.learningcurve or args.F1report:
     plt.show()
 
 nn.log('Done!\n')

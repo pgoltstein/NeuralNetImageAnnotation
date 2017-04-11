@@ -47,12 +47,14 @@ class ConvNetCnv2Fc1(object):
         if not os.path.isdir(self.network_path):
             # Make network directory
             os.mkdir(self.network_path)
+            now = datetime.datetime.now()
             self.log("\n\n++++++++++++++++++++++++++++++++++++++++++++++++++++")
-            self.log(    "  Start of new network: ")
+            self.log(    "Creation of new network: ")
             self.log(    "  {}".format(self.network_path) )
+            self.log(    "  @ {}".format(now.strftime("%Y-%m-%d %H:%M")) )
             self.log(    "++++++++++++++++++++++++++++++++++++++++++++++++++++")
-            self.log("\nNetwork did not exist; " + \
-                  "Created new network using supplied and default architecture")
+            self.log("\nNetwork did not exist ... ")
+            self.log("Created new network with supplied (or default) architecture")
 
             # Set up new network
             self.y_res = input_image_size[0]
@@ -84,12 +86,14 @@ class ConvNetCnv2Fc1(object):
             self.save_network_architecture( network_path=self.network_path )
 
         else:
+            now = datetime.datetime.now()
             self.log("\n\n++++++++++++++++++++++++++++++++++++++++++++++++++++")
-            self.log(    "  New initialization of network: ")
+            self.log(    "Re-initialization of existing network: ")
             self.log(    "  {}".format(self.network_path) )
+            self.log(    "  @ {}".format(now.strftime("%Y-%m-%d %H:%M")) )
             self.log(    "++++++++++++++++++++++++++++++++++++++++++++++++++++")
             self.log(    " ")
-            
+
             # Load network architecture from directory
             net_architecture = self.load_network_architecture(self.network_path)
 
@@ -259,9 +263,9 @@ class ConvNetCnv2Fc1(object):
             self.load_network_parameters(
                 file_name='net_parameters', file_path=self.network_path)
         else:
-            self.log("Could not load network parameters from:\n{}".format(\
+            self.log("Could not load previous network parameters from:\n{}".format(\
                 os.path.join(self.network_path,'net_parameters.nnprm') ))
-            self.log("Going with default (untrained) parameters")
+            self.log("Starting with untrained parameters")
 
     def load_network_architecture(self,network_path):
         """Loads the network architecture from the network path"""
@@ -273,8 +277,7 @@ class ConvNetCnv2Fc1(object):
 
     def display_network_architecture(self):
         """Displays the network architecture"""
-        self.log("\nNetwork architecture")
-        self.log("-----------------------------------------")
+        self.log("\n-------- Network architecture --------")
         self.log("y_res: {}".format(self.y_res))
         self.log("x_res: {}".format(self.x_res))
         self.log("n_input_channels: {}".format(self.n_input_channels))
@@ -352,8 +355,9 @@ class ConvNetCnv2Fc1(object):
             noise_level_list:  List of noise levels to choose from
             """
         t_start = time.time()
-        self.log("\nStart training network @ {}".format(
-            str(datetime.timedelta(seconds=np.round(t_start))) ) )
+        now = datetime.datetime.now()
+        self.log("\n-------- Start training network @ {} --------".format(
+            now.strftime("%Y-%m-%d %H:%M") ) )
         self.log("n_epochs: {}".format(n_epochs))
         self.log("m_samples: {}".format(m_samples))
         self.log("annotation_type: {}".format(annotation_type))
@@ -385,9 +389,10 @@ class ConvNetCnv2Fc1(object):
             # Update total number of trained samples
             self.n_samples_trained = self.n_samples_trained + m_samples
 
-        self.log(" done\n")
-        self.log("Network has now been trained on a total of {} samples".format(
+        self.log("\nNetwork has now been trained on a total of {} samples".format(
                 self.n_samples_trained))
+        self.log("Done @ {}\n".format(
+            now.strftime("%Y-%m-%d %H:%M") ) )
 
     def train_minibatch(self, annotated_image_set, n_batches=10, n_epochs=100,
             annotation_type='Bodies', batch_size=1000, m_samples=100,
@@ -416,8 +421,8 @@ class ConvNetCnv2Fc1(object):
             """
 
         t_start = time.time()
-        self.log("\nStart training network @ {}".format(
-            str(datetime.timedelta(seconds=np.round(t_start))) ) )
+        self.log("\n-------- Start training network @ {} --------".format(
+            now.strftime("%Y-%m-%d %H:%M") ) )
         self.log("n_batches: {}".format(n_batches))
         self.log("batch_size: {}".format(batch_size))
         self.log("n_epochs: {}".format(n_epochs))
@@ -457,9 +462,10 @@ class ConvNetCnv2Fc1(object):
             self.n_samples_trained = \
                 self.n_samples_trained + (m_samples*n_epochs)
 
-        self.log(" done\n")
-        self.log("Network has now been trained on a total of {} samples".format(
+        self.log("\nNetwork has now been trained on a total of {} samples".format(
                 self.n_samples_trained))
+        self.log("Done @ {}\n".format(
+            now.strftime("%Y-%m-%d %H:%M") ) )
 
     def annotate_image( self, anim ):
         """Loops through every pixels of an annotated image, classifies
