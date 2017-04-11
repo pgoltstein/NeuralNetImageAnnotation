@@ -317,9 +317,14 @@ class ConvNetCnv2Fc1(object):
             scale_list_y:      List of vertical scale factors to choose from
             noise_level_list:  List of noise levels to choose from
             """
+        print("\n-----------------------------------------")
         t_start = time.time()
         print("\nStart training network @ {}".format(
             str(datetime.timedelta(seconds=np.round(t_start))) ) )
+        print("n_epochs :{}".format(n_epochs))
+        print("m_samples :{}".format(m_samples))
+        print("annotation_type :{}".format(annotation_type))
+        print("morph_annotations :{}".format(morph_annotations))
 
         # Loop across training epochs
         for epoch_no in range(n_epochs):
@@ -376,9 +381,16 @@ class ConvNetCnv2Fc1(object):
             noise_level_list:  List of noise levels to choose from
             """
 
+        print("\n-----------------------------------------")
         t_start = time.time()
         print("\nStart training network @ {}".format(
             str(datetime.timedelta(seconds=np.round(t_start))) ) )
+        print("n_batches :{}".format(n_batches))
+        print("batch_size :{}".format(batch_size))
+        print("n_epochs :{}".format(n_epochs))
+        print("m_samples :{}".format(m_samples))
+        print("annotation_type :{}".format(annotation_type))
+        print("morph_annotations :{}".format(morph_annotations))
 
         # Loop across training batches
         for batch_no in range(n_batches):

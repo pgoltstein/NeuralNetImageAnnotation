@@ -25,21 +25,30 @@ parser = argparse.ArgumentParser( \
                     "full cell bodies in an annotated image set")
 parser.add_argument('name', type=str,
                     help= 'Name by which to identify the network')
-parser.add_argument('-e', '--nepochs', type=int,
-                    help='Number of epochs to train')
+parser.add_argument('-e', '--nepochs', type=int, default=100,
+                    help='Number of epochs to train (default=100)')
+parser.add_argument('-m', '--msamples', type=int, default=200,
+                    help='Number of samples per training step (default=200)')
+parser.add_argument('-s', '--size', type=int, default=36,
+                    help='Size of the image annotations (default=36)')
+parser.add_argument('-p', '--morph',  action="store_true",
+                    help='Enables random morphing of annotations (default=off)')
+parser.add_argument('-f', '--F1report', action="store_true",
+                    help='Runs F1 report at the end of training (default=off)')
 args = parser.parse_args()
+
+# Set variables based on arguments
 network_name = str(args.name)
-if args.nepochs:
-    n_epochs = args.nepochs
-else:
-    n_epochs = 100
+n_epochs = args.nepochs
+m_samples = args.msamples
+annotation_size = (args.size,args.size)
+morph_annotations = args.morph
 
 ########################################################################
 # Settings and variables
 training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
 network_path = '/Users/pgoltstein/Dropbox/NeuralNets'
 
-annotation_size = (27,27)
 rotation_list = np.array(range(360))
 scale_list_x = np.array(range(900,1100)) / 1000
 scale_list_y = np.array(range(900,1100)) / 1000
@@ -81,8 +90,9 @@ nn.display_network_architecture()
 # Train network
 print("\nTraining network for {} epochs".format(n_epochs))
 nn.train_epochs( training_image_set,
-    annotation_type='Bodies', m_samples=200, n_epochs=n_epochs, report_every=10,
-    exclude_border=(40,40,40,40), morph_annotations=True,
+    annotation_type='Bodies',
+    m_samples=m_samples, n_epochs=n_epochs, report_every=10,
+    exclude_border=(40,40,40,40), morph_annotations=morph_annotations,
     rotation_list=rotation_list, scale_list_x=scale_list_x,
     scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
@@ -91,19 +101,21 @@ nn.save()
 
 ########################################################################
 # Display performance
-print("\nTraining set performance:")
-nn.report_F1( training_image_set,
-    annotation_type='Bodies', m_samples=2000, morph_annotations=False,
-    exclude_border=(40,40,40,40), show_figure='On')
 
-########################################################################
-# Test morphed performance
-print("\nMorphed training set performance:")
-nn.report_F1( training_image_set, annotation_type='Bodies',
-        m_samples=2000, exclude_border=(40,40,40,40), morph_annotations=True,
-        rotation_list=rotation_list, scale_list_x=scale_list_x,
-        scale_list_y=scale_list_y, noise_level_list=noise_level_list,
-        show_figure='On')
+if args.F1report:
+    print("\nTraining set performance:")
+    nn.report_F1( training_image_set,
+        annotation_type='Bodies', m_samples=2000, morph_annotations=False,
+        exclude_border=(40,40,40,40), show_figure='On')
+
+    # Test morphed performance
+    print("\nMorphed training set performance:")
+    nn.report_F1( training_image_set, annotation_type='Bodies',
+            m_samples=2000, exclude_border=(40,40,40,40), morph_annotations=True,
+            rotation_list=rotation_list, scale_list_x=scale_list_x,
+            scale_list_y=scale_list_y, noise_level_list=noise_level_list,
+            show_figure='On')
+
+    plt.show()
 
 print('Done!\n')
-plt.show()
