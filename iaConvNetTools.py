@@ -45,7 +45,7 @@ class ConvNetCnv2Fc1(object):
         # If network path does not yet exists
         self.network_path = network_path
         if not os.path.isdir(self.network_path):
-            print("Network did not exist, " + \
+            self.log("Network did not exist, " + \
                   "created new network using supplied and default architecture")
             # Make network directory
             os.mkdir(self.network_path)
@@ -112,10 +112,10 @@ class ConvNetCnv2Fc1(object):
         # Update values of alpha and dropout if supplied
         if self.alpha != alpha:
             self.alpha = alpha
-            print("\nUpdated learning rate 'alpha' to {}".format(self.alpha))
+            self.log("\nUpdated learning rate 'alpha' to {}".format(self.alpha))
         if self.fc1_dropout != fc1_dropout:
             self.fc1_dropout = fc1_dropout
-            print("\nUpdated dropout fraction to {}".format(self.fc1_dropout))
+            self.log("\nUpdated dropout fraction to {}".format(self.fc1_dropout))
 
 
         #########################################################
@@ -249,37 +249,37 @@ class ConvNetCnv2Fc1(object):
             self.load_network_parameters(
                 file_name='net_parameters', file_path=self.network_path)
         else:
-            print("\nCould not load network parameters from:\n{}".format(\
+            self.log("\nCould not load network parameters from:\n{}".format(\
                 os.path.join(self.network_path,'net_parameters.nnprm') ))
-            print("Going with default (untrained) parameters")
+            self.log("Going with default (untrained) parameters")
 
     def load_network_architecture(self,network_path):
         """Loads the network architecture from the network path"""
         net_architecture = np.load(
                 os.path.join(network_path,'net_architecture.npy')).item()
-        print("\nNetwork architecture loaded from file:\n{}".format(
+        self.log("\nNetwork architecture loaded from file:\n{}".format(
                             os.path.join(network_path,'net_architecture.npy')))
         return net_architecture
 
     def display_network_architecture(self):
         """Displays the network architecture"""
-        print("\n-----------------------------------------")
-        print("Network architecture")
-        print("y_res: {}".format(self.y_res))
-        print("x_res: {}".format(self.x_res))
-        print("n_input_channels: {}".format(self.n_input_channels))
-        print("out_y_res: {}".format(self.out_y_res))
-        print("out_x_res: {}".format(self.out_x_res))
-        print("conv1_size: {}".format(self.conv1_size))
-        print("conv1_n_chan: {}".format(self.conv1_n_chan))
-        print("conv1_n_pool: {}".format(self.conv1_n_pool))
-        print("conv2_size: {}".format(self.conv2_size))
-        print("conv2_n_chan: {}".format(self.conv2_n_chan))
-        print("conv2_n_pool: {}".format(self.conv2_n_pool))
-        print("fc1_n_chan: {}".format(self.fc1_n_chan))
-        print("fc1_dropout: {}".format(self.fc1_dropout))
-        print("alpha: {}\n".format(self.alpha))
-        print("n_samples_trained: {}\n".format(self.n_samples_trained))
+        self.log("\n-----------------------------------------")
+        self.log("Network architecture")
+        self.log("y_res: {}".format(self.y_res))
+        self.log("x_res: {}".format(self.x_res))
+        self.log("n_input_channels: {}".format(self.n_input_channels))
+        self.log("out_y_res: {}".format(self.out_y_res))
+        self.log("out_x_res: {}".format(self.out_x_res))
+        self.log("conv1_size: {}".format(self.conv1_size))
+        self.log("conv1_n_chan: {}".format(self.conv1_n_chan))
+        self.log("conv1_n_pool: {}".format(self.conv1_n_pool))
+        self.log("conv2_size: {}".format(self.conv2_size))
+        self.log("conv2_n_chan: {}".format(self.conv2_n_chan))
+        self.log("conv2_n_pool: {}".format(self.conv2_n_pool))
+        self.log("fc1_n_chan: {}".format(self.fc1_n_chan))
+        self.log("fc1_dropout: {}".format(self.fc1_dropout))
+        self.log("alpha: {}\n".format(self.alpha))
+        self.log("n_samples_trained: {}\n".format(self.n_samples_trained))
 
     def save_network_architecture(self,network_path):
         """Saves the network architecture into the network path"""
@@ -306,19 +306,19 @@ class ConvNetCnv2Fc1(object):
         net_architecture['n_samples_list'] = self.n_samples_list
         np.save(os.path.join( \
             network_path,'net_architecture.npy'), net_architecture)
-        print("\nNetwork architecture saved to file:\n{}".format(
+        self.log("\nNetwork architecture saved to file:\n{}".format(
                             os.path.join(network_path,'net_architecture.npy')))
 
     def load_network_parameters(self, file_name, file_path='.'):
         self.saver.restore( self.sess,
                             os.path.join(file_path,file_name+'.nnprm'))
-        print('\nNetwork parameters loaded from file:\n{}'.format(
+        self.log('\nNetwork parameters loaded from file:\n{}'.format(
                             os.path.join(file_path,file_name+'.nnprm')))
 
     def save_network_parameters(self, file_name, file_path='.'):
         save_path = self.saver.save( self.sess,
                             os.path.join(file_path,file_name+'.nnprm'))
-        print('\nNetwork parameters saved to file:\n{}'.format(save_path))
+        self.log('\nNetwork parameters saved to file:\n{}'.format(save_path))
 
     def train_epochs(self, annotated_image_set, n_epochs=100, report_every=10,
             annotation_type='Bodies', m_samples=100, exclude_border=(0,0,0,0),
@@ -341,14 +341,14 @@ class ConvNetCnv2Fc1(object):
             scale_list_y:      List of vertical scale factors to choose from
             noise_level_list:  List of noise levels to choose from
             """
-        print("\n-----------------------------------------")
+        self.log("\n-----------------------------------------")
         t_start = time.time()
-        print("\nStart training network @ {}".format(
+        self.log("\nStart training network @ {}".format(
             str(datetime.timedelta(seconds=np.round(t_start))) ) )
-        print("n_epochs: {}".format(n_epochs))
-        print("m_samples: {}".format(m_samples))
-        print("annotation_type: {}".format(annotation_type))
-        print("morph_annotations: {}".format(morph_annotations))
+        self.log("n_epochs: {}".format(n_epochs))
+        self.log("m_samples: {}".format(m_samples))
+        self.log("annotation_type: {}".format(annotation_type))
+        self.log("morph_annotations: {}".format(morph_annotations))
 
         # Loop across training epochs
         for epoch_no in range(n_epochs):
@@ -376,8 +376,8 @@ class ConvNetCnv2Fc1(object):
             # Update total number of trained samples
             self.n_samples_trained = self.n_samples_trained + m_samples
 
-        print(" done\n")
-        print("Network has now been trained on a total of {} samples\n".format(
+        self.log(" done\n")
+        self.log("Network has now been trained on a total of {} samples\n".format(
                 self.n_samples_trained))
 
     def train_minibatch(self, annotated_image_set, n_batches=10, n_epochs=100,
@@ -406,16 +406,16 @@ class ConvNetCnv2Fc1(object):
             noise_level_list:  List of noise levels to choose from
             """
 
-        print("\n-----------------------------------------")
+        self.log("\n-----------------------------------------")
         t_start = time.time()
-        print("\nStart training network @ {}".format(
+        self.log("\nStart training network @ {}".format(
             str(datetime.timedelta(seconds=np.round(t_start))) ) )
-        print("n_batches: {}".format(n_batches))
-        print("batch_size: {}".format(batch_size))
-        print("n_epochs: {}".format(n_epochs))
-        print("m_samples: {}".format(m_samples))
-        print("annotation_type: {}".format(annotation_type))
-        print("morph_annotations: {}".format(morph_annotations))
+        self.log("n_batches: {}".format(n_batches))
+        self.log("batch_size: {}".format(batch_size))
+        self.log("n_epochs: {}".format(n_epochs))
+        self.log("m_samples: {}".format(m_samples))
+        self.log("annotation_type: {}".format(annotation_type))
+        self.log("morph_annotations: {}".format(morph_annotations))
 
         # Loop across training batches
         for batch_no in range(n_batches):
@@ -449,8 +449,8 @@ class ConvNetCnv2Fc1(object):
             self.n_samples_trained = \
                 self.n_samples_trained + (m_samples*n_epochs)
 
-        print(" done\n")
-        print("Network has now been trained on a total of {} samples\n".format(
+        self.log(" done\n")
+        self.log("Network has now been trained on a total of {} samples\n".format(
                 self.n_samples_trained))
 
     def annotate_image( self, anim ):
@@ -467,7 +467,7 @@ class ConvNetCnv2Fc1(object):
         line_samples = np.zeros( (anim.x_res,
             anim.n_channels * self.y_res * self.x_res) )
         # Loop through all lines
-        print("\nClassifying image")
+        self.log("\nClassifying image")
         print("Line no:", end="", flush=True)
         for y in range(anim.y_res):
             # Loop through all pixels to fill the line-samples
@@ -480,9 +480,17 @@ class ConvNetCnv2Fc1(object):
                 self.x: line_samples, self.fc1_keep_prob: 1.0 })
             classified_image[y,:] = result[0]
             print("{},".format(y), end="", flush=True)
-        print("done!")
+        self.log("done!")
         return classified_image
 
+    def log(self, line_text, no_enter=False):
+        """Output to log file and prints to screen"""
+        if no_enter:
+            print(line_text, end="", flush=True)
+        else:
+            print(line_text)
+        with open(os.path.join(self.network_path,'./activity.log'), 'a+') as f:
+            f.write(line_text + os.linesep)
 
     def report_progress(self,
                         samples, labels, epoch_no, counter_name, t_start):
@@ -512,10 +520,10 @@ class ConvNetCnv2Fc1(object):
         F1 = np.nan_to_num(2 * ((precision*recall)/(precision+recall)))
 
         t_curr = time.time()
-        print('\n{} {:4d}: Acc = {:6.4f} (t={})'.format( \
+        self.log('\n{} {:4d}: Acc = {:6.4f} (t={})'.format( \
             counter_name, epoch_no, accuracy,
             str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
-            end="", flush=True)
+            no_enter=True)
         self.accuracy_list.append(float(accuracy))
         self.precision_list.append(float(precision))
         self.recall_list.append(float(recall))
@@ -568,15 +576,15 @@ class ConvNetCnv2Fc1(object):
         final_recall = true_pos / (true_pos+false_neg)
         final_F1 = \
             2 * ((final_precision*final_recall)/(final_precision+final_recall))
-        print('\nLabeled image set (m={}):'.format(m_samples))
-        print(' - # true positives = {:6.0f}'.format( true_pos ))
-        print(' - # false positives = {:6.0f}'.format( false_pos ))
-        print(' - # false negatives = {:6.0f}'.format( false_neg ))
-        print(' - # true negatives = {:6.0f}'.format( true_neg ))
-        print(' - Accuracy = {:6.4f}'.format( final_accuracy ))
-        print(' - Precision = {:6.4f}'.format( final_precision ))
-        print(' - Recall = {:6.4f}'.format( final_recall ))
-        print(' - F1-score = {:6.4f}'.format( final_F1 ))
+        self.log('\nLabeled image set (m={}):'.format(m_samples))
+        self.log(' - # true positives = {:6.0f}'.format( true_pos ))
+        self.log(' - # false positives = {:6.0f}'.format( false_pos ))
+        self.log(' - # false negatives = {:6.0f}'.format( false_neg ))
+        self.log(' - # true negatives = {:6.0f}'.format( true_neg ))
+        self.log(' - Accuracy = {:6.4f}'.format( final_accuracy ))
+        self.log(' - Precision = {:6.4f}'.format( final_precision ))
+        self.log(' - Recall = {:6.4f}'.format( final_recall ))
+        self.log(' - F1-score = {:6.4f}'.format( final_F1 ))
 
         # Display figure with examples if necessary
         if show_figure.lower() == 'on':

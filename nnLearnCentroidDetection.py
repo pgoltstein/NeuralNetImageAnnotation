@@ -92,14 +92,8 @@ noise_level_list = np.array(range(200)) / 10000
 ########################################################################
 # Load data
 print("\nLoading data from directory into training_image_set:")
-print(training_data_path)
 training_image_set = ia.AnnotatedImageSet()
 training_image_set.load_data_dir_tiff_mat(training_data_path)
-print(" >> " + training_image_set.__str__())
-
-# Dilate bodies
-print("Setting centroid dilation factor of the image set to 3")
-training_image_set.centroid_dilation_factor = 3
 
 ########################################################################
 # Set up network
@@ -112,6 +106,18 @@ nn = cn.ConvNetCnv2Fc1( \
         conv2_size=conv_size, conv2_n_chan=conv_chan*2, conv2_n_pool=conv_pool,
         fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
 
+########################################################################
+# Set training data
+nn.log("\n\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+nn.log(    "++                New network run                          ++")
+nn.log("    +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+nn.log("\nUsing training_image_set from directory:")
+nn.log(training_data_path)
+nn.log(" >> " + training_image_set.__str__())
+nn.log("Setting centroid dilation factor of the image set to 3")
+training_image_set.centroid_dilation_factor = 3
+
+########################################################################
 # Initialize and start
 nn.start()
 
@@ -137,16 +143,16 @@ nn.save()
 # Display performance
 
 if args.F1report:
-    print("\nDisplay learning curve:")
+    nn.log("\nDisplay learning curve:")
     nn.show_learning_curve()
 
-    print("\nTraining set performance:")
+    nn.log("\nTraining set performance:")
     nn.report_F1( training_image_set,
         annotation_type='Centroids', m_samples=2000, morph_annotations=False,
         exclude_border=(40,40,40,40), show_figure='On')
 
     # Test morphed performance
-    print("\nMorphed training set performance:")
+    nn.log("\nMorphed training set performance:")
     nn.report_F1( training_image_set, annotation_type='Centroids',
             m_samples=2000, exclude_border=(40,40,40,40),
             morph_annotations=True,
@@ -156,4 +162,4 @@ if args.F1report:
 
     plt.show()
 
-print('Done!\n')
+nn.log('Done!\n')
