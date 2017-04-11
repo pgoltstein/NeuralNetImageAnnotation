@@ -246,21 +246,21 @@ class ConvNetCnv2Fc1(object):
         """Displays the network architecture"""
         print("\n-----------------------------------------")
         print("Network architecture")
-        print("y_res :{}".format(self.y_res))
-        print("x_res :{}".format(self.x_res))
-        print("n_input_channels :{}".format(self.n_input_channels))
-        print("out_y_res :{}".format(self.out_y_res))
-        print("out_x_res :{}".format(self.out_x_res))
-        print("conv1_size :{}".format(self.conv1_size))
-        print("conv1_n_chan :{}".format(self.conv1_n_chan))
-        print("conv1_n_pool :{}".format(self.conv1_n_pool))
-        print("conv2_size :{}".format(self.conv2_size))
-        print("conv2_n_chan :{}".format(self.conv2_n_chan))
-        print("conv2_n_pool :{}".format(self.conv2_n_pool))
-        print("fc1_n_chan :{}".format(self.fc1_n_chan))
-        print("fc1_dropout :{}".format(self.fc1_dropout))
-        print("alpha :{}\n".format(self.alpha))
-        print("n_samples_trained :{}\n".format(self.n_samples_trained))
+        print("y_res: {}".format(self.y_res))
+        print("x_res: {}".format(self.x_res))
+        print("n_input_channels: {}".format(self.n_input_channels))
+        print("out_y_res: {}".format(self.out_y_res))
+        print("out_x_res: {}".format(self.out_x_res))
+        print("conv1_size: {}".format(self.conv1_size))
+        print("conv1_n_chan: {}".format(self.conv1_n_chan))
+        print("conv1_n_pool: {}".format(self.conv1_n_pool))
+        print("conv2_size: {}".format(self.conv2_size))
+        print("conv2_n_chan: {}".format(self.conv2_n_chan))
+        print("conv2_n_pool: {}".format(self.conv2_n_pool))
+        print("fc1_n_chan: {}".format(self.fc1_n_chan))
+        print("fc1_dropout: {}".format(self.fc1_dropout))
+        print("alpha: {}\n".format(self.alpha))
+        print("n_samples_trained: {}\n".format(self.n_samples_trained))
 
     def save_network_architecture(self,network_path):
         """Saves the network architecture into the network path"""
@@ -321,10 +321,10 @@ class ConvNetCnv2Fc1(object):
         t_start = time.time()
         print("\nStart training network @ {}".format(
             str(datetime.timedelta(seconds=np.round(t_start))) ) )
-        print("n_epochs :{}".format(n_epochs))
-        print("m_samples :{}".format(m_samples))
-        print("annotation_type :{}".format(annotation_type))
-        print("morph_annotations :{}".format(morph_annotations))
+        print("n_epochs: {}".format(n_epochs))
+        print("m_samples: {}".format(m_samples))
+        print("annotation_type: {}".format(annotation_type))
+        print("morph_annotations: {}".format(morph_annotations))
 
         # Loop across training epochs
         for epoch_no in range(n_epochs):
@@ -385,12 +385,12 @@ class ConvNetCnv2Fc1(object):
         t_start = time.time()
         print("\nStart training network @ {}".format(
             str(datetime.timedelta(seconds=np.round(t_start))) ) )
-        print("n_batches :{}".format(n_batches))
-        print("batch_size :{}".format(batch_size))
-        print("n_epochs :{}".format(n_epochs))
-        print("m_samples :{}".format(m_samples))
-        print("annotation_type :{}".format(annotation_type))
-        print("morph_annotations :{}".format(morph_annotations))
+        print("n_batches: {}".format(n_batches))
+        print("batch_size: {}".format(batch_size))
+        print("n_epochs: {}".format(n_epochs))
+        print("m_samples: {}".format(m_samples))
+        print("annotation_type: {}".format(annotation_type))
+        print("morph_annotations: {}".format(morph_annotations))
 
         # Loop across training batches
         for batch_no in range(n_batches):
