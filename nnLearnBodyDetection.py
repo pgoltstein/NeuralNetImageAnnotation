@@ -77,18 +77,17 @@ nn = cn.ConvNetCnv2Fc1( \
         conv2_size=7, conv2_n_chan=64, conv2_n_pool=3,
         fc1_n_chan=256, fc1_dropout=0.5, alpha=4e-4 )
 
-# Load network parameters
-nn.restore()
-
 # Initialize and start
 nn.start()
+
+# Load network parameters
+nn.restore()
 
 # Display network architecture
 nn.display_network_architecture()
 
 ########################################################################
 # Train network
-print("\nTraining network for {} epochs".format(n_epochs))
 nn.train_epochs( training_image_set,
     annotation_type='Bodies',
     m_samples=m_samples, n_epochs=n_epochs, report_every=10,
