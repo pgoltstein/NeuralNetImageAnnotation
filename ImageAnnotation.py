@@ -1019,7 +1019,8 @@ class AnnotatedImageSet(object):
             exclude_border:    exclude annotations that are a certain distance
                                to each border. Pix from (left, right, up, down)
             return_annotations:  Returns annotations in addition to
-                                 samples and labels
+                                 samples and labels. If False, returns empty
+                                 list. Otherwise set to 'Bodies' or 'Centroids'
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
             morph_annotations: Randomly morph the annotations
@@ -1040,7 +1041,7 @@ class AnnotatedImageSet(object):
 
         # Predefine output matrices
         samples = np.zeros( (m_samples, n_pix_lin) )
-        if return_annotations:
+        if return_annotations is not False:
             annotations = np.zeros( (m_samples, zoom_size[0]*zoom_size[1]) )
         else:
             annotations = []
@@ -1068,7 +1069,7 @@ class AnnotatedImageSet(object):
                 = s_samples
             labels[int(m_set_samples_list[s]):int(m_set_samples_list[s+1]),:] \
                 = s_labels
-            if return_annotations:
+            if return_annotations is not False:
                 annotations[int(m_set_samples_list[s]):int(m_set_samples_list[s+1]),:] \
                     = s_annotations
         return samples,labels,annotations
