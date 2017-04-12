@@ -490,7 +490,7 @@ class AnnotatedImage(object):
         """Sets the internal list with all image channels to np.ndarray copies
         of the supplied list with -to numpy.ndarray convertable- image data
         image_data:  single image, or list with images that are converable to
-                     a numpy.ndarray"""
+        a numpy.ndarray"""
         self._channel = []
         self._bodies = None
         self._centroids = None
@@ -508,19 +508,25 @@ class AnnotatedImage(object):
             self._set_centroids()
 
 
-    def add_image_from_file(self, file_name, file_path='.', normalize=True):
-        """Loads image, scales to max, and adds it as a new image channel
+    def add_image_from_file(self, file_name, file_path='.',
+                                normalize=True, use_channels=False):
+        """Loads image or matlab cell array, scales individual channels to
+        max (1), and adds it as a new image channel
         file_name:  String holding name of image file
         file_path:  String holding file path
-        normalize:  Normalize to maximum of image"""
+        normalize:  Normalize to maximum of image
+        use_channels:  tuple holding channel numbers/order to load (False=all)
+        """
         y_res_old,x_res_old = self.y_res,self.x_res
 
         # Load from .mat file with cell array
         if str(file_name[-4:]) == ".mat":
             mat_data = loadmat(path.join(file_path,file_name))
             n_channels = mat_data['Images'].shape[1]
-            for ch in range(n_channels):
-                im_x = np.array(mat_data['Images'][0,ch])
+            if use_channels == False:
+                use_channels = list(range(n_channels))
+            for ch in use_channels:
+                im_x = np.float64(np.array(mat_data['Images'][0,ch]))
                 if normalize:
                     im_x = im_x / im_x.max()
                 self._channel.append(im_x)
@@ -532,6 +538,8 @@ class AnnotatedImage(object):
             # Perform normalization (max=1) and add to channels
             if im.ndim == 3:
                 n_channels = np.size(im,axis=2)
+                if use_channels == False:
+                    use_channels = list(range(n_channels))
                 for ch in range(n_channels):
                     im_x = im[:,:,ch]
                     if normalize:
@@ -592,8 +600,9 @@ class AnnotatedImage(object):
     def import_annotations_from_mat(self, file_name, file_path='.'):
         """Reads data from ROI.mat file and fills the annotation_list. Can
         handle .mat files holding either a ROI or a ROIpy structure
-        file_name:  String holding name of ROI file
-        file_path:  String holding file path"""
+        file_name:     String holding name of ROI file
+        file_path:     String holding file path"""
+
         # Load mat file with ROI data
         mat_data = loadmat(path.join(file_path,file_name))
         annotation_list = []
@@ -733,7 +742,8 @@ class AnnotatedImage(object):
             exclude_border:    exclude annotations that are a certain distance
                                to each border. Pix from (left, right, up, down)
             return_annotations:  Returns annotations in addition to
-                                 samples and labels
+                                 samples and labels. If False, returns empty
+                                 list. Otherwise set to 'Bodies' or 'Centroids'
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
             morph_annotations: Randomly morph the annotations
@@ -760,6 +770,12 @@ class AnnotatedImage(object):
             im_label = self.centroids
         elif annotation_type.lower() == 'bodies':
             im_label = self.bodies
+        if return_annotations is not False:
+            if return_annotations.lower() == 'centroids':
+                return_im_label = self.centroids
+            elif return_annotations.lower() == 'bodies':
+                return_im_label = self.bodies
+
         roi_positive_x = pix_x.ravel()[im_label.ravel() > 0.5]
         roi_positive_y = pix_y.ravel()[im_label.ravel() > 0.5]
         roi_negative_x = pix_x.ravel()[im_label.ravel() == 0]
@@ -792,7 +808,7 @@ class AnnotatedImage(object):
         # Predefine output matrices
         samples = np.zeros( (m_samples,
             self.n_channels*zoom_size[0]*zoom_size[1]) )
-        if return_annotations:
+        if return_annotations is not False:
             annotations = np.zeros( (m_samples, zoom_size[0]*zoom_size[1]) )
         labels = np.zeros( (m_samples, 2) )
         count = 0
@@ -804,7 +820,7 @@ class AnnotatedImage(object):
                 samples[count,:] = image2vec( zoom( self.channel,
                     roi_positive_y[p], roi_positive_x[p], zoom_size=zoom_size ) )
                 if return_annotations:
-                    annotations[count,:] = image2vec( zoom( im_label==nr,
+                    annotations[count,:] = image2vec( zoom( return_im_label==nr,
                         roi_positive_y[p], roi_positive_x[p],
                         zoom_size=zoom_size ) )
             else:
@@ -817,7 +833,7 @@ class AnnotatedImage(object):
                     roi_positive_y[p], roi_positive_x[p], zoom_size,
                     rotation=rotation, scale_xy=scale, noise_level=noise_level ) )
                 if return_annotations:
-                    annotations[count,:] = image2vec( morphed_zoom( im_label==nr,
+                    annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
                         roi_positive_y[p], roi_positive_x[p], zoom_size,
                         rotation=rotation, scale_xy=scale, noise_level=noise_level ) )
             labels[count,1] = 1
@@ -830,7 +846,7 @@ class AnnotatedImage(object):
                 samples[count,:] = image2vec( zoom( self.channel,
                     roi_negative_y[p], roi_negative_x[p], zoom_size=zoom_size ) )
                 if return_annotations:
-                    annotations[count,:] = image2vec( zoom( im_label==nr,
+                    annotations[count,:] = image2vec( zoom( return_im_label==nr,
                         roi_negative_y[p], roi_negative_x[p], zoom_size=zoom_size ) )
             else:
                 rotation = float(np.random.choice( rotation_list, 1 ))
@@ -842,7 +858,7 @@ class AnnotatedImage(object):
                     roi_negative_y[p], roi_negative_x[p], zoom_size,
                     rotation=rotation, scale_xy=scale, noise_level=noise_level ) )
                 if return_annotations:
-                    annotations[count,:] = image2vec( morphed_zoom( im_label==nr,
+                    annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
                         roi_negative_y[p], roi_negative_x[p], zoom_size,
                         rotation=rotation, scale_xy=scale, noise_level=noise_level ) )
             labels[count,0] = 1
@@ -1059,11 +1075,14 @@ class AnnotatedImageSet(object):
 
     # **************************************
     # *****  Load data from directory  *****
-    def load_data_dir_tiff_mat(self,data_directory):
+    def load_data_dir_tiff_mat(self, data_directory,
+                                normalize=True, use_channels=False):
         """Loads all Tiff images or *channel.mat and accompanying ROI.mat
         files from a single directory that contains matching sets of .tiff
         or *channel.mat and .mat files
         data_directory:  path
+        normalize:  Normalize to maximum of image
+        use_channels:  tuple holding channel numbers/order to load (False=all)
         """
         # Get list of all .tiff file and .mat files
         image_files = glob.glob(path.join(data_directory,'*channels.mat'))
@@ -1080,8 +1099,9 @@ class AnnotatedImageSet(object):
 
             # Create new AnnotatedImage, add images and annotations
             anim = AnnotatedImage()
-            anim.add_image_from_file(image_filename,image_filepath)
-            anim.import_annotations_from_mat(mat_filename,mat_filepath)
+            anim.add_image_from_file( image_filename, image_filepath,
+                            normalize=normalize, use_channels=use_channels )
+            anim.import_annotations_from_mat( mat_filename, mat_filepath )
 
             # Check if the number of channels is the same
             if len(self.ai_list) == 0:

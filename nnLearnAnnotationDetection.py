@@ -27,21 +27,17 @@ parser = argparse.ArgumentParser( \
             "Runs on tensorflow framework. Learning is done using the " + \
             "ADAM optimizer. (written by Pieter Goltstein - April 2017)")
 
-
-# ADD select training on which CHANNEL SUPPORT
-# Loading >3 channel images through .mat files with cell arrays
-# annotation output of training batch function >> choose centroid/body independently
-
-
 parser.add_argument('annotationtype', type=str,
                     help= "'Centroids' or 'Bodies'")
 parser.add_argument('name', type=str,
                     help= 'Name by which to identify the network')
+
 parser.add_argument('-z', '--size', type=int, default=27,
                     help='Size of the image annotations (default=27)')
 parser.add_argument('-dl', '--dilationfactor', type=int, default=-999,
                     help="Dilation factor of annotations (default=0 for " +\
                     "'Centroid'; default=3 for 'Body'")
+
 parser.add_argument('-r', '--positivesampleratio', type=float, default=0.5,
                     help='Ratio of positive vs negative samples (default=0.5)')
 parser.add_argument('-rep', '--reportevery', type=float, default=10,
@@ -72,6 +68,9 @@ parser.add_argument('-cp', '--convpool', type=int, default=2,
 parser.add_argument('-fz', '--fcsize', type=int, default=256,
                     help="Number of fully connected units (default=256)")
 
+parser.add_argument('-ch', '--imagechannels', nargs='+',
+                    help='Select image channels to load (default=all)')
+
 parser.add_argument('-mp', '--morph',  action="store_true",
                     help='Enables random morphing of annotations (default=off)')
 parser.add_argument('-lc', '--learningcurve', action="store_true",
@@ -99,6 +98,12 @@ conv_pool = args.convpool
 fc_size = args.fcsize
 pos_sample_ratio = args.positivesampleratio
 report_every = args.reportevery
+use_channels = args.imagechannels
+if len(use_channels) == 0:
+    use_channels = False
+else:
+    for nr,ch in enumerate(use_channels):
+        use_channels[nr] = int(ch)
 
 if args.trainingdata:
     training_data_path = args.trainingdata
@@ -111,6 +116,7 @@ else:
 
 ########################################################################
 # Other variables
+normalize_images = True
 rotation_list = np.array(range(360))
 scale_list_x = np.array(range(900,1100)) / 1000
 scale_list_y = np.array(range(900,1100)) / 1000
@@ -120,7 +126,8 @@ noise_level_list = np.array(range(200)) / 10000
 # Load data
 print("\nLoading data from directory into training_image_set:")
 training_image_set = ia.AnnotatedImageSet()
-training_image_set.load_data_dir_tiff_mat(training_data_path)
+training_image_set.load_data_dir_tiff_mat( training_data_path,
+    normalize=normalize_images, use_channels=use_channels )
 
 ########################################################################
 # Set up network
@@ -132,6 +139,13 @@ nn = cn.ConvNetCnv2Fc1( \
         conv1_size=conv_size, conv1_n_chan=conv_chan, conv1_n_pool=conv_pool,
         conv2_size=conv_size, conv2_n_chan=conv_chan*2, conv2_n_pool=conv_pool,
         fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
+if nn.n_input_channels != training_image_set.n_channels:
+    print("\n\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("\nNetwork already has {} input channels,\n  but function argument ".format(
+        nn.n_input_channels) + "specified {} image channels.\n\n".format(
+        training_image_set.n_channels) )
+    print("Aborting network training.")
+    quit()
 
 ########################################################################
 # Set training data
