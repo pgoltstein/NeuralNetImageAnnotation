@@ -714,7 +714,7 @@ class ConvNetCnv2Fc1(object):
             plt.plot( x_values, precision, color='#0000aa',
                         linewidth=1, label='Precision' )
             plt.plot( x_values, recall, color='#00aa00',
-                        linewidth=1, label='recall' )
+                        linewidth=1, label='Recall' )
             plt.plot( x_values, F1, color='#aa0000',
                         linewidth=2, label='F1' )
             plt.plot( x_values, cum_pos_samples, color='#77ff77',
