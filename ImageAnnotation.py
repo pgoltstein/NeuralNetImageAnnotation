@@ -540,7 +540,7 @@ class AnnotatedImage(object):
                 n_channels = np.size(im,axis=2)
                 if use_channels == False:
                     use_channels = list(range(n_channels))
-                for ch in range(n_channels):
+                for ch in use_channels:
                     im_x = im[:,:,ch]
                     if normalize:
                         im_x = im_x / im_x.max()
