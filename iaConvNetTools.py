@@ -76,6 +76,10 @@ class ConvNetCnv2Fc1(object):
             self.fc1_dropout = fc1_dropout
             self.alpha = alpha
             self.n_samples_trained = 0
+            self.n_pos_samples_trained = 0
+            self.n_neg_samples_trained = 0
+            self.n_pos_samples_list = []
+            self.n_neg_samples_list = []
             self.n_samples_list = []
             self.accuracy_list = []
             self.precision_list = []
@@ -117,7 +121,11 @@ class ConvNetCnv2Fc1(object):
             self.fc1_dropout = net_architecture['fc1_dropout']
             self.alpha = net_architecture['alpha']
             self.n_samples_trained = net_architecture['n_samples_trained']
+            self.n_pos_samples_trained = net_architecture['n_pos_samples_trained']
+            self.n_neg_samples_trained = net_architecture['n_neg_samples_trained']
             self.n_samples_list = net_architecture['n_samples_list']
+            self.n_pos_samples_list = net_architecture['n_pos_samples_list']
+            self.n_neg_samples_list = net_architecture['n_neg_samples_list']
             self.accuracy_list = net_architecture['accuracy_list']
             self.precision_list = net_architecture['precision_list']
             self.recall_list = net_architecture['recall_list']
@@ -293,6 +301,8 @@ class ConvNetCnv2Fc1(object):
         self.log("fc1_dropout: {}".format(self.fc1_dropout))
         self.log("alpha: {}".format(self.alpha))
         self.log("n_samples_trained: {}".format(self.n_samples_trained))
+        self.log("n_pos_samples_trained: {}".format(self.n_pos_samples_trained))
+        self.log("n_neg_samples_trained: {}".format(self.n_neg_samples_trained))
 
     def save_network_architecture(self,network_path):
         """Saves the network architecture into the network path"""
@@ -312,11 +322,15 @@ class ConvNetCnv2Fc1(object):
         net_architecture['fc1_dropout'] = self.fc1_dropout
         net_architecture['alpha'] = self.alpha
         net_architecture['n_samples_trained'] = self.n_samples_trained
+        net_architecture['n_pos_samples_trained'] = self.n_pos_samples_trained
+        net_architecture['n_neg_samples_trained'] = self.n_neg_samples_trained
+        net_architecture['n_samples_list'] = self.n_samples_list
+        net_architecture['n_pos_samples_list'] = self.n_pos_samples_list
+        net_architecture['n_neg_samples_list'] = self.n_neg_samples_list
         net_architecture['accuracy_list'] = self.accuracy_list
         net_architecture['precision_list'] = self.precision_list
         net_architecture['recall_list'] = self.recall_list
         net_architecture['F1_list'] = self.F1_list
-        net_architecture['n_samples_list'] = self.n_samples_list
         np.save(os.path.join( \
             network_path,'net_architecture.npy'), net_architecture)
         self.log("Network architecture saved to file:\n{}".format(
@@ -335,7 +349,7 @@ class ConvNetCnv2Fc1(object):
 
     def train_epochs(self, annotated_image_set, n_epochs=100, report_every=10,
             annotation_type='Bodies', m_samples=100, exclude_border=(0,0,0,0),
-            morph_annotations=False, rotation_list=None,
+            pos_sample_ratio=0.5, morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None):
         """Trains the network on a training set for a specified number of
             epochs. It loads a random training set from the annotated_image_set
@@ -348,6 +362,8 @@ class ConvNetCnv2Fc1(object):
             m_samples:            number of training samples
             exclude_border:    exclude annotations that are a certain distance
                                to each border. Pix from (left, right, up, down)
+            pos_sample_ratio:  Ratio of positive to negative samples (0.5=
+                               equal, 1=only positive samples)
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -371,7 +387,8 @@ class ConvNetCnv2Fc1(object):
                 zoom_size=(self.y_res,self.x_res),
                 annotation_type=annotation_type,
                 m_samples=m_samples, exclude_border=exclude_border,
-                return_annotations=False, morph_annotations=morph_annotations,
+                return_annotations=False, pos_sample_ratio=pos_sample_ratio,
+                morph_annotations=morph_annotations,
                 rotation_list=rotation_list, scale_list_x=scale_list_x,
                 scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
@@ -388,16 +405,22 @@ class ConvNetCnv2Fc1(object):
 
             # Update total number of trained samples
             self.n_samples_trained = self.n_samples_trained + m_samples
+            n_neg,n_pos = labels.sum(axis=0)
+            self.n_pos_samples_trained = \
+                self.n_pos_samples_trained + int(n_pos)
+            self.n_neg_samples_trained = \
+                self.n_neg_samples_trained + int(n_neg)
 
         self.log("\nNetwork has now been trained on a total of {} samples".format(
-                self.n_samples_trained))
+                self.n_samples_trained) + "({} pos, {} neg)".format( \
+                self.n_pos_samples_trained,self.n_neg_samples_trained) )
         self.log("Done @ {}\n".format(
             now.strftime("%Y-%m-%d %H:%M") ) )
 
     def train_minibatch(self, annotated_image_set, n_batches=10, n_epochs=100,
             annotation_type='Bodies', batch_size=1000, m_samples=100,
-            exclude_border=(0,0,0,0), morph_annotations=False,
-            rotation_list=None, scale_list_x=None,
+            exclude_border=(0,0,0,0), pos_sample_ratio=0.5,
+            morph_annotations=False, rotation_list=None, scale_list_x=None,
             scale_list_y=None, noise_level_list=None):
         """Trains the network on a training set for a specified number of
             batches of size batch_size. Every batch iteration it loads a
@@ -413,6 +436,8 @@ class ConvNetCnv2Fc1(object):
             m_samples:            Number of training samples in epoch
             exclude_border:    exclude annotations that are a certain distance
                                to each border. Pix from (left, right, up, down)
+            pos_sample_ratio:  Ratio of positive to negative samples (0.5=
+                               equal, 1=only positive samples)
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -438,7 +463,8 @@ class ConvNetCnv2Fc1(object):
                 zoom_size=(self.y_res,self.x_res),
                 annotation_type=annotation_type,
                 m_samples=batch_size, exclude_border=exclude_border,
-                return_annotations=False, morph_annotations=morph_annotations,
+                return_annotations=False,  pos_sample_ratio=pos_sample_ratio,
+                morph_annotations=morph_annotations,
                 rotation_list=rotation_list, scale_list_x=scale_list_x,
                 scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
@@ -461,9 +487,14 @@ class ConvNetCnv2Fc1(object):
             # Update total number of trained samples
             self.n_samples_trained = \
                 self.n_samples_trained + (m_samples*n_epochs)
+            self.n_pos_samples_trained = \
+                self.n_pos_samples_trained + int(labels[1,:].sum())
+            self.n_neg_samples_trained = \
+                self.n_neg_samples_trained + int(labels[0,:].sum())
 
         self.log("\nNetwork has now been trained on a total of {} samples".format(
-                self.n_samples_trained))
+                self.n_samples_trained) + "({} pos, {} neg)".format( \
+                self.n_pos_samples_trained,self.n_neg_samples_trained) )
         self.log("Done @ {}\n".format(
             now.strftime("%Y-%m-%d %H:%M") ) )
 
@@ -543,9 +574,12 @@ class ConvNetCnv2Fc1(object):
         self.recall_list.append(float(recall))
         self.F1_list.append(float(F1))
         self.n_samples_list.append(int(self.n_samples_trained))
+        self.n_pos_samples_list.append(int(self.n_pos_samples_trained))
+        self.n_neg_samples_list.append(int(self.n_neg_samples_trained))
 
     def report_F1(self, annotated_image_set, annotation_type='Bodies',
-            m_samples=100, exclude_border=(0,0,0,0), morph_annotations=False,
+            m_samples=100, exclude_border=(0,0,0,0),  pos_sample_ratio=0.5,
+            morph_annotations=False,
             rotation_list=None, scale_list_x=None, scale_list_y=None,
             noise_level_list=None, show_figure='Off'):
         """Loads a random training set from the annotated_image_set and
@@ -556,6 +590,8 @@ class ConvNetCnv2Fc1(object):
             m_samples:            number of test samples
             exclude_border:    exclude annotations that are a certain distance
                                to each border. Pix from (left, right, up, down)
+            pos_sample_ratio:  Ratio of positive to negative samples (0.5=
+                               equal, 1=only positive samples)
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -568,7 +604,8 @@ class ConvNetCnv2Fc1(object):
         samples,labels,annotations = annotated_image_set.data_sample(
             zoom_size=(self.y_res,self.x_res), annotation_type=annotation_type,
             m_samples=m_samples, exclude_border=exclude_border,
-            return_annotations=False, morph_annotations=morph_annotations,
+            return_annotations=False,  pos_sample_ratio=pos_sample_ratio,
+            morph_annotations=morph_annotations,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
@@ -638,6 +675,13 @@ class ConvNetCnv2Fc1(object):
 
         # Get data
         x_values = np.array(self.n_samples_list)
+        cum_samples = np.array(self.n_pos_samples_list)
+        cum_pos_samples = np.array(self.n_pos_samples_list)
+        cum_neg_samples = np.array(self.n_neg_samples_list)
+        samples_max = np.max(np.array( \
+            [cum_pos_samples.max(), cum_neg_samples.max()] ))
+        cum_pos_samples = cum_pos_samples / samples_max
+        cum_neg_samples = cum_neg_samples / samples_max
         accuracy = np.array(self.accuracy_list)
         precision = np.array(self.precision_list)
         recall = np.array(self.recall_list)
@@ -662,17 +706,21 @@ class ConvNetCnv2Fc1(object):
             plt.plot( x_values, recall, color='#00aa00',
                         linewidth=1, label='recall' )
             plt.plot( x_values, F1, color='#aa0000',
-                        linewidth=1, label='F1' )
+                        linewidth=2, label='F1' )
+            plt.plot( x_values, cum_pos_samples, color='#77ff77',
+                        linewidth=1, label='Cumulative fraction \nof positive samples' )
+            plt.plot( x_values, cum_neg_samples, color='#ff7777',
+                        linewidth=1, label='Cumulative fraction \nof negative samples' )
 
             plt.yticks( [0, 0.5, 0.66, 0.8, 0.9, 1.0],
                 ['0','0.5','0.66','0.8','0.9','1.0'], ha='right' )
             plt.xlim(np.max(x_values)*-0.02,np.max(x_values)*1.02)
             plt.ylim(-0.02,1.02)
-            plt.xlabel('Cumulative number of training samples')
+            plt.xlabel('Number of training samples')
             plt.ylabel('Performance')
-            plt.title('Network performance')
+            plt.title('Learning curves')
             sns.despine(ax=ax, offset=0, trim=True)
-            lgnd = plt.legend(loc=4, ncol=1, frameon=True, fontsize=10)
+            lgnd = plt.legend(loc=4, ncol=1, frameon=True, fontsize=9)
             lgnd.get_frame().set_facecolor('#ffffff')
             ax.spines['left'].set_bounds(0,1)
             ax.spines['bottom'].set_bounds(np.min(x_values),np.max(x_values))

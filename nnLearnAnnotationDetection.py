@@ -36,6 +36,10 @@ parser.add_argument('-z', '--size', type=int, default=27,
 parser.add_argument('-dl', '--dilationfactor', type=int, default=-999,
                     help="Dilation factor of annotations (default=0 for " +\
                     "'Centroid'; default=3 for 'Body'")
+parser.add_argument('-r', '--positivesampleratio', type=float, default=0.5,
+                    help='Ratio of positive vs negative samples (default=0.5)')
+parser.add_argument('-rep', '--reportevery', type=float, default=10,
+                    help='Report every so many training epochs (default=10)')
 
 parser.add_argument('-t', '--trainingdata', type=str,
                     help= 'Path to training data folder')
@@ -87,6 +91,8 @@ conv_size = args.convsize
 conv_chan = args.convchan
 conv_pool = args.convpool
 fc_size = args.fcsize
+pos_sample_ratio = args.positivesampleratio
+report_every = args.reportevery
 
 if args.trainingdata:
     training_data_path = args.trainingdata
@@ -155,8 +161,9 @@ nn.display_network_architecture()
 # Train network
 nn.train_epochs( training_image_set,
     annotation_type=annotation_type,
-    m_samples=m_samples, n_epochs=n_epochs, report_every=10,
-    exclude_border=(40,40,40,40), morph_annotations=morph_annotations,
+    m_samples=m_samples, n_epochs=n_epochs, report_every=report_every,
+    exclude_border=(40,40,40,40), pos_sample_ratio=pos_sample_ratio,
+    morph_annotations=morph_annotations,
     rotation_list=rotation_list, scale_list_x=scale_list_x,
     scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
@@ -173,14 +180,14 @@ if args.learningcurve:
 if args.F1report:
     nn.log("\nTraining set performance:")
     nn.report_F1( training_image_set,
-        annotation_type=annotation_type, m_samples=2000,
+        annotation_type=annotation_type, m_samples=2000, pos_sample_ratio=0.5,
         morph_annotations=False, exclude_border=(40,40,40,40),
         show_figure='On')
 
     # Test morphed performance
     nn.log("\nMorphed training set performance:")
     nn.report_F1( training_image_set, annotation_type=annotation_type,
-            m_samples=2000, exclude_border=(40,40,40,40),
+            m_samples=2000, exclude_border=(40,40,40,40), pos_sample_ratio=0.5,
             morph_annotations=True,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list,

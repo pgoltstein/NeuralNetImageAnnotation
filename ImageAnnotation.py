@@ -706,7 +706,7 @@ class AnnotatedImage(object):
     # *****  Generate NN training/test data sets *****
     def get_batch( self, zoom_size, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
-            morph_annotations=False, rotation_list=None,
+            pos_sample_ratio=0.5, morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None ):
         """Constructs a 2d matrix (m samples x n pixels) with linearized data
             half of which is from within an annotation, and half from outside
@@ -717,6 +717,8 @@ class AnnotatedImage(object):
                                to each border. Pix from (left, right, up, down)
             return_annotations:  Returns annotations in addition to
                                  samples and labels
+            pos_sample_ratio:  Ratio of positive to negative samples (0.5=
+                               equal, 1=only positive samples)
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -727,8 +729,13 @@ class AnnotatedImage(object):
             or otherwise an empty list as third item"""
 
         # Calculate number of positive and negative samples
-        m_samples_pos = np.int16( m_samples * (0.5) )
+        m_samples_pos = np.int16( m_samples * pos_sample_ratio )
         m_samples_neg = m_samples - m_samples_pos
+
+        # randomly add 1 sample to compensate for rounding down positive samples
+        if np.random.rand(1) < ((float(m_samples)*pos_sample_ratio) % 1):
+            m_samples_pos = m_samples_pos + 1
+            m_samples_neg = m_samples_neg - 1
 
         # Get lists with coordinates of pixels within and outside of centroids
         (pix_x,pix_y) = np.meshgrid(np.arange(self.y_res),np.arange(self.x_res))
@@ -967,7 +974,7 @@ class AnnotatedImageSet(object):
     # *****  Produce training/test data set  *****
     def data_sample(self, zoom_size, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
-            morph_annotations=False, rotation_list=None,
+            pos_sample_ratio=0.5, morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None ):
         """Constructs a random sample of with linearized annotation data,
             organized in a 2d matrix (m samples x n pixels) half of which is
@@ -980,6 +987,8 @@ class AnnotatedImageSet(object):
                                to each border. Pix from (left, right, up, down)
             return_annotations:  Returns annotations in addition to
                                  samples and labels
+            pos_sample_ratio:  Ratio of positive to negative samples (0.5=
+                               equal, 1=only positive samples)
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -1016,6 +1025,7 @@ class AnnotatedImageSet(object):
                     zoom_size, annotation_type=annotation_type,
                     m_samples=m_set_samples, exclude_border=exclude_border,
                     return_annotations=return_annotations,
+                    pos_sample_ratio=pos_sample_ratio,
                     morph_annotations=morph_annotations,
                     rotation_list=rotation_list, scale_list_x=scale_list_x,
                     scale_list_y=scale_list_y, noise_level_list=noise_level_list )
