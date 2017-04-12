@@ -188,8 +188,8 @@ def vec2RGB( lin_image, n_channels, image_size,
     image = vec2image( lin_image, n_channels, image_size )
     RGB = np.zeros((image_size[0],image_size[1],3))
     if n_channels > 1:
-        for ch in range(3):
-            RGB[:,:,ch] = image[channel_order[ch]]
+        for nr,ch in enumerate(channel_order):
+            RGB[:,:,nr] = image[ch]
     else:
         for ch in range(3):
             RGB[:,:,ch] = image

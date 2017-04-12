@@ -579,7 +579,7 @@ class ConvNetCnv2Fc1(object):
 
     def report_F1(self, annotated_image_set, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0),  pos_sample_ratio=0.5,
-            morph_annotations=False,
+            channel_order=None, morph_annotations=False,
             rotation_list=None, scale_list_x=None, scale_list_y=None,
             noise_level_list=None, show_figure='Off'):
         """Loads a random training set from the annotated_image_set and
@@ -592,6 +592,7 @@ class ConvNetCnv2Fc1(object):
                                to each border. Pix from (left, right, up, down)
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
+            channel_order:  tuple indicating which channels are R, G and B
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -652,12 +653,21 @@ class ConvNetCnv2Fc1(object):
             samples_mat.append(samples[
                 np.logical_and(pred[:]==0,labels[:,1]==0), : ])
 
+            # Handle RGB channel order
+            if channel_order == None:
+                chan_order = []
+                for ch in range(3):
+                    if ch < self.n_input_channels:
+                        chan_order.append(ch)
+            else:
+                chan_order = channel_order
+
             plt.figure(figsize=(10,10), facecolor='w', edgecolor='w')
             for cnt in range(4):
                 grid,_ = ia.image_grid_RGB( samples_mat[cnt],
                     n_channels=annotated_image_set.n_channels,
                     image_size=(self.y_res,self.x_res), n_x=10, n_y=10,
-                    channel_order=(0,1,2), amplitude_scaling=(1.33,1.33,1),
+                    channel_order=chan_order, amplitude_scaling=(1.33,1.33,1),
                     line_color=1, auto_scale=True )
                 grid[:,:,2] = 0 # only show red and green channel
                 with sns.axes_style("white"):

@@ -69,7 +69,8 @@ parser.add_argument('-fz', '--fcsize', type=int, default=256,
                     help="Number of fully connected units (default=256)")
 
 parser.add_argument('-ch', '--imagechannels', nargs='+',
-                    help='Select image channels to load (default=all)')
+                    help="Select image channels to load (e.g. ''-ch 1 2' " + \
+                    "loads first and second channel only; default=all)")
 
 parser.add_argument('-mp', '--morph',  action="store_true",
                     help='Enables random morphing of annotations (default=off)')
@@ -103,7 +104,7 @@ if len(use_channels) == 0:
     use_channels = False
 else:
     for nr,ch in enumerate(use_channels):
-        use_channels[nr] = int(ch)
+        use_channels[nr] = int(ch)-1
 
 if args.trainingdata:
     training_data_path = args.trainingdata
@@ -152,6 +153,16 @@ if nn.n_input_channels != training_image_set.n_channels:
 nn.log("\nUsing training_image_set from directory:")
 nn.log(training_data_path)
 nn.log(" >> " + training_image_set.__str__())
+if not use_channels:
+    print("Using all {} image channels".format(training_image_set.n_channels))
+else:
+    print("Using image channels ", end="", flush=True)
+    for ch in use_channels:
+        print("{}".format(ch+1), end="", flush=True)
+        if ch != use_channels[-1]:
+            print(", ", end="", flush=True)
+        else:
+            print(".")
 
 if annotation_type == 'Centroids':
     if dilation_factor == -999:
@@ -202,7 +213,7 @@ if args.F1report:
     nn.report_F1( training_image_set,
         annotation_type=annotation_type, m_samples=2000, pos_sample_ratio=0.5,
         morph_annotations=False, exclude_border=(40,40,40,40),
-        show_figure='On')
+        channel_order=None, show_figure='On')
 
     # Test morphed performance
     nn.log("\nMorphed training set performance:")
@@ -211,7 +222,7 @@ if args.F1report:
             morph_annotations=True,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list,
-            show_figure='On')
+            channel_order=None, show_figure='On')
 
 if args.learningcurve or args.F1report:
     plt.show()
