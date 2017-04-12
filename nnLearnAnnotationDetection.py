@@ -27,6 +27,12 @@ parser = argparse.ArgumentParser( \
             "Runs on tensorflow framework. Learning is done using the " + \
             "ADAM optimizer. (written by Pieter Goltstein - April 2017)")
 
+
+# ADD select training on which CHANNEL SUPPORT
+# Loading >3 channel images through .mat files with cell arrays
+# annotation output of training batch function >> choose centroid/body independently
+
+
 parser.add_argument('annotationtype', type=str,
                     help= "'Centroids' or 'Bodies'")
 parser.add_argument('name', type=str,

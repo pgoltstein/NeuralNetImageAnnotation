@@ -509,25 +509,42 @@ class AnnotatedImage(object):
 
 
     def add_image_from_file(self, file_name, file_path='.', normalize=True):
-        """Loads image and adds it as a new image channel
+        """Loads image, scales to max, and adds it as a new image channel
         file_name:  String holding name of image file
         file_path:  String holding file path
         normalize:  Normalize to maximum of image"""
         y_res_old,x_res_old = self.y_res,self.x_res
-        im = np.float64(imread(path.join(file_path,file_name)))
-        # Perform normalization (max=1) and add to channels
-        if im.ndim == 3:
-            n_channels = np.size(im,axis=2)
+
+        # Load from .mat file with cell array
+        if str(file_name[-4:]) == ".mat":
+            mat_data = loadmat(path.join(file_path,file_name))
+            n_channels = mat_data['Images'].shape[1]
             for ch in range(n_channels):
-                im_x = im[:,:,ch]
+                im_x = np.array(mat_data['Images'][0,ch])
                 if normalize:
                     im_x = im_x / im_x.max()
                 self._channel.append(im_x)
+
+        # Load from actual image
         else:
-            if normalize:
-                im = im / im.max()
-            self._channel.append(im)
+            im = np.float64(imread(path.join(file_path,file_name)))
+
+            # Perform normalization (max=1) and add to channels
+            if im.ndim == 3:
+                n_channels = np.size(im,axis=2)
+                for ch in range(n_channels):
+                    im_x = im[:,:,ch]
+                    if normalize:
+                        im_x = im_x / im_x.max()
+                    self._channel.append(im_x)
+            else:
+                if normalize:
+                    im = im / im.max()
+                self._channel.append(im)
+
+        # Set resolution
         self._y_res,self._x_res = self._channel[0].shape
+
         # Update masks if there are annotations and the image resolution changed
         if self.n_annotations > 0 and ( (y_res_old != self.y_res)
                                     or (x_res_old != self.x_res) ):
@@ -1043,24 +1060,27 @@ class AnnotatedImageSet(object):
     # **************************************
     # *****  Load data from directory  *****
     def load_data_dir_tiff_mat(self,data_directory):
-        """Loads all Tiff images and accompanying ROI.mat files from a single
-        directory that contains matching sets of .tiff and .mat files
+        """Loads all Tiff images or *channel.mat and accompanying ROI.mat
+        files from a single directory that contains matching sets of .tiff
+        or *channel.mat and .mat files
         data_directory:  path
         """
         # Get list of all .tiff file and .mat files
-        tiff_files = glob.glob(path.join(data_directory,'*.tiff'))
-        mat_files = glob.glob(path.join(data_directory,'*.mat'))
+        image_files = glob.glob(path.join(data_directory,'*channels.mat'))
+        if len(image_files) == 0:
+            image_files = glob.glob(path.join(data_directory,'*.tiff'))
+        mat_files = glob.glob(path.join(data_directory,'*ROI*.mat'))
 
         # Loop files and load images and annotations
-        print("\nLoading .tiff and annotation files:")
-        for f, (tiff_file, mat_file) in enumerate(zip(tiff_files,mat_files)):
-            tiff_filepath, tiff_filename = path.split(tiff_file)
+        print("\nLoading image and annotation files:")
+        for f, (image_file, mat_file) in enumerate(zip(image_files,mat_files)):
+            image_filepath, image_filename = path.split(image_file)
             mat_filepath, mat_filename = path.split(mat_file)
-            print("{:2.0f}) {} -- {}".format(f+1,tiff_filename,mat_filename))
+            print("{:2.0f}) {} -- {}".format(f+1,image_filename,mat_filename))
 
             # Create new AnnotatedImage, add images and annotations
             anim = AnnotatedImage()
-            anim.add_image_from_file(tiff_filename,tiff_filepath)
+            anim.add_image_from_file(image_filename,image_filepath)
             anim.import_annotations_from_mat(mat_filename,mat_filepath)
 
             # Check if the number of channels is the same
