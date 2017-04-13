@@ -31,8 +31,8 @@ class ConvNetCnv2Fc1(object):
     multi channel images.
     2 convolutional layers, 1 fully connected layer, 1 output layer"""
 
-    def __init__(self, network_path,
-                input_image_size, n_input_channels, output_size,
+    def __init__(self, network_path='.', logging=True,
+                input_image_size=None, n_input_channels=None, output_size=None,
                 conv1_size=5, conv1_n_chan=32, conv1_n_pool=2,
                 conv2_size=5, conv2_n_chan=64, conv2_n_pool=2,
                 fc1_n_chan=1024, fc1_dropout=0.5, alpha=4e-4 ):
@@ -41,6 +41,7 @@ class ConvNetCnv2Fc1(object):
         network_path:      Directory where to store network and architecture
         input_image_size:  Tuple containing (y,x) size of input image
         output_image_size: Tuple containing dimensions of network output"""
+        self.logging = logging
 
         # If network path does not yet exists
         self.network_path = network_path
@@ -515,8 +516,7 @@ class ConvNetCnv2Fc1(object):
         line_samples = np.zeros( (anim.x_res,
             anim.n_channels * self.y_res * self.x_res) )
         # Loop through all lines
-        print("\nClassifying image")
-        print("Line no:", end="", flush=True)
+        print("\nAnnotating image {:6.2f}%".format(0), end="", flush=True)
         for y in range(anim.y_res):
             # Loop through all pixels to fill the line-samples
             for x in range(anim.x_res):
@@ -527,8 +527,9 @@ class ConvNetCnv2Fc1(object):
             result = self.sess.run( [self.network_prediction], feed_dict={
                 self.x: line_samples, self.fc1_keep_prob: 1.0 })
             classified_image[y,:] = result[0]
-            print("{},".format(y), end="", flush=True)
-        print("done!")
+            print((7*'\b')+'{:6.2f}%'.format(100.0*float(y)/float(anim.y_res)),
+                        end='', flush=True)
+        print( (7*'\b')+'{:6.2f}% .. done!'.format(100.0) )
         return classified_image
 
     def log(self, line_text, no_enter=False):
@@ -537,8 +538,9 @@ class ConvNetCnv2Fc1(object):
             print(line_text, end="", flush=True)
         else:
             print(line_text)
-        with open(os.path.join(self.network_path,'activity.log'), 'a+') as f:
-            f.write(line_text + os.linesep)
+        if self.logging:
+            with open(os.path.join(self.network_path,'activity.log'), 'a+') as f:
+                f.write(line_text + os.linesep)
 
     def report_progress(self,
                         samples, labels, epoch_no, counter_name, t_start):
