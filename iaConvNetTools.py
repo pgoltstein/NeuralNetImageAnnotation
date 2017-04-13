@@ -414,6 +414,7 @@ class ConvNetCnv2Fc1(object):
         self.log("\nNetwork has now been trained on a total of {} samples".format(
                 self.n_samples_trained) + "({} pos, {} neg)".format( \
                 self.n_pos_samples_trained,self.n_neg_samples_trained) )
+        now = datetime.datetime.now()
         self.log("Done @ {}\n".format(
             now.strftime("%Y-%m-%d %H:%M") ) )
 
@@ -446,6 +447,7 @@ class ConvNetCnv2Fc1(object):
             """
 
         t_start = time.time()
+        now = datetime.datetime.now()
         self.log("\n-------- Start training network @ {} --------".format(
             now.strftime("%Y-%m-%d %H:%M") ) )
         self.log("n_batches: {}".format(n_batches))
@@ -495,6 +497,7 @@ class ConvNetCnv2Fc1(object):
         self.log("\nNetwork has now been trained on a total of {} samples".format(
                 self.n_samples_trained) + "({} pos, {} neg)".format( \
                 self.n_pos_samples_trained,self.n_neg_samples_trained) )
+        now = datetime.datetime.now()
         self.log("Done @ {}\n".format(
             now.strftime("%Y-%m-%d %H:%M") ) )
 
