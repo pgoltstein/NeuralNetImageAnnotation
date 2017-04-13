@@ -121,7 +121,7 @@ noise_level_list = np.array(range(200)) / 10000
 ########################################################################
 # Load data
 print("\nLoading data from directory into training_image_set:")
-if use_channels is not False:
+if use_channels is not None:
     for nr,ch in enumerate(use_channels):
         use_channels[nr] = int(ch)-1
 training_image_set = ia.AnnotatedImageSet()
@@ -139,9 +139,9 @@ nn = cn.ConvNetCnv2Fc1( \
         conv2_size=conv_size, conv2_n_chan=conv_chan*2, conv2_n_pool=conv_pool,
         fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
 if nn.n_input_channels != training_image_set.n_channels:
-    print("\n\nNetwork already has {} input channels,\n  but function argument ".format(
-        nn.n_input_channels) + "specified {} image channels.\n\n".format(
-        training_image_set.n_channels) )
+    print("\n\nExisting network has been set up with {} input channels,\n \
+        but function argument specified {} image channels.\n\n".format(
+        nn.n_input_channels,training_image_set.n_channels) )
     print("Aborting network.")
     quit()
 
@@ -150,7 +150,7 @@ if nn.n_input_channels != training_image_set.n_channels:
 nn.log("\nUsing training_image_set from directory:")
 nn.log(training_data_path)
 nn.log(" >> " + training_image_set.__str__())
-if use_channels is not False:
+if use_channels is not None:
     print("Using all available {} image channels".format(training_image_set.n_channels))
 else:
     print("Using image channels {}".format(use_channels))

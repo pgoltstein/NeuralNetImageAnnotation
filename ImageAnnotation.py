@@ -509,13 +509,13 @@ class AnnotatedImage(object):
 
 
     def add_image_from_file(self, file_name, file_path='.',
-                                normalize=True, use_channels=False):
+                                normalize=True, use_channels=None):
         """Loads image or matlab cell array, scales individual channels to
         max (1), and adds it as a new image channel
         file_name:  String holding name of image file
         file_path:  String holding file path
         normalize:  Normalize to maximum of image
-        use_channels:  tuple holding channel numbers/order to load (False=all)
+        use_channels:  tuple holding channel numbers/order to load (None=all)
         """
         y_res_old,x_res_old = self.y_res,self.x_res
 
@@ -523,7 +523,7 @@ class AnnotatedImage(object):
         if str(file_name[-4:]) == ".mat":
             mat_data = loadmat(path.join(file_path,file_name))
             n_channels = mat_data['Images'].shape[1]
-            if use_channels == False:
+            if use_channels is None:
                 use_channels = list(range(n_channels))
             for ch in use_channels:
                 im_x = np.float64(np.array(mat_data['Images'][0,ch]))
@@ -538,7 +538,7 @@ class AnnotatedImage(object):
             # Perform normalization (max=1) and add to channels
             if im.ndim == 3:
                 n_channels = np.size(im,axis=2)
-                if use_channels == False:
+                if use_channels is None:
                     use_channels = list(range(n_channels))
                 for ch in use_channels:
                     im_x = im[:,:,ch]
@@ -1077,13 +1077,13 @@ class AnnotatedImageSet(object):
     # **************************************
     # *****  Load data from directory  *****
     def load_data_dir_tiff_mat(self, data_directory,
-                                normalize=True, use_channels=False):
+                                normalize=True, use_channels=None):
         """Loads all Tiff images or *channel.mat and accompanying ROI.mat
         files from a single directory that contains matching sets of .tiff
         or *channel.mat and .mat files
         data_directory:  path
         normalize:  Normalize to maximum of image
-        use_channels:  tuple holding channel numbers/order to load (False=all)
+        use_channels:  tuple holding channel numbers/order to load (None=all)
         """
         # Get list of all .tiff file and .mat files
         image_files = glob.glob(path.join(data_directory,'*channels.mat'))
