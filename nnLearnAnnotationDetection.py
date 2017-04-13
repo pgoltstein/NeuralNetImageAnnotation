@@ -142,7 +142,7 @@ if nn.n_input_channels != training_image_set.n_channels:
     print("\n\nExisting network has been set up with {} input channels,\n \
         but function argument specified {} image channels.\n\n".format(
         nn.n_input_channels,training_image_set.n_channels) )
-    print("Aborting network.")
+    print("Aborting network.\n")
     quit()
 
 ########################################################################
