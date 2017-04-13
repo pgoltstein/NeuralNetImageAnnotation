@@ -69,7 +69,7 @@ parser.add_argument('-fz', '--fcsize', type=int, default=256,
                     help="Number of fully connected units (default=256)")
 
 parser.add_argument('-ch', '--imagechannels', nargs='+',
-                    help="Select image channels to load (e.g. ''-ch 1 2' " + \
+                    help="Select image channels to load (e.g. '-ch 1 2' " + \
                     "loads first and second channel only; default=all)")
 
 parser.add_argument('-mp', '--morph',  action="store_true",
@@ -150,10 +150,11 @@ if nn.n_input_channels != training_image_set.n_channels:
 nn.log("\nUsing training_image_set from directory:")
 nn.log(training_data_path)
 nn.log(" >> " + training_image_set.__str__())
-if use_channels is not None:
-    print("Using all available {} image channels".format(training_image_set.n_channels))
+if use_channels is None:
+    nn.log("Using all available {} image channels".format(
+            training_image_set.n_channels))
 else:
-    print("Using image channels {}".format(use_channels))
+    nn.log("Using image channels {} (zero-based)".format(use_channels))
 
 if annotation_type == 'Centroids':
     if dilation_factor == -999:
