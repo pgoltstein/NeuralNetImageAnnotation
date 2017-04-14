@@ -116,7 +116,7 @@ normalize_images = True
 rotation_list = np.array(range(360))
 scale_list_x = np.array(range(900,1100)) / 1000
 scale_list_y = np.array(range(900,1100)) / 1000
-noise_level_list = np.array(range(200)) / 10000
+noise_level_list = np.array(range(50)) / 10000
 
 ########################################################################
 # Load data

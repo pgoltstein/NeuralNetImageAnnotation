@@ -14,13 +14,17 @@ Contains functions that detects centroids or bodies of annotations
 ########################################################################
 
 import numpy as np
-import tensorflow as tf
+# import tensorflow as tf
 import matplotlib.pyplot as plt
 import seaborn as sns
 import ImageAnnotation as ia
 import iaConvNetTools as cn
 import argparse
 import os
+
+from scipy import ndimage
+from skimage import measure
+
 
 #########################################################
 # Arguments
@@ -76,42 +80,56 @@ anim.add_image_from_file(file_name=image_name,file_path=image_path,
                 normalize=normalize_images, use_channels=use_channels)
 print(" >> " + anim.__str__())
 
-########################################################################
-# Set up network
-nn = cn.ConvNetCnv2Fc1( logging=False, \
-        network_path=os.path.join(network_path,network_name) )
-if nn.n_input_channels != anim.n_channels:
-    print("\n\nExisting network has been set up with {} input channels,\n \
-        but function argument specified {} image channels.\n\n".format(
-        nn.n_input_channels,anim.n_channels) )
-    print("Aborting network.\n")
-    quit()
-if use_channels is None:
-    nn.log("Using all available {} image channels".format(
-            anim.n_channels))
-else:
-    nn.log("Using image channels {} (zero-based)".format(use_channels))
-annotation_size = (nn.y_res,nn.x_res)
+# ########################################################################
+# # Set up network
+# nn = cn.ConvNetCnv2Fc1( logging=False, \
+#         network_path=os.path.join(network_path,network_name) )
+# if nn.n_input_channels != anim.n_channels:
+#     print("\n\nExisting network has been set up with {} input channels,\n \
+#         but function argument specified {} image channels.\n\n".format(
+#         nn.n_input_channels,anim.n_channels) )
+#     print("Aborting network.\n")
+#     quit()
+# if use_channels is None:
+#     nn.log("Using all available {} image channels".format(
+#             anim.n_channels))
+# else:
+#     nn.log("Using image channels {} (zero-based)".format(use_channels))
+# annotation_size = (nn.y_res,nn.x_res)
+#
+# ########################################################################
+# # Initialize and start
+# nn.start()
+#
+# # Load network parameters
+# nn.restore()
+#
+# # Display network architecture
+# nn.display_network_architecture()
+#
+# ########################################################################
+# # Annotate image
+# classified_image = nn.annotate_image( anim )
+#
+# # Save classified image
+# np.save( os.path.join( image_path,
+#     'classified_image'+annotation_type), classified_image)
+# print( "Saved classified_image as: {}".format( os.path.join( image_path,
+#     'classified_image'+annotation_type) ) )
 
-########################################################################
-# Initialize and start
-nn.start()
+anim.detected_bodies = np.load( os.path.join( image_path,
+    'classified_imageBodies.npy') )
+anim.detected_centroids = np.load( os.path.join( image_path,
+    'classified_imageCentroids.npy') )
+anim.exclude_border=(0,20,10,3)
 
-# Load network parameters
-nn.restore()
+anim.generate_cnn_annotations_cb( min_size=120, max_size=None,
+    dilation_factor_centroids=-1, dilation_factor_bodies=-1 )
 
-# Display network architecture
-nn.display_network_architecture()
+RGB = np.zeros((anim.detected_bodies.shape[0],anim.detected_bodies.shape[1],3))
+RGB[:,:,1] = anim.detected_centroids
+RGB[:,:,2] = anim.detected_bodies
 
-########################################################################
-# Annotate image
-classified_image = nn.annotate_image( anim )
-
-# Save classified image
-np.save( os.path.join( image_path,
-    'classified_image'+annotation_type), classified_image)
-print( "Saved classified_image as: {}".format( os.path.join( image_path,
-    'classified_image'+annotation_type) ) )
 
 # ************************************************************
 # Show matplotlib images
@@ -127,8 +145,29 @@ with sns.axes_style("white"):
     plt.axis('off')
 
     axb = plt.subplot2grid( (1,2), (0,1) )
-    axb.imshow(classified_image>0,vmin=-0.1)
-    axb.set_title("Annotated {}".format(annotation_type))
+    axb.imshow(RGB)
+    axb.set_title("Annotated bodies and centroids")
+    plt.axis('tight')
+    plt.axis('off')
+
+with sns.axes_style("white"):
+    plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
+    axr = plt.subplot2grid( (1,2), (0,0) )
+    axr.imshow( anim.RGB(),
+        interpolation='nearest', vmax=anim.RGB().max()*0.7)
+    for an in anim.annotation:
+        axr.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    axr.set_title("Annotated image")
+    plt.axis('tight')
+    plt.axis('off')
+
+    axr = plt.subplot2grid( (1,2), (0,1) )
+    axr.imshow(RGB)
+    for an in anim.annotation:
+        axr.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    axr.set_title("Annotated image")
     plt.axis('tight')
     plt.axis('off')
 
