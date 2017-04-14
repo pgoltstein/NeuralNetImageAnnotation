@@ -430,10 +430,16 @@ class AnnotatedImage(object):
     Images are represented in a list of [x * y] matrices
     Annotations are represented as a list of Annotation objects"""
 
-    def __init__( self, image_data=None, annotation_data=None ):
+    def __init__( self, image_data=None, annotation_data=None,
+        detected_centroids=None, detected_bodies=None, detected_annotations=None):
         """Initialize image list and channel list
-            channel:     list or tuple of same size images
-            annotation:  list or tuple of Annotation objects"""
+            channel:              List or tuple of same size images
+            annotation:           List or tuple of Annotation objects
+            detected_centroids:  Binary image with centroids labeled
+            detected_bodies:     Binary image with bodies labeled
+            labeled_centroids:   Image with annotation centroids labeled by number
+            labeled_bodies:      Image with annotation bodies labeled by number
+            """
         self._bodies = None
         self._body_dilation_factor = 0
         self._centroids = None
@@ -442,10 +448,21 @@ class AnnotatedImage(object):
         self._x_res = 0
         self._channel = []
         self._annotation = []
+        self.detected_centroids = []
+        self.detected_bodies = []
+        self.detected_annotations = []
         if image_data is not None:
             self.channel = image_data
         if annotation_data is not None:
             self.annotation = annotation_data
+        if detected_centroids is not None:
+            self.detected_centroids = detected_centroids
+        if detected_bodies is not None:
+            self.detected_bodies = detected_bodies
+        if labeled_centroids is not None:
+            self.labeled_centroids = labeled_centroids
+        if labeled_bodies is not None:
+            self.labeled_bodies = labeled_bodies
 
     def __str__(self):
         return "AnnotatedImage (#channels={:.0f}, #annotations={:.0f}" \
@@ -716,6 +733,10 @@ class AnnotatedImage(object):
         combined_annotated_image = np.load(path.join(file_path,file_name)).item()
         self.channel = combined_annotated_image['image_data']
         self.annotation = combined_annotated_image['annotation_data']
+        self.detected_centroids = combined_annotated_image['detected_centroids']
+        self.detected_bodies = combined_annotated_image['detected_bodies']
+        self.labeled_centroids = combined_annotated_image['labeled_centroids']
+        self.labeled_bodies = combined_annotated_image['labeled_bodies']
         print("Loaded AnnotatedImage from: {}".format(
                                     path.join(file_path,file_name)))
 
@@ -724,6 +745,10 @@ class AnnotatedImage(object):
         combined_annotated_image = {}
         combined_annotated_image['image_data'] = self.channel
         combined_annotated_image['annotation_data'] = self.annotation
+        combined_annotated_image['detected_centroids'] = self.detected_centroids
+        combined_annotated_image['detected_bodies'] = self.detected_bodies
+        combined_annotated_image['labeled_centroids'] = self.labeled_centroids
+        combined_annotated_image['labeled_bodies'] = self.labeled_bodies
         np.save(path.join(file_path,file_name), combined_annotated_image)
         print("Saved AnnotatedImage as: {}".format(
                                     path.join(file_path,file_name)))
