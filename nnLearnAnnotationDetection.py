@@ -40,7 +40,7 @@ parser.add_argument('-dl', '--dilationfactor', type=int, default=-999,
 
 parser.add_argument('-r', '--positivesampleratio', type=float, default=0.5,
                     help='Ratio of positive vs negative samples (default=0.5)')
-parser.add_argument('-rep', '--reportevery', type=float, default=10,
+parser.add_argument('-rep', '--reportevery', type=int, default=10,
                     help='Report every so many training epochs (default=10)')
 
 parser.add_argument('-t', '--trainingdata', type=str,

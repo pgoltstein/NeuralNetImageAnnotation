@@ -395,8 +395,11 @@ class ConvNetCnv2Fc1(object):
 
             # Report progress at start of training
             if (epoch_no % report_every) == 0:
-                self.report_progress( \
-                            samples, labels, epoch_no, 'Epoch no', t_start)
+                if epoch_no>0:
+                    print( (report_every*'\b')+(report_every*' '),
+                        end="", flush=True )
+                self.report_progress( samples, labels,
+                    epoch_no, 'Epoch no', t_start)
 
             # Train the network on samples and labels
             self.sess.run( self.train_step, feed_dict={
@@ -472,8 +475,8 @@ class ConvNetCnv2Fc1(object):
                 scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
             # Report progress at start of training
-            self.report_progress( \
-                            samples, labels, batch_no, 'Batch no', t_start)
+            self.report_progress( samples, labels,
+                batch_no, 'Batch no', t_start)
 
             # Train the network for n_epochs on random subsets of m_samples
             for epoch_no in range(n_epochs):
@@ -532,18 +535,20 @@ class ConvNetCnv2Fc1(object):
         print( (7*'\b')+'{:6.2f}% .. done!'.format(100.0) )
         return classified_image
 
-    def log(self, line_text, no_enter=False):
+    def log(self, line_text, no_enter=False, overwrite_last=False):
         """Output to log file and prints to screen"""
+        if self.logging:
+            with open(os.path.join(self.network_path,'activity.log'), 'a+') as f:
+                f.write(line_text + os.linesep)
+        if overwrite_last:
+            line_text = "\r" + line_text
         if no_enter:
             print(line_text, end="", flush=True)
         else:
             print(line_text)
-        if self.logging:
-            with open(os.path.join(self.network_path,'activity.log'), 'a+') as f:
-                f.write(line_text + os.linesep)
 
-    def report_progress(self,
-                        samples, labels, epoch_no, counter_name, t_start):
+    def report_progress(self, samples, labels,
+                            epoch_no, counter_name, t_start):
         """Report progress and accuracy on single line for epoch training
             samples:      2d matrix containing training samples
             labels:       2d matrix containing labels
@@ -570,10 +575,10 @@ class ConvNetCnv2Fc1(object):
         F1 = np.nan_to_num(2 * ((precision*recall)/(precision+recall)))
 
         t_curr = time.time()
-        self.log('\n{} {:4d}: Acc = {:6.4f} (t={})'.format( \
+        self.log('{} {:4d}: Acc = {:6.4f} (t={})'.format( \
             counter_name, epoch_no, accuracy,
             str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
-            no_enter=True)
+            no_enter=True, overwrite_last=True)
         self.accuracy_list.append(float(accuracy))
         self.precision_list.append(float(precision))
         self.recall_list.append(float(recall))
