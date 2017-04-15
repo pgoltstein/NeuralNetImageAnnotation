@@ -455,27 +455,19 @@ class AnnotatedImage(object):
         self._channel = []
         self._annotation = []
         self._exclude_border = {'left': 0, 'right': 0, 'top': 0, 'bottom': 0}
-        self.detected_centroids = []
-        self.detected_bodies = []
-        self.labeled_centroids = []
-        self.labeled_bodies = []
         if image_data is not None:
             self.channel = image_data
         if annotation_data is not None:
             self.annotation = annotation_data
         if exclude_border is not None:
             self.exclude_border = exclude_border
-        if detected_centroids is not None:
-            self.detected_centroids = detected_centroids
-        if detected_bodies is not None:
-            self.detected_bodies = detected_bodies
-        if labeled_centroids is not None:
-            self.labeled_centroids = labeled_centroids
-        if labeled_bodies is not None:
-            self.labeled_bodies = labeled_bodies
+        self.detected_centroids = detected_centroids
+        self.detected_bodies = detected_bodies
+        self.labeled_centroids = labeled_centroids
+        self.labeled_bodies = labeled_bodies
 
     def __str__(self):
-        return "AnnotatedImage (#ch={:.0f}, #ann={:.0f}" \
+        return "AnnotatedImage (#ch={:.0f}, #ann={:.0f}, " \
                 "brdr={:d},{:d},{:d},{:d})".format( self.n_channels,
                 self.n_annotations, self.exclude_border['left'],
                 self.exclude_border['right'], self.exclude_border['top'],
@@ -694,25 +686,53 @@ class AnnotatedImage(object):
         """Writes annotations to ROI_py.mat file
         file_name:  String holding name of ROI file
         file_path:  String holding file path"""
-        roi_list = []
+        nrs = []
+        groups = []
+        types = []
+        typenames = []
+        xs = []
+        ys = []
+        sizes = []
+        perimeters = []
+        bodys = []
         for nr in range(self.n_annotations):
-            roi_dict = {}
-            roi_dict['nr']=nr
-            roi_dict['group']=self.annotation[nr].group_nr
-            roi_dict['type']=self.annotation[nr].type_nr
-            roi_dict['typename']=self.annotation[nr].name
-            # Mind the +1: Matlab (1-index) to Python (0-index)
-            roi_dict['x']=self.annotation[nr].x+1
-            roi_dict['y']=self.annotation[nr].y+1
-            roi_dict['size']=self.annotation[nr].size
-            roi_dict['perimeter']=self.annotation[nr].perimeter+1
+            nrs.append(nr)
+            groups.append(self.annotation[nr].group_nr)
+            types.append(self.annotation[nr].type_nr)
+            typenames.append(self.annotation[nr].name)
+            xs.append(self.annotation[nr].x+1)
+            ys.append(self.annotation[nr].y+1)
+            sizes.append(self.annotation[nr].size)
+            perimeters.append(self.annotation[nr].perimeter+1)
             body = np.array([self.annotation[nr].body[:,1],
                              self.annotation[nr].body[:,0]]).transpose()+1
-            roi_dict['body']=body
-            roi_list.append(roi_dict)
-        savedata = {}
-        savedata['ROIpy']=roi_list
-        savemat(path.join(file_path,file_name),savedata)
+            bodys.append(body)
+        savedata = numpy.core.records.fromarrays( [ nrs, groups, types,
+            typenames, xs, ys, sizes, perimeters, bodys ],
+            names = [ 'nr', 'group', 'type', 'typename', 'x', 'y',
+                        'size', 'perimeter', 'body'] )
+        savemat(path.join(file_path,file_name), {'ROI': savedata} )
+        print("Exported annotations to: {}".format(
+                                    path.join(file_path,file_name)+".mat"))
+        # roi_list = []
+        # for nr in range(self.n_annotations):
+        #     roi_dict = {}
+        #     roi_dict['nr']=nr
+        #     roi_dict['group']=self.annotation[nr].group_nr
+        #     roi_dict['type']=self.annotation[nr].type_nr
+        #     roi_dict['typename']=self.annotation[nr].name
+        #     # Mind the +1: Matlab (1-index) to Python (0-index)
+        #     roi_dict['x']=self.annotation[nr].x+1
+        #     roi_dict['y']=self.annotation[nr].y+1
+        #     roi_dict['size']=self.annotation[nr].size
+        #     roi_dict['perimeter']=self.annotation[nr].perimeter+1
+        #     body = np.array([self.annotation[nr].body[:,1],
+        #                      self.annotation[nr].body[:,0]]).transpose()+1
+        #     roi_dict['body']=body
+        #     roi_list.append(roi_dict)
+        # savedata = {}
+        # savedata['ROIpy']=roi_list
+        # savemat(path.join(file_path,file_name),savedata)
 
     # ******************************************
     # *****  Handling the annotated bodies *****
@@ -796,7 +816,7 @@ class AnnotatedImage(object):
         combined_annotated_image['labeled_bodies'] = self.labeled_bodies
         np.save(path.join(file_path,file_name), combined_annotated_image)
         print("Saved AnnotatedImage as: {}".format(
-                                    path.join(file_path,file_name)))
+                                    path.join(file_path,file_name)+".npy"))
 
     def generate_cnn_annotations_cb(self, min_size=None, max_size=None,
                 dilation_factor_centroids=0, dilation_factor_bodies=0,
@@ -814,18 +834,28 @@ class AnnotatedImage(object):
         re_dilate_bodies:          Dilates or erodes annotation bodies
                                     after segmentation
         """
+        # Check if centroids are detected
+        if self.detected_centroids is None:
+            do_centroids = False
+        else:
+            do_centroids = True
+
         detected_bodies = np.array(self.detected_bodies)
-        if self.detected_centroids:
+        if do_centroids:
             detected_centroids = np.array(self.detected_centroids)
 
         # Remove annotated pixels too close to the border artifact region
-        detected_bodies[ :, :self.exclude_border[0] ] = 0
-        detected_bodies[ :, -self.exclude_border[1]: ] = 0
-        detected_bodies[ :self.exclude_border[2], : ] = 0
-        detected_bodies[ -self.exclude_border[3]:, : ] = 0
+        if self.exclude_border['left'] > 0:
+            detected_bodies[ :, :self.exclude_border['left'] ] = 0
+        if self.exclude_border['right'] > 0:
+            detected_bodies[ :, -self.exclude_border['right']: ] = 0
+        if self.exclude_border['top'] > 0:
+            detected_bodies[ :self.exclude_border['top'], : ] = 0
+        if self.exclude_border['bottom'] > 0:
+            detected_bodies[ -self.exclude_border['bottom']:, : ] = 0
 
         # Dilate or erode centroids
-        if self.detected_centroids:
+        if do_centroids:
             if dilation_factor_centroids>0:
                 for _ in range(dilation_factor_centroids):
                     detected_centroids = \
@@ -844,21 +874,29 @@ class AnnotatedImage(object):
                 detected_bodies = ndimage.binary_erosion(detected_bodies)
 
         # Get rid of centroids that have no bodies associated with them
-        if self.detected_centroids:
+        if do_centroids:
             detected_centroids[detected_bodies==0] = 0
 
         # Get labeled centroids and bodies
-        if self.detected_centroids:
+        if do_centroids:
             centroid_labels = measure.label(detected_centroids, background=0)
             n_centroid_labels = centroid_labels.max()
+            print("Found {} putative centroids".format(n_centroid_labels))
         body_labels = measure.label(detected_bodies, background=0)
+        n_body_labels = body_labels.max()
+        print("Found {} putative bodies".format(n_body_labels))
+
+        # Nothing labeled, no point to continue
+        if n_centroid_labels == 0 or n_body_labels == 0:
+            print("Aborting ...")
+            return 0
 
         # If only bodies, convert labeled bodies annotations
-        if not self.detected_centroids:
+        if not do_centroids:
             print("Converting labeled body image into annotations {:3d}".format(0),
                     end="", flush=True)
             ann_body_list = []
-            for nr in range(1,len(body_labels)+1):
+            for nr in range(1,n_body_labels+1):
                 print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
                 body_mask = body_labels==nr
                 an_body = Annotation( body_pixels_yx=body_mask)
@@ -947,10 +985,10 @@ class AnnotatedImage(object):
                 re_dilate_bodies,0), end="", flush=True)
             for nr in range(len(ann_body_list)):
                 print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
-                image = np.zeros(self.detected_bodies.shape)
-                mask = ann_body_list[nr].mask_body(
-                    image=image, dilation_factor=re_dilate_bodies)
-                ann_body_list[nr] = Annotation( body_pixels_yx=mask)
+                masked_image = np.zeros(self.detected_bodies.shape)
+                ann_body_list[nr].mask_body(
+                    image=masked_image, dilation_factor=re_dilate_bodies)
+                ann_body_list[nr] = Annotation( body_pixels_yx=masked_image)
             print((3*'\b')+'{:3d}'.format(nr))
 
         # Set the internal annotation list

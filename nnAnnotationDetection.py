@@ -21,6 +21,7 @@ import ImageAnnotation as ia
 import iaConvNetTools as cn
 import argparse
 import os
+import glob
 
 from scipy import ndimage
 from skimage import measure
@@ -29,7 +30,8 @@ from skimage import measure
 #########################################################
 # Arguments
 parser = argparse.ArgumentParser( \
-    description="Detects centroids, or full cell bodies, using a trained " + \
+    description="Detects annotations by classifying pixels as being part of " + \
+            "full cell bodies (and optional centroids), using a trained " + \
             " deep convolutional neural network with 2 convolutional " + \
             "layers and 1 fully connected layer. Saves as annotated image." + \
             "Runs on tensorflow framework. " + \
@@ -38,7 +40,7 @@ parser = argparse.ArgumentParser( \
 parser.add_argument('networkname', type=str,
                     help= 'Name by which to identify the network for ' +\
                             'detecting cell bodies')
-parser.add_argument('image', type=str,
+parser.add_argument('imagename', type=str,
                     help= 'Filename (and path) of image to classify')
 
 parser.add_argument('-c', '--centroidnet', type=str,
@@ -50,6 +52,23 @@ parser.add_argument('-bx', '--borderexclude', type=str,
                             'parameters "left")')
 parser.add_argument('-n', '--networkpath', type=str,
                     help= 'Path to neural network folder')
+
+parser.add_argument('-min', '--minsize', type=int, default=100,
+                    help= 'Minimum size of annotation bodies (default=100)')
+parser.add_argument('-max', '--maxsize', type=int, default=1000,
+                    help= 'Maximum size of annotation bodies (default=1000)')
+parser.add_argument('-cld', '--centroidlabeldilation', type=int, default=-1,
+                    help= 'Dilation factor to apply to labeled centroids ' + \
+                            'image before detection. If -1, it removes'+ \
+                            'centroids that have only a single pixel' + \
+                            '(default=-1)')
+parser.add_argument('-bld', '--bodylabeldilation', type=int, default=0,
+                    help= 'Dilation factor to apply to labeled bodies ' + \
+                            ' image before detection (default=0)')
+parser.add_argument('-bad', '--bodyannotationdilation', type=int, default=0,
+                    help= 'Dilation factor to apply to labeled bodies ' + \
+                            'after detection (default=0)')
+
 parser.add_argument('-ch', '--imagechannels', nargs='+',
                     help="Select image channels to load (e.g. '-ch 1 2' " + \
                     "loads first and second channel only; default=all)")
@@ -57,19 +76,19 @@ args = parser.parse_args()
 
 # Set variables based on arguments
 network_name = str(args.networkname)
-annotation_type = str(args.annotationtype)
 image_name = str(args.imagename)
 use_centroidnet = args.centroidnet
 use_channels = args.imagechannels
+min_size = args.minsize
+max_size = args.maxsize
+dilation_factor_centroids = args.centroidlabeldilation
+dilation_factor_bodies = args.bodylabeldilation
+re_dilate_bodies = args.bodyannotationdilation
+
 if args.networkpath:
     network_path = args.networkpath
 else:
     network_path = '/Users/pgoltstein/Dropbox/NeuralNets'
-if args.imagedata:
-    image_path = args.imagedata
-else:
-    image_path = '.'
-
 
 ########################################################################
 # Other variables
@@ -83,7 +102,7 @@ if use_channels is not None:
     for nr,ch in enumerate(use_channels):
         use_channels[nr] = int(ch)-1
 anim = ia.AnnotatedImage()
-anim.add_image_from_file(file_name=image_name,file_path=image_path,
+anim.add_image_from_file(file_name=image_name,file_path='',
                 normalize=normalize_images, use_channels=use_channels)
 
 # Border exclusion (movement artifact)
@@ -117,9 +136,9 @@ if use_centroidnet:
     nn_ctr.display_network_architecture()
 
     # Annotate centroids
-    nn_ctr.log("Running centroid detection:")
+    nn_ctr.log("\n-------- Running centroid detection --------")
     anim.detected_centroids = nn_ctr.annotate_image( anim )
-
+    nn_ctr.close()
 
 ########################################################################
 # Set up network for detecting bodies
@@ -144,13 +163,14 @@ nn.restore()
 nn.display_network_architecture()
 
 # Annotate image
-nn_ctr.log("Running body detection:")
+nn.log("\n-------- Running body detection --------")
 anim.detected_bodies = nn.annotate_image( anim )
 
 
 ########################################################################
 # Convert classified images to annotations
-anim.generate_cnn_annotations_cb( min_size=120, max_size=None,
+nn.log("\n-------- Creating annotations --------")
+anim.generate_cnn_annotations_cb( min_size=80, max_size=None,
     dilation_factor_centroids=-2, dilation_factor_bodies=-1,
     re_dilate_bodies=1 )
 
@@ -161,17 +181,19 @@ filebase,_ = os.path.splitext(image_name)
 
 # Add version counter to prevent overwriting
 version_cnt = 0
-while glob.glob(filebase+"v{:d}".format(version_cnt)+".npy"): version_cnt++
-anim_name = filebase+"v{:d}".format(version_cnt)
+while glob.glob(filebase+"_anim_v{:d}".format(version_cnt)+".npy"): version_cnt+=1
+anim_name = filebase+"_anim_v{:d}".format(version_cnt)
 
 # Save
-anim.save(file_name=anim_name, file_path=image_path)
-
+print(" >> " + anim.__str__())
+anim.save(file_name=anim_name, file_path='')
+anim.export_annotations_to_mat( file_name=filebase+"_nnROI", file_path='')
 
 # ************************************************************
 # Show matplotlib images
 RGB = np.zeros((anim.detected_bodies.shape[0],anim.detected_bodies.shape[1],3))
-RGB[:,:,1] = anim.detected_centroids
+if anim.detected_centroids is not None:
+    RGB[:,:,1] = anim.detected_centroids
 RGB[:,:,2] = anim.detected_bodies
 
 # Show image and classification result

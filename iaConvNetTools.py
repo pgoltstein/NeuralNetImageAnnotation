@@ -140,6 +140,8 @@ class ConvNetCnv2Fc1(object):
             self.fc1_dropout = fc1_dropout
             self.log("Updated dropout fraction to {}".format(self.fc1_dropout))
 
+        # Clear previous graphs
+        tf.reset_default_graph()
 
         #########################################################
         # Input and target variable placeholders
@@ -258,6 +260,10 @@ class ConvNetCnv2Fc1(object):
         """Initializes all variables and starts session"""
         self.sess = tf.Session()
         tf.global_variables_initializer().run(session=self.sess)
+
+    def close(self):
+        """Closes the session"""
+        self.sess.close()
 
     def save(self):
         """Saves network architecture and parameters to network path"""
@@ -519,7 +525,7 @@ class ConvNetCnv2Fc1(object):
         line_samples = np.zeros( (anim.x_res,
             anim.n_channels * self.y_res * self.x_res) )
         # Loop through all lines
-        print("\nAnnotating image {:6.2f}%".format(0), end="", flush=True)
+        print("Annotating image {:6.2f}%".format(0), end="", flush=True)
         for y in range(anim.y_res):
             # Loop through all pixels to fill the line-samples
             for x in range(anim.x_res):
