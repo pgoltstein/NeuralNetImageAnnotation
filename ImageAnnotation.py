@@ -72,12 +72,13 @@ import glob
 ### Functions
 ########################################################################
 
-def zoom( image, y, x, zoom_size, pad_value=0 ):
+def zoom( image, y, x, zoom_size, normalize=False, pad_value=0 ):
     """Crops a(n) (list of) image(s) to the area of tuple/list zoom_size
     around the supplied y, x coordinates. Pads out of range values.
     image:      Single 2d numpy.ndarray or list of 2d numpy.ndarrays
     y, x:       Center coordinates
     zoom_size:  Size of zoomed image (y,x)
+    normalize:  Normalizes to max
     pad_value:  Value for out of range coordinates
     returns zoomed image"""
     if isinstance(image,list):
@@ -95,9 +96,17 @@ def zoom( image, y, x, zoom_size, pad_value=0 ):
         if max_ix_exceed > 0:
             image_temp = np.zeros((image.shape+max_ix_exceed+1))+pad_value
             image_temp[0:image.shape[0],0:image.shape[1]] = image
-            return image_temp[ np.ix_(ix_y,ix_x) ]
+            if normalize:
+                zoom_im = image_temp[ np.ix_(ix_y,ix_x) ]
+                return zoom_im / zoom_im.max()
+            else:
+                return image_temp[ np.ix_(ix_y,ix_x) ]
         else:
-            return image[ np.ix_(ix_y,ix_x) ]
+            if normalize:
+                zoom_im = image[ np.ix_(ix_y,ix_x) ]
+                return zoom_im / zoom_im.max()
+            else:
+                return image[ np.ix_(ix_y,ix_x) ]
 
 def morph( image, rotation=0, scale_xy=(1,1), noise_level=0 ):
     """Morphs (list of) image(s) based on supplied parameters
@@ -126,28 +135,30 @@ def morph( image, rotation=0, scale_xy=(1,1), noise_level=0 ):
             image = image + noise_mask
         return image
 
-def morphed_zoom( image, y, x, zoom_size, pad_value=0,
+def morphed_zoom( image, y, x, zoom_size, pad_value=0, normalize=False,
                     rotation=0, scale_xy=(1,1), noise_level=0 ):
     """Crops image or image list to area of zoom_size around centroid
     image:        Single 2d numpy.ndarray or list of 2d numpy.ndarrays
     y, x:         Center coordinates
     zoom_size:    (y size, x size)
     pad_value:    Value for out of range coordinates
+    normalize:    Normalizes to max
     rotation:     Rotation of annotation in degrees (0-360 degrees)
     scale_xy:     Determines fractional scaling on x/y axis.
                   Min-Max = (0.5,0.5) - (2,2)
     noise_level:  Level of random noise
     returns tuple holding (morped_zoom, morped_annotation)"""
     im = zoom( image=image, y=y, x=x,
-        zoom_size=(zoom_size[0]*3,zoom_size[1]*3), pad_value=pad_value )
+        zoom_size=(zoom_size[0]*3,zoom_size[1]*3),
+        normalize=False, pad_value=pad_value )
     im = morph( image=im,
             rotation=rotation, scale_xy=scale_xy, noise_level=noise_level )
     if isinstance( im, list ):
         y_pos, x_pos = (im[0].shape[0]-1)/2, (im[0].shape[1]-1)/2
     else:
         y_pos, x_pos = (im.shape[0]-1)/2, (im.shape[1]-1)/2
-    return zoom( im, y=y_pos, x=x_pos,
-                     zoom_size=zoom_size, pad_value=pad_value )
+    return zoom( im, y=y_pos, x=x_pos, zoom_size=zoom_size,
+                        normalize=normalize, pad_value=pad_value )
 
 def image2vec( image ):
     """Concatenates a 2d image or image_list to a single 1d vector
@@ -352,28 +363,30 @@ class Annotation(object):
         """Returns read-only size of annotation (number of pixels)"""
         return self._size
 
-    def zoom(self, image, zoom_size, pad_value=0 ):
+    def zoom(self, image, zoom_size, pad_value=0, normalize=False ):
         """Crops image to area of tuple/list zoom_size around centroid
         image:      Single 2d numpy.ndarray
         zoom_size:  (y size, x size)
         pad_value:  Value for out of range coordinates
+        normalize:  Normalizes to max
         returns zoomed image"""
-        return zoom( image=image, y=self._y, x=self._x,
-                        zoom_size=zoom_size, pad_value=pad_value )
+        return zoom( image=image, y=self._y, x=self._x, zoom_size=zoom_size,
+                        normalize=normalize, pad_value=pad_value )
 
-    def morphed_zoom(self, image, zoom_size, pad_value=0,
+    def morphed_zoom(self, image, zoom_size, pad_value=0, normalize=False,
                         rotation=0, scale_xy=(1,1), noise_level=0 ):
         """Crops image to area of tuple/list zoom_size around centroid
         image:        Single 2d numpy.ndarray
         zoom_size:    (y size, x size)
-        pad_value:  Value for out of range coordinates
+        pad_value:    Value for out of range coordinates
+        normalize:    Normalizes to max
         rotation:     Rotation of annotation in degrees (0-360 degrees)
         scale_xy:     Determines fractional scaling on x/y axis.
                       Min-Max = (0.5,0.5) - (2,2)
         noise_level:  Level of random noise
         returns tuple holding (morped_zoom, morped_annotation)"""
         return morphed_zoom( image, self._y, self._x, zoom_size=zoom_size,
-                    pad_value=pad_value, rotation=rotation,
+                    pad_value=pad_value, normalize=normalize, rotation=rotation,
                     scale_xy=scale_xy, noise_level=noise_level )
 
     def mask_body(self, image, dilation_factor=0,
@@ -969,7 +982,8 @@ class AnnotatedImage(object):
     # *****  Generate NN training/test data sets *****
     def get_batch( self, zoom_size, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
-            pos_sample_ratio=0.5, morph_annotations=False, rotation_list=None,
+            pos_sample_ratio=0.5, normalize_samples=False,
+            morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None ):
         """Constructs a 2d matrix (m samples x n pixels) with linearized data
             half of which is from within an annotation, and half from outside
@@ -983,6 +997,7 @@ class AnnotatedImage(object):
                                  list. Otherwise set to 'Bodies' or 'Centroids'
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
+            normalize_samples: Scale each individual channel to its maximum
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -1055,11 +1070,12 @@ class AnnotatedImage(object):
             nr = im_label[roi_positive_y[p], roi_positive_x[p]]
             if not morph_annotations:
                 samples[count,:] = image2vec( zoom( self.channel,
-                    roi_positive_y[p], roi_positive_x[p], zoom_size=zoom_size ) )
+                    roi_positive_y[p], roi_positive_x[p],
+                    zoom_size=zoom_size, normalize=normalize_samples ) )
                 if return_annotations:
                     annotations[count,:] = image2vec( zoom( return_im_label==nr,
                         roi_positive_y[p], roi_positive_x[p],
-                        zoom_size=zoom_size ) )
+                        zoom_size=zoom_size, normalize=normalize_samples ) )
             else:
                 rotation = float(np.random.choice( rotation_list, 1 ))
                 scale = ( float(np.random.choice( scale_list_y, 1 )), \
@@ -1068,11 +1084,13 @@ class AnnotatedImage(object):
 
                 samples[count,:] = image2vec( morphed_zoom( self.channel,
                     roi_positive_y[p], roi_positive_x[p], zoom_size,
-                    rotation=rotation, scale_xy=scale, noise_level=noise_level ) )
+                    rotation=rotation, scale_xy=scale,
+                    normalize=normalize_samples, noise_level=noise_level ) )
                 if return_annotations:
                     annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
                         roi_positive_y[p], roi_positive_x[p], zoom_size,
-                        rotation=rotation, scale_xy=scale, noise_level=noise_level ) )
+                        rotation=rotation, scale_xy=scale,
+                        normalize=normalize_samples, noise_level=noise_level ) )
             labels[count,1] = 1
             count = count + 1
 
@@ -1081,10 +1099,12 @@ class AnnotatedImage(object):
             nr = im_label[roi_negative_y[p], roi_negative_x[p]]
             if not morph_annotations:
                 samples[count,:] = image2vec( zoom( self.channel,
-                    roi_negative_y[p], roi_negative_x[p], zoom_size=zoom_size ) )
+                    roi_negative_y[p], roi_negative_x[p],
+                    zoom_size=zoom_size, normalize=normalize_samples ) )
                 if return_annotations:
                     annotations[count,:] = image2vec( zoom( return_im_label==nr,
-                        roi_negative_y[p], roi_negative_x[p], zoom_size=zoom_size ) )
+                        roi_negative_y[p], roi_negative_x[p],
+                        zoom_size=zoom_size, normalize=normalize_samples ) )
             else:
                 rotation = float(np.random.choice( rotation_list, 1 ))
                 scale = ( float(np.random.choice( scale_list_y, 1 )), \
@@ -1093,11 +1113,13 @@ class AnnotatedImage(object):
 
                 samples[count,:] = image2vec( morphed_zoom( self.channel,
                     roi_negative_y[p], roi_negative_x[p], zoom_size,
-                    rotation=rotation, scale_xy=scale, noise_level=noise_level ) )
+                    rotation=rotation, scale_xy=scale,
+                    normalize=normalize_samples, noise_level=noise_level ) )
                 if return_annotations:
                     annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
                         roi_negative_y[p], roi_negative_x[p], zoom_size,
-                        rotation=rotation, scale_xy=scale, noise_level=noise_level ) )
+                        rotation=rotation, scale_xy=scale,
+                        normalize=normalize_samples, noise_level=noise_level ) )
             labels[count,0] = 1
             count = count + 1
         if return_annotations:
@@ -1108,7 +1130,8 @@ class AnnotatedImage(object):
             return samples,labels,[]
 
     def image_grid_RGB( self, image_size, image_type='image', annotation_nrs=None,
-                        n_x=10, n_y=6, channel_order=(0,1,2), auto_scale=False,
+                        n_x=10, n_y=6, channel_order=(0,1,2),
+                        normalize_samples=False, auto_scale=False,
                         amplitude_scaling=(1.33,1.33,1), line_color=0 ):
         """ Constructs a 3d numpy.ndarray tiled with a grid of RGB images from
             the annotations. If more images are requested than can be tiled,
@@ -1120,6 +1143,7 @@ class AnnotatedImage(object):
         n_y:               Number of images to show on y axis of grid
         channel_order:     Tuple indicating which channels are R, G and B
         auto_scale:        Scale each individual image to its maximum (T/F)
+        normalize_samples: Scale each individual channel to its maximum
         amplitude_scaling: Intensity scaling of each color channel
         line_color:        Intensity (gray scale) of line between images
         Returns numpy.ndarray (y,x,RGB) and a list with center_shifts (y,x)
@@ -1168,8 +1192,8 @@ class AnnotatedImage(object):
                             im = self.bodies>0.5
                         rgb_im[:,:,ch] = zoom( im,
                             self.annotation[im_count].y,
-                            self.annotation[im_count].x,
-                            image_size, pad_value=0 )
+                            self.annotation[im_count].x, image_size,
+                            normalize=normalize_samples, pad_value=0 )
                     if auto_scale:
                         rgb_im = rgb_im / rgb_im.max()
                     grid[np.ix_(y_coords[y],x_coords[x],rgb_coords)] = rgb_im
@@ -1244,7 +1268,8 @@ class AnnotatedImageSet(object):
     # *****  Produce training/test data set  *****
     def data_sample(self, zoom_size, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
-            pos_sample_ratio=0.5, morph_annotations=False, rotation_list=None,
+            pos_sample_ratio=0.5, normalize_samples=False,
+            morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None ):
         """Constructs a random sample of with linearized annotation data,
             organized in a 2d matrix (m samples x n pixels) half of which is
@@ -1260,6 +1285,7 @@ class AnnotatedImageSet(object):
                                  list. Otherwise set to 'Bodies' or 'Centroids'
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
+            normalize_samples: Scale each individual channel to its maximum
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -1297,6 +1323,7 @@ class AnnotatedImageSet(object):
                     m_samples=m_set_samples, exclude_border=exclude_border,
                     return_annotations=return_annotations,
                     pos_sample_ratio=pos_sample_ratio,
+                    normalize_samples=normalize_samples,
                     morph_annotations=morph_annotations,
                     rotation_list=rotation_list, scale_list_x=scale_list_x,
                     scale_list_y=scale_list_y, noise_level_list=noise_level_list )

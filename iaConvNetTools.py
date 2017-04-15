@@ -356,7 +356,8 @@ class ConvNetCnv2Fc1(object):
 
     def train_epochs(self, annotated_image_set, n_epochs=100, report_every=10,
             annotation_type='Bodies', m_samples=100, exclude_border=(0,0,0,0),
-            pos_sample_ratio=0.5, morph_annotations=False, rotation_list=None,
+            pos_sample_ratio=0.5, normalize_samples=False,
+            morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None):
         """Trains the network on a training set for a specified number of
             epochs. It loads a random training set from the annotated_image_set
@@ -371,6 +372,7 @@ class ConvNetCnv2Fc1(object):
                                to each border. Pix from (left, right, up, down)
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
+            normalize_samples: Scale each individual channel to its maximum
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -384,6 +386,7 @@ class ConvNetCnv2Fc1(object):
         self.log("n_epochs: {}".format(n_epochs))
         self.log("m_samples: {}".format(m_samples))
         self.log("annotation_type: {}".format(annotation_type))
+        self.log("normalize_samples: {}".format(normalize_samples))
         self.log("morph_annotations: {}".format(morph_annotations))
 
         # Loop across training epochs
@@ -395,6 +398,7 @@ class ConvNetCnv2Fc1(object):
                 annotation_type=annotation_type,
                 m_samples=m_samples, exclude_border=exclude_border,
                 return_annotations=False, pos_sample_ratio=pos_sample_ratio,
+                normalize_samples=normalize_samples,
                 morph_annotations=morph_annotations,
                 rotation_list=rotation_list, scale_list_x=scale_list_x,
                 scale_list_y=scale_list_y, noise_level_list=noise_level_list )
@@ -431,7 +435,8 @@ class ConvNetCnv2Fc1(object):
     def train_minibatch(self, annotated_image_set, n_batches=10, n_epochs=100,
             annotation_type='Bodies', batch_size=1000, m_samples=100,
             exclude_border=(0,0,0,0), pos_sample_ratio=0.5,
-            morph_annotations=False, rotation_list=None, scale_list_x=None,
+             normalize_samples=False, morph_annotations=False,
+             rotation_list=None, scale_list_x=None,
             scale_list_y=None, noise_level_list=None):
         """Trains the network on a training set for a specified number of
             batches of size batch_size. Every batch iteration it loads a
@@ -449,6 +454,7 @@ class ConvNetCnv2Fc1(object):
                                to each border. Pix from (left, right, up, down)
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
+            normalize_samples: Scale each individual channel to its maximum
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -465,6 +471,7 @@ class ConvNetCnv2Fc1(object):
         self.log("n_epochs: {}".format(n_epochs))
         self.log("m_samples: {}".format(m_samples))
         self.log("annotation_type: {}".format(annotation_type))
+        self.log("normalize_samples: {}".format(normalize_samples))
         self.log("morph_annotations: {}".format(morph_annotations))
 
         # Loop across training batches
@@ -476,6 +483,7 @@ class ConvNetCnv2Fc1(object):
                 annotation_type=annotation_type,
                 m_samples=batch_size, exclude_border=exclude_border,
                 return_annotations=False,  pos_sample_ratio=pos_sample_ratio,
+                normalize_samples=normalize_samples,
                 morph_annotations=morph_annotations,
                 rotation_list=rotation_list, scale_list_x=scale_list_x,
                 scale_list_y=scale_list_y, noise_level_list=noise_level_list )
@@ -595,8 +603,9 @@ class ConvNetCnv2Fc1(object):
 
     def report_F1(self, annotated_image_set, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0),  pos_sample_ratio=0.5,
-            channel_order=None, morph_annotations=False,
-            rotation_list=None, scale_list_x=None, scale_list_y=None,
+            channel_order=None,  normalize_samples=False,
+            morph_annotations=False, rotation_list=None,
+            scale_list_x=None, scale_list_y=None,
             noise_level_list=None, show_figure='Off'):
         """Loads a random training set from the annotated_image_set and
             reports accuracy, precision, recall and F1 score.
@@ -608,7 +617,8 @@ class ConvNetCnv2Fc1(object):
                                to each border. Pix from (left, right, up, down)
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
-            channel_order:  tuple indicating which channels are R, G and B
+            channel_order:     Tuple indicating which channels are R, G and B
+            normalize_samples: Scale each individual channel to its maximum
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -622,6 +632,7 @@ class ConvNetCnv2Fc1(object):
             zoom_size=(self.y_res,self.x_res), annotation_type=annotation_type,
             m_samples=m_samples, exclude_border=exclude_border,
             return_annotations=False,  pos_sample_ratio=pos_sample_ratio,
+            normalize_samples=normalize_samples,
             morph_annotations=morph_annotations,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list )

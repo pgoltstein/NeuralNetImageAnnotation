@@ -72,6 +72,9 @@ parser.add_argument('-ch', '--imagechannels', nargs='+',
                     help="Select image channels to load (e.g. '-ch 1 2' " + \
                     "loads first and second channel only; default=all)")
 
+parser.add_argument('-nrm', '--normalizesamples',  action="store_true",
+                    help='Normalizes the individual channels of the ' + \
+                     ' annotations (default=off)')
 parser.add_argument('-mp', '--morph',  action="store_true",
                     help='Enables random morphing of annotations (default=off)')
 parser.add_argument('-lc', '--learningcurve', action="store_true",
@@ -113,6 +116,7 @@ else:
 ########################################################################
 # Other variables
 normalize_images = True
+normalize_samples = False
 exclude_border=(0,0,0,0)
 rotation_list = np.array(range(360))
 scale_list_x = np.array(range(900,1100)) / 1000
@@ -187,7 +191,7 @@ nn.train_epochs( training_image_set,
     annotation_type=annotation_type,
     m_samples=m_samples, n_epochs=n_epochs, report_every=report_every,
     exclude_border=exclude_border, pos_sample_ratio=pos_sample_ratio,
-    morph_annotations=morph_annotations,
+    normalize_samples=normalize_samples, morph_annotations=morph_annotations,
     rotation_list=rotation_list, scale_list_x=scale_list_x,
     scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
