@@ -113,6 +113,7 @@ else:
 ########################################################################
 # Other variables
 normalize_images = True
+exclude_border=(0,0,0,0)
 rotation_list = np.array(range(360))
 scale_list_x = np.array(range(900,1100)) / 1000
 scale_list_y = np.array(range(900,1100)) / 1000
@@ -185,7 +186,7 @@ nn.display_network_architecture()
 nn.train_epochs( training_image_set,
     annotation_type=annotation_type,
     m_samples=m_samples, n_epochs=n_epochs, report_every=report_every,
-    exclude_border=(40,40,40,40), pos_sample_ratio=pos_sample_ratio,
+    exclude_border=exclude_border, pos_sample_ratio=pos_sample_ratio,
     morph_annotations=morph_annotations,
     rotation_list=rotation_list, scale_list_x=scale_list_x,
     scale_list_y=scale_list_y, noise_level_list=noise_level_list )
