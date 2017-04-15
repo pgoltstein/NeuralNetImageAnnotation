@@ -650,40 +650,27 @@ class AnnotatedImage(object):
             self._set_centroids()
 
     def import_annotations_from_mat(self, file_name, file_path='.'):
-        """Reads data from ROI.mat file and fills the annotation_list. Can
-        handle .mat files holding either a ROI or a ROIpy structure
+        """Reads data from ROI.mat file and fills the annotation_list.
         file_name:     String holding name of ROI file
         file_path:     String holding file path"""
 
         # Load mat file with ROI data
         mat_data = loadmat(path.join(file_path,file_name))
         annotation_list = []
-        if 'ROI' in mat_data.keys():
-            nROIs = len(mat_data['ROI'][0])
-            for c in range(nROIs):
-                body = mat_data['ROI'][0][c]['body']
-                body = np.array([body[:,1],body[:,0]]).transpose()
-                body = body-1 # Matlab (1-index) to Python (0-index)
-                type_nr = int(mat_data['ROI'][0][c]['type'][0][0])
-                name = str(mat_data['ROI'][0][c]['typename'][0])
-                group_nr = int(mat_data['ROI'][0][c]['group'][0][0])
-                annotation_list.append( Annotation( body_pixels_yx=body,
-                        annotation_name=name, type_nr=type_nr, group_nr=group_nr ) )
-        elif 'ROIpy' in mat_data.keys():
-            nROIs = len(mat_data['ROIpy'][0])
-            for c in range(nROIs):
-                body = mat_data['ROIpy'][0][c]['body'][0][0]
-                body = np.array([body[:,1],body[:,0]]).transpose()
-                body = body-1 # Matlab (1-index) to Python (0-index)
-                type_nr = int(mat_data['ROIpy'][0][c]['type'][0][0][0][0])
-                name = str(mat_data['ROIpy'][0][c]['typename'][0][0][0])
-                group_nr = int(mat_data['ROIpy'][0][c]['group'][0][0][0][0])
-                annotation_list.append( Annotation( body_pixels_yx=body,
-                        annotation_name=name, type_nr=type_nr, group_nr=group_nr ) )
+        nROIs = len(mat_data['ROI'][0])
+        for c in range(nROIs):
+            body = mat_data['ROI'][0][c]['body']
+            body = np.array([body[:,1],body[:,0]]).transpose()
+            body = body-1 # Matlab (1-index) to Python (0-index)
+            type_nr = int(mat_data['ROI'][0][c]['type'][0][0])
+            name = str(mat_data['ROI'][0][c]['typename'][0])
+            group_nr = int(mat_data['ROI'][0][c]['group'][0][0])
+            annotation_list.append( Annotation( body_pixels_yx=body,
+                    annotation_name=name, type_nr=type_nr, group_nr=group_nr ) )
         self.annotation = annotation_list
 
     def export_annotations_to_mat(self, file_name, file_path='.'):
-        """Writes annotations to ROI_py.mat file
+        """Writes annotations to ROI.mat file
         file_name:  String holding name of ROI file
         file_path:  String holding file path"""
         nrs = []
@@ -716,25 +703,6 @@ class AnnotatedImage(object):
         savemat(path.join(file_path,file_name), {'ROI': savedata} )
         print("Exported annotations to: {}".format(
                                     path.join(file_path,file_name)+".mat"))
-        # roi_list = []
-        # for nr in range(self.n_annotations):
-        #     roi_dict = {}
-        #     roi_dict['nr']=nr
-        #     roi_dict['group']=self.annotation[nr].group_nr
-        #     roi_dict['type']=self.annotation[nr].type_nr
-        #     roi_dict['typename']=self.annotation[nr].name
-        #     # Mind the +1: Matlab (1-index) to Python (0-index)
-        #     roi_dict['x']=self.annotation[nr].x+1
-        #     roi_dict['y']=self.annotation[nr].y+1
-        #     roi_dict['size']=self.annotation[nr].size
-        #     roi_dict['perimeter']=self.annotation[nr].perimeter+1
-        #     body = np.array([self.annotation[nr].body[:,1],
-        #                      self.annotation[nr].body[:,0]]).transpose()+1
-        #     roi_dict['body']=body
-        #     roi_list.append(roi_dict)
-        # savedata = {}
-        # savedata['ROIpy']=roi_list
-        # savemat(path.join(file_path,file_name),savedata)
 
     # ******************************************
     # *****  Handling the annotated bodies *****
@@ -986,12 +954,12 @@ class AnnotatedImage(object):
             print("Dilating annotated bodies by a factor of {}: {:3d}".format(
                 re_dilate_bodies,0), end="", flush=True)
             for nr in range(len(ann_body_list)):
-                print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
+                print((3*'\b')+'{:3d}'.format(nr+1), end='', flush=True)
                 masked_image = np.zeros(self.detected_bodies.shape)
                 ann_body_list[nr].mask_body(
                     image=masked_image, dilation_factor=re_dilate_bodies)
                 ann_body_list[nr] = Annotation( body_pixels_yx=masked_image)
-            print((3*'\b')+'{:3d}'.format(nr))
+            print((3*'\b')+'{:3d}'.format(nr+1))
 
         # Set the internal annotation list
         self.annotation = ann_body_list

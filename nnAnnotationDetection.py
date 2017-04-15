@@ -170,9 +170,10 @@ anim.detected_bodies = nn.annotate_image( anim )
 ########################################################################
 # Convert classified images to annotations
 nn.log("\n-------- Creating annotations --------")
-anim.generate_cnn_annotations_cb( min_size=80, max_size=None,
-    dilation_factor_centroids=-2, dilation_factor_bodies=-1,
-    re_dilate_bodies=1 )
+anim.generate_cnn_annotations_cb( min_size=min_size, max_size=max_size,
+    dilation_factor_centroids=dilation_factor_centroids,
+    dilation_factor_bodies=dilation_factor_bodies,
+    re_dilate_bodies=re_dilate_bodies )
 
 
 ########################################################################
