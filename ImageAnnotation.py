@@ -703,11 +703,13 @@ class AnnotatedImage(object):
             xs.append(self.annotation[nr].x+1)
             ys.append(self.annotation[nr].y+1)
             sizes.append(self.annotation[nr].size)
-            perimeters.append(self.annotation[nr].perimeter+1)
+            perimeter = np.array([self.annotation[nr].perimeter[:,1],
+                             self.annotation[nr].perimeter[:,0]]).transpose()+1
+            perimeters.append(perimeter)
             body = np.array([self.annotation[nr].body[:,1],
                              self.annotation[nr].body[:,0]]).transpose()+1
             bodys.append(body)
-        savedata = numpy.core.records.fromarrays( [ nrs, groups, types,
+        savedata = np.core.records.fromarrays( [ nrs, groups, types,
             typenames, xs, ys, sizes, perimeters, bodys ],
             names = [ 'nr', 'group', 'type', 'typename', 'x', 'y',
                         'size', 'perimeter', 'body'] )
