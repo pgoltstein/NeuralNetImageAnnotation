@@ -799,16 +799,24 @@ class AnnotatedImage(object):
                                     path.join(file_path,file_name)))
 
     def generate_cnn_annotations_cb(self, min_size=None, max_size=None,
-                dilation_factor_centroids=0, dilation_factor_bodies=0 ):
-        """Generates annotations from CNN detected centroids and bodies
+                dilation_factor_centroids=0, dilation_factor_bodies=0,
+                re_dilate_bodies=0 ):
+        """Generates annotations from CNN detected bodies. If detected
+        centroids are present, it uses those to identify single annotations
+        and uses the detected bodies to get the outlines
         min_size:  Minimum number of pixels of the annotations
         max_size:  Maximum number of pixels of the annotations
-        dilation_factor_centroids: Dilates or erodes centroids (erosion will
-                                   get rid of 'speccles', dilations won't do much)
+        dilation_factor_centroids: Dilates or erodes centroids before
+                                    segentation(erosion will get rid of
+                                    'speccles', dilations won't do much good)
         dilation_factor_bodies:    Dilates or erodes annotation bodies
+                                    before segmentation
+        re_dilate_bodies:          Dilates or erodes annotation bodies
+                                    after segmentation
         """
         detected_bodies = np.array(self.detected_bodies)
-        detected_centroids = np.array(self.detected_centroids)
+        if self.detected_centroids:
+            detected_centroids = np.array(self.detected_centroids)
 
         # Remove annotated pixels too close to the border artifact region
         detected_bodies[ :, :self.exclude_border[0] ] = 0
@@ -817,12 +825,15 @@ class AnnotatedImage(object):
         detected_bodies[ -self.exclude_border[3]:, : ] = 0
 
         # Dilate or erode centroids
-        if dilation_factor_centroids>0:
-            for _ in range(dilation_factor_centroids):
-                detected_centroids = ndimage.binary_dilation(detected_centroids)
-        elif dilation_factor_centroids<0:
-            for _ in range(-1*dilation_factor_centroids):
-                detected_centroids = ndimage.binary_erosion(detected_centroids)
+        if self.detected_centroids:
+            if dilation_factor_centroids>0:
+                for _ in range(dilation_factor_centroids):
+                    detected_centroids = \
+                        ndimage.binary_dilation(detected_centroids)
+            elif dilation_factor_centroids<0:
+                for _ in range(-1*dilation_factor_centroids):
+                    detected_centroids = \
+                        ndimage.binary_erosion(detected_centroids)
 
         # Dilate or erode bodies
         if dilation_factor_bodies>0:
@@ -833,64 +844,78 @@ class AnnotatedImage(object):
                 detected_bodies = ndimage.binary_erosion(detected_bodies)
 
         # Get rid of centroids that have no bodies associated with them
-        detected_centroids[detected_bodies==0] = 0
+        if self.detected_centroids:
+            detected_centroids[detected_bodies==0] = 0
 
         # Get labeled centroids and bodies
-        centroid_labels = measure.label(detected_centroids, background=0)
+        if self.detected_centroids:
+            centroid_labels = measure.label(detected_centroids, background=0)
+            n_centroid_labels = centroid_labels.max()
         body_labels = measure.label(detected_bodies, background=0)
-        n_centroid_labels = centroid_labels.max()
 
-        # Convert labeled centroids into centroid and body annotations
-        print("Converting labeled images into annotations {:3d}".format(0),
-                end="", flush=True)
-        ann_body_list = []
-        ann_body_nr_list = []
-        ann_centr_list = []
-        for nr in range(1,n_centroid_labels+1):
-            print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
-            mask = centroid_labels==nr
-            an_centr = Annotation( body_pixels_yx=mask)
-            ann_centr_list.append(an_centr)
+        # If only bodies, convert labeled bodies annotations
+        if not self.detected_centroids:
+            print("Converting labeled body image into annotations {:3d}".format(0),
+                    end="", flush=True)
+            ann_body_list = []
+            for nr in range(1,len(body_labels)+1):
+                print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
+                body_mask = body_labels==nr
+                an_body = Annotation( body_pixels_yx=body_mask)
+                ann_body_list.append(an_body)
+            print((3*'\b')+'{:3d}'.format(nr))
+        else:
+            # Convert labeled centroids into centroid and body annotations
+            print("Converting labeled centroids and bodies into annotations {:3d}".format(0),
+                    end="", flush=True)
+            ann_body_list = []
+            ann_body_nr_list = []
+            ann_centr_list = []
+            for nr in range(1,n_centroid_labels+1):
+                print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
+                mask = centroid_labels==nr
+                an_centr = Annotation( body_pixels_yx=mask)
+                ann_centr_list.append(an_centr)
 
-            body_nr = body_labels[int(an_centr.y),int(an_centr.x)]
-            ann_body_nr_list.append(body_nr)
-            body_mask = body_labels==body_nr
-            an_body = Annotation( body_pixels_yx=body_mask)
-            ann_body_list.append(an_body)
-        print((3*'\b')+'{:3d}'.format(nr))
+                body_nr = body_labels[int(an_centr.y),int(an_centr.x)]
+                ann_body_nr_list.append(body_nr)
+                body_mask = body_labels==body_nr
+                an_body = Annotation( body_pixels_yx=body_mask)
+                ann_body_list.append(an_body)
+            print((3*'\b')+'{:3d}'.format(nr))
 
-        # Loop centroid annotations to remove overlap of body annotations
-        print("Removing overlap of annotation {:3d}".format(0), end="", flush=True)
-        for nr1 in range(len(ann_centr_list)):
-            print((3*'\b')+'{:3d}'.format(nr1), end='', flush=True)
+            # Loop centroid annotations to remove overlap of body annotations
+            print("Removing overlap of annotation {:3d}".format(0), end="", flush=True)
+            for nr1 in range(len(ann_centr_list)):
+                print((3*'\b')+'{:3d}'.format(nr1), end='', flush=True)
 
-            # Find out if the centroid shares the body with another centroid
-            shared_list = []
-            for nr2 in range(len(ann_centr_list)):
-                if (ann_body_nr_list[nr1] == ann_body_nr_list[nr2]) \
-                    and (ann_body_nr_list[nr1] > 0):
-                    shared_list.append(nr2)
+                # Find out if the centroid shares the body with another centroid
+                shared_list = []
+                for nr2 in range(len(ann_centr_list)):
+                    if (ann_body_nr_list[nr1] == ann_body_nr_list[nr2]) \
+                        and (ann_body_nr_list[nr1] > 0):
+                        shared_list.append(nr2)
 
-            # If more than one centroid owns the same body, split it
-            if len(shared_list) > 1:
+                # If more than one centroid owns the same body, split it
+                if len(shared_list) > 1:
 
-                # for each pixel, calculate the distance to each centroid
-                D = np.zeros((ann_body_list[nr1].body.shape[0],len(shared_list)))
-                for n,c in enumerate(shared_list):
-                    cy, cx = ann_centr_list[c].y, ann_centr_list[c].x
-                    for p,(y,x) in enumerate(ann_body_list[c].body):
-                        D[p,n] = np.sqrt( ((cy-y)**2) + ((cx-x)**2) )
+                    # for each pixel, calculate the distance to each centroid
+                    D = np.zeros((ann_body_list[nr1].body.shape[0],len(shared_list)))
+                    for n,c in enumerate(shared_list):
+                        cy, cx = ann_centr_list[c].y, ann_centr_list[c].x
+                        for p,(y,x) in enumerate(ann_body_list[c].body):
+                            D[p,n] = np.sqrt( ((cy-y)**2) + ((cx-x)**2) )
 
-                # Find the closest centroid for each pixel
-                closest_cntr = np.argmin(D,axis=1)
+                    # Find the closest centroid for each pixel
+                    closest_cntr = np.argmin(D,axis=1)
 
-                # For each centroid, get a new annotation with closest pixels
-                for n,c in enumerate(shared_list):
-                    B = ann_body_list[c].body[closest_cntr==n,:]
-                    new_ann = Annotation(body_pixels_yx=B)
-                    ann_body_nr_list[c] = 0
-                    ann_body_list[c] = new_ann
-        print((3*'\b')+'{:3d}'.format(nr1))
+                    # For each centroid, get a new annotation with closest pixels
+                    for n,c in enumerate(shared_list):
+                        B = ann_body_list[c].body[closest_cntr==n,:]
+                        new_ann = Annotation(body_pixels_yx=B)
+                        ann_body_nr_list[c] = 0
+                        ann_body_list[c] = new_ann
+            print((3*'\b')+'{:3d}'.format(nr1))
 
         # Remove too small annotations
         if min_size is not None:
@@ -915,6 +940,18 @@ class AnnotatedImage(object):
                     len(remove_ix), max_size))
             for ix in reversed(remove_ix):
                 del ann_body_list[ix]
+
+        # Dilate or erode annotated bodies
+        if re_dilate_bodies != 0:
+            print("Dilating annotated bodies by a factor of {}: {:3d}".format(
+                re_dilate_bodies,0), end="", flush=True)
+            for nr in range(len(ann_body_list)):
+                print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
+                image = np.zeros(self.detected_bodies.shape)
+                mask = ann_body_list[nr].mask_body(
+                    image=image, dilation_factor=re_dilate_bodies)
+                ann_body_list[nr] = Annotation( body_pixels_yx=mask)
+            print((3*'\b')+'{:3d}'.format(nr))
 
         # Set the internal annotation list
         self.annotation = ann_body_list
