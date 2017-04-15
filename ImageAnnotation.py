@@ -438,7 +438,9 @@ class AnnotatedImage(object):
             channel:             List or tuple of same size images
             annotation:          List or tuple of Annotation objects
             exclude_border:      4-Tuple containing border exclusion region
-                                 (left,right,top,bottom)
+                                 (left,right,top,bottom), dictionary, or
+                                 file name of mat file holding the parameters
+                                 as separate variables
             detected_centroids:  Binary image with centroids labeled
             detected_bodies:     Binary image with bodies labeled
             labeled_centroids:   Image with annotation centroids labeled by number
@@ -452,7 +454,7 @@ class AnnotatedImage(object):
         self._x_res = 0
         self._channel = []
         self._annotation = []
-        self.exclude_border = []
+        self._exclude_border = {'left': 0, 'right': 0, 'top': 0, 'bottom': 0}
         self.detected_centroids = []
         self.detected_bodies = []
         self.labeled_centroids = []
@@ -473,8 +475,11 @@ class AnnotatedImage(object):
             self.labeled_bodies = labeled_bodies
 
     def __str__(self):
-        return "AnnotatedImage (#channels={:.0f}, #annotations={:.0f}" \
-                ")".format(self.n_channels, self.n_annotations)
+        return "AnnotatedImage (#ch={:.0f}, #ann={:.0f}" \
+                "brdr={:d},{:d},{:d},{:d})".format( self.n_channels,
+                self.n_annotations, self.exclude_border['left'],
+                self.exclude_border['right'], self.exclude_border['top'],
+                self.exclude_border['bottom'])
 
     # **********************************
     # *****  Describing properties *****
@@ -532,6 +537,36 @@ class AnnotatedImage(object):
             self._set_bodies()
             self._set_centroids()
 
+    @property
+    def exclude_border(self):
+        """Returns dictionary with border exclusion parameters"""
+        return self._exclude_border
+
+    @exclude_border.setter
+    def exclude_border(self, exclude_border):
+        """Sets the exclude_border parameter dictionary
+        exclude_border: 4-Tuple containing border exclusion region (left,
+                        right,top,bottom), dictionary, or file name of mat
+                        file holding the parameters as separate variables
+                        named ExclLeft, ExclRight, ExclTop, ExclBottom
+        Returns dictionary {'left': #, 'right': #, 'top': #, 'bottom': #}
+        """
+        if isinstance(exclude_border,list):
+            self.exclude_border['left'] = exclude_border[0]
+            self.exclude_border['right'] = exclude_border[1]
+            self.exclude_border['top'] = exclude_border[2]
+            self.exclude_border['bottom'] = exclude_border[3]
+        elif isinstance(exclude_border,dict):
+            self.exclude_border['left'] = exclude_border['left']
+            self.exclude_border['right'] = exclude_border['right']
+            self.exclude_border['top'] = exclude_border['top']
+            self.exclude_border['bottom'] = exclude_border['bottom']
+        elif isinstance(exclude_border,str):
+            mat_data = loadmat(exclude_border)
+            self.exclude_border['left'] = int(mat_data['ExclLeft'])
+            self.exclude_border['right'] = int(mat_data['ExclRight'])
+            self.exclude_border['top'] = int(mat_data['ExclTop'])
+            self.exclude_border['bottom'] = int(mat_data['ExclBottom'])
 
     def add_image_from_file(self, file_name, file_path='.',
                                 normalize=True, use_channels=None):
