@@ -14,7 +14,6 @@ Contains functions that detects centroids or bodies of annotations
 ########################################################################
 
 import numpy as np
-# import tensorflow as tf
 import matplotlib.pyplot as plt
 import seaborn as sns
 import ImageAnnotation as ia

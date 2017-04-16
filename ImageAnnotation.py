@@ -282,7 +282,7 @@ def image_grid_RGB( lin_images, n_channels, image_size, annotation_nrs=None,
 class Annotation(object):
     """Class that holds an individual image annotation"""
 
-    def __init__( self, body_pixels_yx, annotation_name="",
+    def __init__( self, body_pixels_yx, annotation_name="Neuron",
                                     type_nr=1, group_nr=0):
         """Initialize.
             body_pixels_yx: list/tuple of (y,x) coordinates

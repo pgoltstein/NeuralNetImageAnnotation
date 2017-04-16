@@ -3,7 +3,9 @@
 """
 Created on April 10 2017
 
-Contains functions that detect bodies of annotations in a single step
+Loads annotation data and trains a deep convolutional neural network to
+detect whether the center pixel of a small zoom image is part of the
+body or centroid of an annotation
 
 @author: pgoltstein
 """
@@ -11,7 +13,6 @@ Contains functions that detect bodies of annotations in a single step
 ########################################################################
 ### Imports
 import numpy as np
-import tensorflow as tf
 import matplotlib.pyplot as plt
 import ImageAnnotation as ia
 import iaConvNetTools as cn
