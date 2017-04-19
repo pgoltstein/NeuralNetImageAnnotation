@@ -108,7 +108,7 @@ use_channels = args.imagechannels
 if args.trainingdata:
     training_data_path = args.trainingdata
 else:
-    training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
+    training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet_small'
 if args.networkpath:
     network_path = args.networkpath
 else:

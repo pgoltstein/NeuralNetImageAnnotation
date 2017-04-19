@@ -31,15 +31,20 @@ min_body_overlap_fraction = 0.66
 min_size = 80
 max_size = 1000
 dilation_factor_centroids = -2
-dilation_factor_bodies = -1
+dilation_factor_bodies = 0
 re_dilate_bodies = 0
 # file_stem = "F03-Loc5-V1-20160202"
-file_stem = "F04-Loc5-V1-20160617"
+# file_stem = "F04-Loc5-V1-20160617"
+file_stem = "/Users/pgoltstein/Dropbox/TEMP/DataSet2/F04-Loc5-V1-20160202"
+# file_stem = "/Users/pgoltstein/Dropbox/TEMP/DataSet2/F02-Loc4-P-20160320"
+# file_stem = "/Users/pgoltstein/Dropbox/TEMP/DataSet2/21a-Loc1-V1-20160618"
+# file_stem = "/Users/pgoltstein/Dropbox/TEMP/DataSet2/21b-Loc3-RL-20160406"
 
 ########################################################################
 ### Load Ground Truth AnnotatedImage
-im_file_gt = glob.glob(file_stem+"*.tiff")[0]
-# bdr_file_gt = glob.glob(file_stem+"*Border*.mat")[0]
+im_file_gt = glob.glob(file_stem+"*channels.mat")[0]
+# im_file_gt = glob.glob(file_stem+"*.tiff")[0]
+bdr_file_gt = glob.glob(file_stem+"*Border*.mat")[0]
 roi_file_gt = glob.glob(file_stem+"*ovlSplitROI*.mat")[0]
 print("\n-------- Ground Truth AnnotatedImage --------")
 anim_gt = ia.AnnotatedImage()
@@ -47,21 +52,21 @@ print("Importing image: {}".format(im_file_gt))
 anim_gt.add_image_from_file(file_name=im_file_gt,file_path='')
 print("Importing ROI's: {}".format(roi_file_gt))
 anim_gt.import_annotations_from_mat(file_name=roi_file_gt,file_path='')
-# print("Setting border excusion: {}".format(bdr_file_gt))
-# anim_gt.exclude_border = bdr_file_gt
+print("Setting border excusion: {}".format(bdr_file_gt))
+anim_gt.exclude_border = bdr_file_gt
 print(" >> " + anim_gt.__str__())
 
 
 ########################################################################
 ### Load Neural Net AnnotatedImage
 anim_file_nn = glob.glob(file_stem+"*anim*.npy")[-1]
-# bdr_file_nn = glob.glob(file_stem+"*Border*.mat")[0]
+bdr_file_nn = glob.glob(file_stem+"*Border*.mat")[0]
 print("\n-------- Neural Net AnnotatedImage --------")
 anim_nn = ia.AnnotatedImage()
 print("Loading: {}".format(anim_file_nn))
 anim_nn.load( anim_file_nn )
-# print("Setting border excusion: {}".format(bdr_file_nn))
-# anim_nn.exclude_border = bdr_file_nn
+print("Setting border excusion: {}".format(bdr_file_nn))
+anim_nn.exclude_border = bdr_file_nn
 print(" >> " + anim_nn.__str__())
 
 
