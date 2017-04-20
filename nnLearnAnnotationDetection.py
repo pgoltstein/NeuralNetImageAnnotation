@@ -19,6 +19,9 @@ import iaConvNetTools as cn
 import argparse
 import os
 
+# Settings
+import nnDefaultSettings as defaults
+
 #########################################################
 # Arguments
 parser = argparse.ArgumentParser( \
@@ -28,97 +31,151 @@ parser = argparse.ArgumentParser( \
             "Runs on tensorflow framework. Learning is done using the " + \
             "ADAM optimizer. (written by Pieter Goltstein - April 2017)")
 
+# Required arguments
 parser.add_argument('annotationtype', type=str,
                     help= "'Centroids' or 'Bodies'")
 parser.add_argument('name', type=str,
                     help= 'Name by which to identify the network')
 
-parser.add_argument('-z', '--size', type=int, default=27,
-                    help='Size of the image annotations (default=27)')
-parser.add_argument('-dl', '--dilationfactor', type=int, default=-999,
-                    help="Dilation factor of annotations (default=0 for " +\
-                    "'Centroid'; default=3 for 'Body'")
-
-parser.add_argument('-r', '--positivesampleratio', type=float, default=0.5,
-                    help='Ratio of positive vs negative samples (default=0.5)')
-parser.add_argument('-rep', '--reportevery', type=int, default=10,
-                    help='Report every so many training epochs (default=10)')
-
-parser.add_argument('-t', '--trainingdata', type=str,
-                    help= 'Path to training data folder')
-parser.add_argument('-n', '--networkpath', type=str,
-                    help= 'Path to neural network folder')
-
-parser.add_argument('-e', '--nepochs', type=int, default=100,
-                    help='Number of epochs to train (default=100)')
-parser.add_argument('-m', '--msamples', type=int, default=200,
-                    help='Number of samples per training step (default=200)')
-
-parser.add_argument('-d', '--dropout', type=float, default=0.5,
-                    help='Dropout fraction in fully connected " + \
-                    "layer (default=0.5)')
-parser.add_argument('-a', '--alpha', type=float, default=0.0004,
-                    help="Learning rate 'alpha' (default=0.0004)")
-
-parser.add_argument('-cz', '--convsize', type=int, default=5,
-                    help="Size of convolutional filters (default=5)")
-parser.add_argument('-cc', '--convchan', type=int, default=32,
-                    help="Number of convolutional filters (default=32)")
-parser.add_argument('-cp', '--convpool', type=int, default=2,
-                    help="Max pooling of convolutional filters (default=2)")
-parser.add_argument('-fz', '--fcsize', type=int, default=256,
-                    help="Number of fully connected units (default=256)")
-
-parser.add_argument('-ch', '--imagechannels', nargs='+',
-                    help="Select image channels to load (e.g. '-ch 1 2' " + \
-                    "loads first and second channel only; default=all)")
-
-parser.add_argument('-nrm', '--normalizesamples',  action="store_true",
-                    help='Normalizes the individual channels of the ' + \
-                     ' annotations (default=off)')
+# Annotation arguments
+parser.add_argument('-z', '--size', type=int,
+    default=defaults.annotation_size,
+    help="Size of the image annotations (default={})".format(
+        defaults.annotation_size))
 parser.add_argument('-mp', '--morph',  action="store_true",
-                    help='Enables random morphing of annotations (default=off)')
+    default=defaults.morph_annotations,
+    help='Flag enables random morphing of annotations (on/off; default={})'.format(
+        "on" if defaults.morph_annotations else "off"))
+parser.add_argument('-dl', '--dilationfactor', type=int,
+    default=defaults.dilation_factor,
+    help="Dilation factor of annotations (default={})".format(
+        defaults.dilation_factor))
+parser.add_argument('-r', '--positivesampleratio', type=float,
+    default=defaults.pos_sample_ratio,
+    help='Ratio of positive vs negative samples (default={})'.format(
+        defaults.pos_sample_ratio))
+parser.add_argument('-ch', '--imagechannels', nargs='+',
+    default=defaults.use_channels,
+    help="Select image channels to load (e.g. '-ch 1 2' " + \
+        "loads first and second channel only; default=all)")
+parser.add_argument('-nrm', '--normalizesamples',  action="store_true",
+    default=defaults.normalize_samples,
+    help="Normalizes the individual channels of the annotations " + \
+        "(on/off; default={})".format("on" if defaults.normalize_samples else "off"))
+
+# Training arguments
+parser.add_argument('-tr', '--trainingprocedure', type=str,
+    default=defaults.training_procedure,
+    help= 'Training procedure (batch or epochs; default={})'.format(
+        defaults.training_procedure))
+parser.add_argument('-e', '--nepochs', type=int,
+    default=defaults.n_epochs,
+    help='Number of epochs to train (default={})'.format(
+        defaults.n_epochs))
+parser.add_argument('-m', '--msamples', type=int,
+    default=defaults.m_samples,
+    help='Number of samples per training step (default={})'.format(
+        defaults.m_samples))
+parser.add_argument('-nb', '--numberofbatches', type=int,
+    default=defaults.number_of_batches,
+    help='Number of training batches (default={})'.format(
+        defaults.number_of_batches))
+parser.add_argument('-b', '--batchsize', type=int,
+    default=defaults.batch_size,
+    help='Number of samples per training batch (default={})'.format(
+        defaults.batch_size))
+parser.add_argument('-rep', '--reportevery', type=int,
+    default=defaults.report_every,
+    help='Report every so many training epochs (default={})'.format(
+        defaults.report_every))
+parser.add_argument('-d', '--dropout', type=float,
+    default=defaults.fc1_dropout,
+    help='Dropout fraction in fully connected layer (default={})'.format(
+        defaults.fc1_dropout))
+parser.add_argument('-a', '--alpha', type=float,
+    default=defaults.alpha,
+    help="Learning rate 'alpha' (default={})".format(
+        defaults.alpha))
+
+# Network arguments
+parser.add_argument('-net', '--nettype', type=str,
+    default=defaults.network_type,
+    help= "Type of network (1layer, 2layer, c2fc1; default={})".format(
+        defaults.network_type))
+parser.add_argument('-cz', '--convsize', type=int,
+    default=defaults.conv_size,
+    help="Size of convolutional filters (default={})".format(
+        defaults.conv_size))
+parser.add_argument('-cc', '--convchan', type=int,
+    default=defaults.conv_chan,
+    help="Number of convolutional filters (default={})".format(
+        defaults.conv_chan))
+parser.add_argument('-cp', '--convpool', type=int,
+    default=defaults.conv_pool,
+    help="Max pooling of convolutional filters (default={})".format(
+        defaults.conv_pool))
+parser.add_argument('-fz', '--fcsize', type=int,
+    default=defaults.fc_size,
+    help="Number of fully connected units (default={})".format(
+        defaults.fc_size))
+
+# Path arguments
+parser.add_argument('-t', '--trainingdata', type=str,
+    default=defaults.training_data_path,
+    help= 'Path to training data folder (default={})'.format(
+        defaults.training_data_path))
+parser.add_argument('-n', '--networkpath', type=str,
+    default=defaults.network_path,
+    help= 'Path to neural network folder (default={})'.format(
+        defaults.network_path))
+
+# Output arguments
 parser.add_argument('-lc', '--learningcurve', action="store_true",
-                    help='Displays the learning curve at the end ' + \
-                            'of training (default=off)')
+    help='Displays the learning curve at the end of training (on/off default=off)')
 parser.add_argument('-f1', '--F1report', action="store_true",
-                    help='Runs F1 report and displays examples of true/' + \
-                        'false positives/negatives at the end of ' + \
-                        'training (default=off)')
+    help='Runs F1 report and displays examples of true/' + \
+        'false positives/negatives at the end of training (on/off; default=off)')
+
+# Parse arguments
 args = parser.parse_args()
 
-# Set variables based on arguments
-network_name = str(args.name)
-annotation_type = str(args.annotationtype)
-dilation_factor = args.dilationfactor
-n_epochs = args.nepochs
-fc1_dropout = args.dropout
-alpha = args.alpha
-m_samples = args.msamples
+# Required arguments
+network_name = args.name
+annotation_type = args.annotationtype
+
+# Annotation arguments
 annotation_size = (args.size,args.size)
 morph_annotations = args.morph
+dilation_factor = args.dilationfactor
+pos_sample_ratio = args.positivesampleratio
+use_channels = args.imagechannels
+normalize_samples = args.normalizesamples
+
+# Training arguments
+training_procedure = args.trainingprocedure
+n_epochs = args.nepochs
+m_samples = args.msamples
+number_of_batches = args.numberofbatches
+batch_size = args.batchsize
+report_every = args.reportevery
+fc1_dropout = args.dropout
+alpha = args.alpha
+
+# Network arguments
+network_type = args.nettype
 conv_size = args.convsize
 conv_chan = args.convchan
 conv_pool = args.convpool
 fc_size = args.fcsize
-pos_sample_ratio = args.positivesampleratio
-report_every = args.reportevery
-use_channels = args.imagechannels
 
-if args.trainingdata:
-    training_data_path = args.trainingdata
-else:
-    training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet_small'
-if args.networkpath:
-    network_path = args.networkpath
-else:
-    network_path = '/Users/pgoltstein/Dropbox/NeuralNets'
+# Path arguments
+training_data_path = args.trainingdata
+network_path = args.networkpath
 
 ########################################################################
 # Other variables
+exclude_border = (40,40,40,40)
 normalize_images = True
-normalize_samples = False
-exclude_border=(0,0,0,0)
 rotation_list = np.array(range(360))
 scale_list_x = np.array(range(900,1100)) / 1000
 scale_list_y = np.array(range(900,1100)) / 1000
@@ -136,14 +193,29 @@ training_image_set.load_data_dir_tiff_mat( training_data_path,
 
 ########################################################################
 # Set up network
-nn = cn.ConvNetCnv2Fc1( \
-        network_path=os.path.join(network_path,network_name),
-        input_image_size=annotation_size,
-        n_input_channels=training_image_set.n_channels,
-        output_size=(1,2),
-        conv1_size=conv_size, conv1_n_chan=conv_chan, conv1_n_pool=conv_pool,
-        conv2_size=conv_size, conv2_n_chan=conv_chan*2, conv2_n_pool=conv_pool,
-        fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
+if network_type.lower() == "1layer":
+    nn = cn.NeuralNet1Layer( \
+            network_path=os.path.join(network_path,network_name),
+            input_image_size=annotation_size,
+            n_input_channels=training_image_set.n_channels,
+            output_size=(1,2), fc1_dropout=fc1_dropout, alpha=alpha )
+elif network_type.lower() == "2layer":
+    nn = cn.NeuralNet2Layer( \
+            network_path=os.path.join(network_path,network_name),
+            input_image_size=annotation_size,
+            n_input_channels=training_image_set.n_channels,
+            output_size=(1,2),
+            fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
+elif network_type.lower() == "c2fc1":
+    nn = cn.ConvNetCnv2Fc1( \
+            network_path=os.path.join(network_path,network_name),
+            input_image_size=annotation_size,
+            n_input_channels=training_image_set.n_channels,
+            output_size=(1,2),
+            conv1_size=conv_size, conv1_n_chan=conv_chan, conv1_n_pool=conv_pool,
+            conv2_size=conv_size, conv2_n_chan=conv_chan*2, conv2_n_pool=conv_pool,
+            fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
+
 if nn.n_input_channels != training_image_set.n_channels:
     print("\n\nExisting network has been set up with {} input channels,\n \
         but function argument specified {} image channels.\n\n".format(
@@ -188,13 +260,22 @@ nn.display_network_architecture()
 
 ########################################################################
 # Train network
-nn.train_epochs( training_image_set,
-    annotation_type=annotation_type,
-    m_samples=m_samples, n_epochs=n_epochs, report_every=report_every,
-    exclude_border=exclude_border, pos_sample_ratio=pos_sample_ratio,
-    normalize_samples=normalize_samples, morph_annotations=morph_annotations,
-    rotation_list=rotation_list, scale_list_x=scale_list_x,
-    scale_list_y=scale_list_y, noise_level_list=noise_level_list )
+if training_procedure.lower() == "epochs":
+    nn.train_epochs( training_image_set,
+        annotation_type=annotation_type,
+        m_samples=m_samples, n_epochs=n_epochs, report_every=report_every,
+        exclude_border=exclude_border, pos_sample_ratio=pos_sample_ratio,
+        normalize_samples=normalize_samples, morph_annotations=morph_annotations,
+        rotation_list=rotation_list, scale_list_x=scale_list_x,
+        scale_list_y=scale_list_y, noise_level_list=noise_level_list )
+elif training_procedure.lower() == "batch":
+    nn.train_batch( training_image_set, n_batches=number_of_batches,
+        batch_size=batch_size, m_samples=m_samples, n_epochs=n_epochs,
+        annotation_type=annotation_type,
+        exclude_border=exclude_border, pos_sample_ratio=pos_sample_ratio,
+        normalize_samples=normalize_samples, morph_annotations=morph_annotations,
+        rotation_list=rotation_list, scale_list_x=scale_list_x,
+        scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
 # Save network parameters and settings
 nn.save()
@@ -203,8 +284,9 @@ nn.save()
 # Display performance
 
 if args.learningcurve:
-    nn.log("\nDisplay learning curve:")
+    nn.log("\nDisplay learning curve and filters:")
     nn.show_learning_curve()
+    nn.show_filters()
 
 if args.F1report:
     nn.log("\nTraining set performance:")

@@ -197,7 +197,7 @@ class NeuralNetBase(object):
         self.log("Done @ {}\n".format(
             now.strftime("%Y-%m-%d %H:%M") ) )
 
-    def train_minibatch(self, annotated_image_set, n_batches=10, n_epochs=100,
+    def train_batch(self, annotated_image_set, n_batches=10, n_epochs=100,
             annotation_type='Bodies', batch_size=1000, m_samples=100,
             exclude_border=(0,0,0,0), pos_sample_ratio=0.5,
              normalize_samples=False, morph_annotations=False,
@@ -271,11 +271,11 @@ class NeuralNetBase(object):
 
             # Update total number of trained samples
             self.n_samples_trained = \
-                self.n_samples_trained + (m_samples*n_epochs)
+                self.n_samples_trained + m_samples
             self.n_pos_samples_trained = \
-                self.n_pos_samples_trained + int(labels[1,:].sum())
+                self.n_pos_samples_trained + int(labels[:,1].sum())
             self.n_neg_samples_trained = \
-                self.n_neg_samples_trained + int(labels[0,:].sum())
+                self.n_neg_samples_trained + int(labels[:,0].sum())
 
         self.log("\nNetwork has now been trained on a total of {} samples".format(
                 self.n_samples_trained) + "({} pos, {} neg)".format( \
@@ -284,35 +284,6 @@ class NeuralNetBase(object):
         self.log("Done @ {}\n".format(
             now.strftime("%Y-%m-%d %H:%M") ) )
 
-    def annotate_image( self, anim ):
-        """Loops through every pixels of an annotated image, classifies
-            the pixels and overwrites the annotation list with newly
-            detected annotations
-            anim:   AnnotatedImage with image channel loaded
-            returns a 2d matrix with the classification result
-        """
-        # Make output matrix
-        classified_image = np.zeros((anim.y_res,anim.x_res))
-
-        # Annotate line by line
-        line_samples = np.zeros( (anim.x_res,
-            anim.n_channels * self.y_res * self.x_res) )
-        # Loop through all lines
-        print("Annotating image {:6.2f}%".format(0), end="", flush=True)
-        for y in range(anim.y_res):
-            # Loop through all pixels to fill the line-samples
-            for x in range(anim.x_res):
-                line_samples[x,:] = ia.image2vec( ia.zoom( anim.channel,
-                    y, x, zoom_size=(self.y_res,self.x_res) ) )
-
-            # Calculate network prediction
-            result = self.sess.run( [self.network_prediction], feed_dict={
-                self.x: line_samples, self.fc1_keep_prob: 1.0 })
-            classified_image[y,:] = result[0]
-            print((7*'\b')+'{:6.2f}%'.format(100.0*float(y)/float(anim.y_res)),
-                        end='', flush=True)
-        print( (7*'\b')+'{:6.2f}% .. done!'.format(100.0) )
-        return classified_image
 
     def log(self, line_text, no_enter=False, overwrite_last=False):
         """Output to log file and prints to screen"""
@@ -527,11 +498,515 @@ class NeuralNetBase(object):
             ax.spines['left'].set_bounds(0,1)
             ax.spines['bottom'].set_bounds(np.min(x_values),np.max(x_values))
 
+
 ########################################################################
-### Deep convolutional neural network 
+### Single output neural network class
 ########################################################################
 
-class ConvNetCnv2Fc1(NeuralNetBase):
+class NeuralNetSingleOutput(NeuralNetBase):
+    """Base class for single output neural nets
+    See NeuralNetBase for more info"""
+
+    def __init__(self):
+        """Does nothing, initialization should be done by subclasses
+        See superclass "NeuralNetBase" for list of required subclass variables
+        """
+
+    def annotate_image( self, anim ):
+        """Loops through every pixels of an annotated image, classifies
+            the pixels and overwrites the annotation list with newly
+            detected annotations
+            anim:   AnnotatedImage with image channel loaded
+            returns a 2d matrix with the classification result
+        """
+        # Make output matrix
+        classified_image = np.zeros((anim.y_res,anim.x_res))
+
+        # Annotate line by line
+        line_samples = np.zeros( (anim.x_res,
+            anim.n_channels * self.y_res * self.x_res) )
+        # Loop through all lines
+        print("Annotating image {:6.2f}%".format(0), end="", flush=True)
+        for y in range(anim.y_res):
+            # Loop through all pixels to fill the line-samples
+            for x in range(anim.x_res):
+                line_samples[x,:] = ia.image2vec( ia.zoom( anim.channel,
+                    y, x, zoom_size=(self.y_res,self.x_res) ) )
+
+            # Calculate network prediction
+            result = self.sess.run( [self.network_prediction], feed_dict={
+                self.x: line_samples, self.fc1_keep_prob: 1.0 })
+            classified_image[y,:] = result[0]
+            print((7*'\b')+'{:6.2f}%'.format(100.0*float(y)/float(anim.y_res)),
+                        end='', flush=True)
+        print( (7*'\b')+'{:6.2f}% .. done!'.format(100.0) )
+        return classified_image
+
+
+########################################################################
+### Single layer neural network
+########################################################################
+
+class NeuralNet1Layer(NeuralNetSingleOutput):
+    """Holds a single layer neural network for annotating images."""
+
+    def __init__(self, network_path='.', logging=True,
+                input_image_size=None, n_input_channels=None, output_size=None,
+                fc1_dropout=1.0, alpha=4e-4 ):
+        """Initializes all variables and sets up the network. If network
+        already exists, load the variables from there.
+        network_path:      Directory where to store network and architecture
+        input_image_size:  Tuple containing (y,x) size of input image
+        output_image_size: Tuple containing dimensions of network output"""
+        self.logging = logging
+
+        # If network path does not yet exists
+        self.network_path = network_path
+        if not os.path.isdir(self.network_path):
+            # Make network directory
+            os.mkdir(self.network_path)
+            now = datetime.datetime.now()
+            self.log("\n\n++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            self.log(    "Creation of new network: ")
+            self.log(    "  {}".format(self.network_path) )
+            self.log(    "  @ {}".format(now.strftime("%Y-%m-%d %H:%M")) )
+            self.log(    "++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            self.log("\nNetwork did not exist ... ")
+            self.log("Created new network with supplied (or default) architecture")
+
+            # Set up new network
+            self.y_res = input_image_size[0]
+            self.x_res = input_image_size[1]
+            self.n_input_channels = n_input_channels
+            self.out_y_res = output_size[0]
+            self.out_x_res = output_size[1]
+            self.fc1_dropout = fc1_dropout
+            self.alpha = alpha
+            self.n_samples_trained = 0
+            self.n_pos_samples_trained = 0
+            self.n_neg_samples_trained = 0
+            self.n_pos_samples_list = []
+            self.n_neg_samples_list = []
+            self.n_samples_list = []
+            self.accuracy_list = []
+            self.precision_list = []
+            self.recall_list = []
+            self.F1_list = []
+
+            # Save network architecture
+            self.save_network_architecture( network_path=self.network_path )
+
+        else:
+            now = datetime.datetime.now()
+            self.log("\n\n++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            self.log(    "Re-initialization of existing network: ")
+            self.log(    "  {}".format(self.network_path) )
+            self.log(    "  @ {}".format(now.strftime("%Y-%m-%d %H:%M")) )
+            self.log(    "++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            self.log(    " ")
+
+            # Load network architecture from directory
+            net_architecture = self.load_network_architecture(self.network_path)
+
+            # Set up network variables from loaded architecture
+            self.y_res = net_architecture['y_res']
+            self.x_res = net_architecture['x_res']
+            self.n_input_channels = net_architecture['n_input_channels']
+            self.out_y_res = net_architecture['out_y_res']
+            self.out_x_res = net_architecture['out_x_res']
+            self.fc1_dropout = net_architecture['fc1_dropout']
+            self.alpha = net_architecture['alpha']
+            self.n_samples_trained = net_architecture['n_samples_trained']
+            self.n_pos_samples_trained = net_architecture['n_pos_samples_trained']
+            self.n_neg_samples_trained = net_architecture['n_neg_samples_trained']
+            self.n_samples_list = net_architecture['n_samples_list']
+            self.n_pos_samples_list = net_architecture['n_pos_samples_list']
+            self.n_neg_samples_list = net_architecture['n_neg_samples_list']
+            self.accuracy_list = net_architecture['accuracy_list']
+            self.precision_list = net_architecture['precision_list']
+            self.recall_list = net_architecture['recall_list']
+            self.F1_list = net_architecture['F1_list']
+
+        # Update values of alpha and dropout if supplied
+        if self.alpha != alpha:
+            self.alpha = alpha
+            self.log("Updated learning rate 'alpha' to {}".format(self.alpha))
+        if self.fc1_dropout != fc1_dropout:
+            self.fc1_dropout = fc1_dropout
+            self.log("Updated dropout fraction to {}".format(self.fc1_dropout))
+
+        # Clear previous graphs
+        tf.reset_default_graph()
+
+        #########################################################
+        # Input and target variable placeholders
+        # x = [ m_samples x [channel_1_data, channel_2_data, etc.] ]
+        self.x = tf.placeholder( tf.float32, shape = [None,
+            self.n_input_channels * self.y_res * self.x_res] )
+        self.y_trgt = tf.placeholder( tf.float32, shape = [None,
+            self.out_y_res * self.out_x_res] )
+
+        # Set up dropout option for inputs
+        self.fc1_keep_prob = tf.placeholder(tf.float32)
+        self.x_drop = tf.nn.dropout(self.x, self.fc1_keep_prob)
+
+        #########################################################
+        # Readout layer
+        # Weights and bias
+        self.fc_out_shape = \
+            [self.y_res * self.x_res * self.n_input_channels,
+                self.out_y_res*self.out_x_res]
+        self.W_fc_out = tf.Variable( tf.truncated_normal(
+                                shape=self.fc_out_shape, stddev=0.1 ) )
+        self.b_fc_out = tf.Variable( tf.constant(0.1,
+                                shape=[self.fc_out_shape[1]] ))
+
+        # Calculate network step
+        self.fc_out_lin = tf.matmul( self.x_drop,
+                                     self.W_fc_out ) + self.b_fc_out
+
+        #########################################################
+        # Define cost function and optimizer algorithm
+        self.cross_entropy = tf.reduce_mean(
+                    tf.nn.softmax_cross_entropy_with_logits(
+                                logits=self.fc_out_lin, labels=self.y_trgt ) )
+        self.train_step = tf.train.AdamOptimizer(self.alpha).minimize(
+                                                        self.cross_entropy )
+
+        #########################################################
+        # Define how to test trained model
+        self.network_prediction  = tf.cast( tf.argmax(
+                                        self.fc_out_lin, 1 ), tf.float32 )
+        self.is_correct_prediction = tf.equal( tf.argmax( self.fc_out_lin, 1 ),
+                                               tf.argmax( self.y_trgt, 1 ) )
+        self.accuracy = tf.reduce_mean( tf.cast(
+                                    self.is_correct_prediction, tf.float32 ) )
+
+        #########################################################
+        # Create save operation
+        self.saver = tf.train.Saver()
+
+    def display_network_architecture(self):
+        """Displays the network architecture"""
+        self.log("\n-------- Network architecture --------")
+        self.log("y_res: {}".format(self.y_res))
+        self.log("x_res: {}".format(self.x_res))
+        self.log("n_input_channels: {}".format(self.n_input_channels))
+        self.log("out_y_res: {}".format(self.out_y_res))
+        self.log("out_x_res: {}".format(self.out_x_res))
+        self.log("input_dropout: {}".format(self.fc1_dropout))
+        self.log("alpha: {}".format(self.alpha))
+        self.log("n_samples_trained: {}".format(self.n_samples_trained))
+        self.log("n_pos_samples_trained: {}".format(self.n_pos_samples_trained))
+        self.log("n_neg_samples_trained: {}".format(self.n_neg_samples_trained))
+
+    def save_network_architecture(self,network_path):
+        """Saves the network architecture into the network path"""
+        net_architecture = {}
+        net_architecture['y_res'] = self.y_res
+        net_architecture['x_res'] = self.x_res
+        net_architecture['n_input_channels'] = self.n_input_channels
+        net_architecture['out_y_res'] = self.out_y_res
+        net_architecture['out_x_res'] = self.out_x_res
+        net_architecture['fc1_dropout'] = self.fc1_dropout
+        net_architecture['alpha'] = self.alpha
+        net_architecture['n_samples_trained'] = self.n_samples_trained
+        net_architecture['n_pos_samples_trained'] = self.n_pos_samples_trained
+        net_architecture['n_neg_samples_trained'] = self.n_neg_samples_trained
+        net_architecture['n_samples_list'] = self.n_samples_list
+        net_architecture['n_pos_samples_list'] = self.n_pos_samples_list
+        net_architecture['n_neg_samples_list'] = self.n_neg_samples_list
+        net_architecture['accuracy_list'] = self.accuracy_list
+        net_architecture['precision_list'] = self.precision_list
+        net_architecture['recall_list'] = self.recall_list
+        net_architecture['F1_list'] = self.F1_list
+        np.save(os.path.join( \
+            network_path,'net_architecture.npy'), net_architecture)
+        self.log("Network architecture saved to file:\n{}".format(
+                            os.path.join(network_path,'net_architecture.npy')))
+
+    def show_filters(self):
+        """Plot the input weights"""
+        w = self.sess.run(self.W_fc_out)
+        w_list0 = ia.vec2image( lin_image=w[:,0],
+            n_channels=self.n_input_channels,
+            image_size=(self.y_res,self.x_res) )
+        w_list1 = ia.vec2image( lin_image=w[:,1],
+            n_channels=self.n_input_channels,
+            image_size=(self.y_res,self.x_res) )
+
+        plt.figure(figsize=(12,5), facecolor='w', edgecolor='w')
+        with sns.axes_style("white"):
+            for cnt,w in enumerate(w_list0):
+                print(w.min(),w.max())
+                ax = plt.subplot2grid( (3,self.n_input_channels), (0,cnt) )
+                ax.imshow( w, interpolation='nearest' )
+                ax.set_title("Channel {}".format(cnt))
+                plt.axis('tight')
+                plt.axis('off')
+
+            for cnt,w in enumerate(w_list1):
+                ax = plt.subplot2grid( (3,self.n_input_channels), (1,cnt) )
+                ax.imshow( w, interpolation='nearest' )
+                ax.set_title("Channel {}".format(cnt))
+                plt.axis('tight')
+                plt.axis('off')
+
+            for cnt,(w0,w1) in enumerate(zip(w_list0,w_list1)):
+                ax = plt.subplot2grid( (3,self.n_input_channels), (2,cnt) )
+                ax.imshow( w0-w1, interpolation='nearest' )
+                ax.set_title("Channel {}".format(cnt))
+                plt.axis('tight')
+                plt.axis('off')
+        plt.tight_layout()
+
+
+
+########################################################################
+### Two layer neural network
+########################################################################
+
+class NeuralNet2Layer(NeuralNetSingleOutput):
+    """Holds a two layer neural network for annotating images."""
+
+    def __init__(self, network_path='.', logging=True,
+                input_image_size=None, n_input_channels=None, output_size=None,
+                fc1_n_chan=1024, fc1_dropout=0.5, alpha=4e-4 ):
+        """Initializes all variables and sets up the network. If network
+        already exists, load the variables from there.
+        network_path:      Directory where to store network and architecture
+        input_image_size:  Tuple containing (y,x) size of input image
+        output_image_size: Tuple containing dimensions of network output"""
+        self.logging = logging
+
+        # If network path does not yet exists
+        self.network_path = network_path
+        if not os.path.isdir(self.network_path):
+            # Make network directory
+            os.mkdir(self.network_path)
+            now = datetime.datetime.now()
+            self.log("\n\n++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            self.log(    "Creation of new network: ")
+            self.log(    "  {}".format(self.network_path) )
+            self.log(    "  @ {}".format(now.strftime("%Y-%m-%d %H:%M")) )
+            self.log(    "++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            self.log("\nNetwork did not exist ... ")
+            self.log("Created new network with supplied (or default) architecture")
+
+            # Set up new network
+            self.y_res = input_image_size[0]
+            self.x_res = input_image_size[1]
+            self.n_input_channels = n_input_channels
+            self.out_y_res = output_size[0]
+            self.out_x_res = output_size[1]
+            self.fc1_n_chan = fc1_n_chan
+            self.fc1_dropout = fc1_dropout
+            self.alpha = alpha
+            self.n_samples_trained = 0
+            self.n_pos_samples_trained = 0
+            self.n_neg_samples_trained = 0
+            self.n_pos_samples_list = []
+            self.n_neg_samples_list = []
+            self.n_samples_list = []
+            self.accuracy_list = []
+            self.precision_list = []
+            self.recall_list = []
+            self.F1_list = []
+
+            # Save network architecture
+            self.save_network_architecture( network_path=self.network_path )
+
+        else:
+            now = datetime.datetime.now()
+            self.log("\n\n++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            self.log(    "Re-initialization of existing network: ")
+            self.log(    "  {}".format(self.network_path) )
+            self.log(    "  @ {}".format(now.strftime("%Y-%m-%d %H:%M")) )
+            self.log(    "++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            self.log(    " ")
+
+            # Load network architecture from directory
+            net_architecture = self.load_network_architecture(self.network_path)
+
+            # Set up network variables from loaded architecture
+            self.y_res = net_architecture['y_res']
+            self.x_res = net_architecture['x_res']
+            self.n_input_channels = net_architecture['n_input_channels']
+            self.out_y_res = net_architecture['out_y_res']
+            self.out_x_res = net_architecture['out_x_res']
+            self.fc1_n_chan = net_architecture['fc1_n_chan']
+            self.fc1_dropout = net_architecture['fc1_dropout']
+            self.alpha = net_architecture['alpha']
+            self.n_samples_trained = net_architecture['n_samples_trained']
+            self.n_pos_samples_trained = net_architecture['n_pos_samples_trained']
+            self.n_neg_samples_trained = net_architecture['n_neg_samples_trained']
+            self.n_samples_list = net_architecture['n_samples_list']
+            self.n_pos_samples_list = net_architecture['n_pos_samples_list']
+            self.n_neg_samples_list = net_architecture['n_neg_samples_list']
+            self.accuracy_list = net_architecture['accuracy_list']
+            self.precision_list = net_architecture['precision_list']
+            self.recall_list = net_architecture['recall_list']
+            self.F1_list = net_architecture['F1_list']
+
+        # Update values of alpha and dropout if supplied
+        if self.alpha != alpha:
+            self.alpha = alpha
+            self.log("Updated learning rate 'alpha' to {}".format(self.alpha))
+        if self.fc1_dropout != fc1_dropout:
+            self.fc1_dropout = fc1_dropout
+            self.log("Updated dropout fraction to {}".format(self.fc1_dropout))
+
+        # Clear previous graphs
+        tf.reset_default_graph()
+
+        #########################################################
+        # Input and target variable placeholders
+        # x = [ m_samples x [channel_1_data, channel_2_data, etc.] ]
+        self.x = tf.placeholder( tf.float32, shape = [None,
+            self.n_input_channels * self.y_res * self.x_res] )
+        self.y_trgt = tf.placeholder( tf.float32, shape = [None,
+            self.out_y_res * self.out_x_res] )
+
+        #########################################################
+        # Densely Connected Layer
+        # Weights and bias
+        self.fc1_shape = \
+            [self.y_res * self.x_res * self.n_input_channels,
+                self.fc1_n_chan]
+        self.W_fc1 = tf.Variable( tf.truncated_normal(
+                               shape=self.fc1_shape, stddev=0.1 ) )
+        self.b_fc1 = tf.Variable( tf.constant(0.1, shape=[self.fc1_n_chan] ))
+
+        # Calculate network step
+        self.fc1_relu = tf.nn.relu( tf.matmul( self.x,
+            self.W_fc1) + self.b_fc1 )
+
+        # Set up dropout option for fc1
+        self.fc1_keep_prob = tf.placeholder(tf.float32)
+        self.fc1_relu_drop = tf.nn.dropout(self.fc1_relu, self.fc1_keep_prob)
+
+        #########################################################
+        # Readout layer
+        # Weights and bias
+        self.fc_out_shape = [self.fc1_n_chan, self.out_y_res*self.out_x_res]
+        self.W_fc_out = tf.Variable( tf.truncated_normal(
+                                shape=self.fc_out_shape, stddev=0.1 ) )
+        self.b_fc_out = tf.Variable( tf.constant(0.1,
+                                shape=[self.fc_out_shape[1]] ))
+
+        # Calculate network step
+        self.fc_out_lin = tf.matmul( self.fc1_relu_drop,
+                                     self.W_fc_out ) + self.b_fc_out
+
+        #########################################################
+        # Define cost function and optimizer algorithm
+        self.cross_entropy = tf.reduce_mean(
+                    tf.nn.softmax_cross_entropy_with_logits(
+                                logits=self.fc_out_lin, labels=self.y_trgt ) )
+        self.train_step = tf.train.AdamOptimizer(self.alpha).minimize(
+                                                        self.cross_entropy )
+
+        #########################################################
+        # Define how to test trained model
+        self.network_prediction  = tf.cast( tf.argmax(
+                                        self.fc_out_lin, 1 ), tf.float32 )
+        self.is_correct_prediction = tf.equal( tf.argmax( self.fc_out_lin, 1 ),
+                                               tf.argmax( self.y_trgt, 1 ) )
+        self.accuracy = tf.reduce_mean( tf.cast(
+                                    self.is_correct_prediction, tf.float32 ) )
+
+        #########################################################
+        # Create save operation
+        self.saver = tf.train.Saver()
+
+    def display_network_architecture(self):
+        """Displays the network architecture"""
+        self.log("\n-------- Network architecture --------")
+        self.log("y_res: {}".format(self.y_res))
+        self.log("x_res: {}".format(self.x_res))
+        self.log("n_input_channels: {}".format(self.n_input_channels))
+        self.log("out_y_res: {}".format(self.out_y_res))
+        self.log("out_x_res: {}".format(self.out_x_res))
+        self.log("fc1_n_chan: {}".format(self.fc1_n_chan))
+        self.log("fc1_dropout: {}".format(self.fc1_dropout))
+        self.log("alpha: {}".format(self.alpha))
+        self.log("n_samples_trained: {}".format(self.n_samples_trained))
+        self.log("n_pos_samples_trained: {}".format(self.n_pos_samples_trained))
+        self.log("n_neg_samples_trained: {}".format(self.n_neg_samples_trained))
+
+    def save_network_architecture(self,network_path):
+        """Saves the network architecture into the network path"""
+        net_architecture = {}
+        net_architecture['y_res'] = self.y_res
+        net_architecture['x_res'] = self.x_res
+        net_architecture['n_input_channels'] = self.n_input_channels
+        net_architecture['out_y_res'] = self.out_y_res
+        net_architecture['out_x_res'] = self.out_x_res
+        net_architecture['fc1_n_chan'] = self.fc1_n_chan
+        net_architecture['fc1_dropout'] = self.fc1_dropout
+        net_architecture['alpha'] = self.alpha
+        net_architecture['n_samples_trained'] = self.n_samples_trained
+        net_architecture['n_pos_samples_trained'] = self.n_pos_samples_trained
+        net_architecture['n_neg_samples_trained'] = self.n_neg_samples_trained
+        net_architecture['n_samples_list'] = self.n_samples_list
+        net_architecture['n_pos_samples_list'] = self.n_pos_samples_list
+        net_architecture['n_neg_samples_list'] = self.n_neg_samples_list
+        net_architecture['accuracy_list'] = self.accuracy_list
+        net_architecture['precision_list'] = self.precision_list
+        net_architecture['recall_list'] = self.recall_list
+        net_architecture['F1_list'] = self.F1_list
+        np.save(os.path.join( \
+            network_path,'net_architecture.npy'), net_architecture)
+        self.log("Network architecture saved to file:\n{}".format(
+                            os.path.join(network_path,'net_architecture.npy')))
+
+    def show_filters(self):
+        """Plot the weights of the hidden layer"""
+        w_mat = np.transpose(self.sess.run(self.W_fc1))
+        w_mat[w_mat<0] = 0
+
+        plt.figure(figsize=(10,10), facecolor='w', edgecolor='w')
+        plot_positions = [(0,0),(0,1),(1,0),(1,1)]
+        for ch in range(4):
+            grid,_ = ia.image_grid_RGB( w_mat,
+                n_channels=self.n_input_channels,
+                image_size=(self.y_res,self.x_res), n_x=6, n_y=6,
+                channel_order=(ch,ch,ch), amplitude_scaling=(1,1,1),
+                line_color=1, auto_scale=True )
+            with sns.axes_style("white"):
+                ax = plt.subplot2grid( (2,2), plot_positions[ch] )
+                ax.imshow( grid, interpolation='nearest' )
+                ax.set_title("Hidden units, channel {}".format(ch))
+                plt.axis('tight')
+                plt.axis('off')
+                plt.tight_layout()
+
+        w_mat = np.transpose(self.sess.run(self.W_fc1))
+        w_mat[w_mat>0] = 0
+        w_mat = w_mat * -1
+
+        plt.figure(figsize=(10,10), facecolor='w', edgecolor='w')
+        plot_positions = [(0,0),(0,1),(1,0),(1,1)]
+        for ch in range(4):
+            grid,_ = ia.image_grid_RGB( w_mat,
+                n_channels=self.n_input_channels,
+                image_size=(self.y_res,self.x_res), n_x=6, n_y=6,
+                channel_order=(ch,ch,ch), amplitude_scaling=(1,1,1),
+                line_color=1, auto_scale=True )
+            with sns.axes_style("white"):
+                ax = plt.subplot2grid( (2,2), plot_positions[ch] )
+                ax.imshow( grid, interpolation='nearest' )
+                ax.set_title("Hidden units, channel {}".format(ch))
+                plt.axis('tight')
+                plt.axis('off')
+                plt.tight_layout()
+
+########################################################################
+### Deep convolutional neural network
+### 2 conv layers, one dense layer, 2 output units
+########################################################################
+
+class ConvNetCnv2Fc1(NeuralNetSingleOutput):
     """Holds a deep convolutional neural network for annotating images.
     2 convolutional layers, 1 fully connected layer, 1 output layer"""
 
