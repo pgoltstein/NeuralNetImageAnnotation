@@ -47,6 +47,11 @@ print(" ")
 print("Changing dilation factor of ais1 centroids to 0")
 ais1.centroid_dilation_factor = 0
 
+# Dilate centroids
+print(" ")
+print("Changing annotation type nr of ais1 centroids to 1")
+ais1.include_annotation_typenr = None
+
 # Get non-morphed training set
 m_samples = 100
 print(" ")

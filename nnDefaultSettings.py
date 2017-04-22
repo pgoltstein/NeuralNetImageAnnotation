@@ -5,6 +5,7 @@ training_data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet_small'
 # Annotation arguments
 annotation_size = 27 # Size of the images around the annotations
 morph_annotations = False # Random morphing of annotations
+include_annotation_typenr = None # Include only annotations of certain type_nr
 dilation_factor = 0 # Dilation/erosion (negative) of annotation body/centroid
 pos_sample_ratio = 0.5 # Fraction positive samples (of all samples)
 annotation_border_ratio = None # Fraction from border between pos and neg samples
@@ -12,7 +13,7 @@ use_channels = None # List of channels that are to be used, 1 based e.g. [1,2]
 normalize_samples = False # True/False
 
 # Training arguments
-training_procedure = "batch" # "batch" or "epochs"
+training_procedure = "epochs" # "batch" or "epochs"
 n_epochs = 100
 m_samples = 1000
 number_of_batches = 10

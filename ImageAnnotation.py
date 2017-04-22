@@ -449,7 +449,8 @@ class AnnotatedImage(object):
 
     def __init__( self, image_data=None, annotation_data=None,
         exclude_border=None, detected_centroids=None, detected_bodies=None,
-        labeled_centroids=None, labeled_bodies=None):
+        labeled_centroids=None, labeled_bodies=None,
+        include_annotation_typenr=None):
         """Initialize image list and channel list
             channel:             List or tuple of same size images
             annotation:          List or tuple of Annotation objects
@@ -466,6 +467,7 @@ class AnnotatedImage(object):
         self._body_dilation_factor = 0
         self._centroids = None
         self._centroid_dilation_factor = 0
+        self._include_annotation_typenr = None
         self._y_res = 0
         self._x_res = 0
         self._channel = []
@@ -668,7 +670,8 @@ class AnnotatedImage(object):
     def import_annotations_from_mat(self, file_name, file_path='.'):
         """Reads data from ROI.mat file and fills the annotation_list.
         file_name:     String holding name of ROI file
-        file_path:     String holding file path"""
+        file_path:     String holding file path
+        """
 
         # Load mat file with ROI data
         mat_data = loadmat(path.join(file_path,file_name))
@@ -730,10 +733,17 @@ class AnnotatedImage(object):
     def _set_bodies(self):
         """Sets the internal body annotation mask with specified parameters"""
         self._bodies = np.zeros_like(self._channel[0])
-        for nr in range(self.n_annotations):
-            self._annotation[nr].mask_body(self._bodies,
-                dilation_factor=self._body_dilation_factor,
-                mask_value=nr+1, keep_centroid=True)
+        if self._include_annotation_typenr is not None:
+            for nr in range(self.n_annotations):
+                if self._include_annotation_typenr == self._annotation[nr].type_nr:
+                    self._annotation[nr].mask_body(self._bodies,
+                        dilation_factor=self._body_dilation_factor,
+                        mask_value=nr+1, keep_centroid=True)
+        else:
+            for nr in range(self.n_annotations):
+                self._annotation[nr].mask_body(self._bodies,
+                    dilation_factor=self._body_dilation_factor,
+                    mask_value=nr+1, keep_centroid=True)
 
     @property
     def body_dilation_factor(self):
@@ -758,10 +768,17 @@ class AnnotatedImage(object):
         """Sets the internal centroids annotation mask with specified
         parameters"""
         self._centroids = np.zeros_like(self._channel[0])
-        for nr in range(self.n_annotations):
-            self._annotation[nr].mask_centroid(self._centroids,
-                dilation_factor=self._centroid_dilation_factor,
-                mask_value=nr+1)
+        if self._include_annotation_typenr is not None:
+            for nr in range(self.n_annotations):
+                if self._include_annotation_typenr == self._annotation[nr].type_nr:
+                    self._annotation[nr].mask_centroid(self._centroids,
+                        dilation_factor=self._centroid_dilation_factor,
+                        mask_value=nr+1)
+        else:
+            for nr in range(self.n_annotations):
+                self._annotation[nr].mask_centroid(self._centroids,
+                    dilation_factor=self._centroid_dilation_factor,
+                    mask_value=nr+1)
 
     @property
     def centroid_dilation_factor(self):
@@ -983,6 +1000,20 @@ class AnnotatedImage(object):
 
     # ************************************************
     # *****  Generate NN training/test data sets *****
+
+    @property
+    def include_annotation_typenr(self):
+        """Includes only ROI's with a certain typenr in body and centroid masks
+        """
+        return self._include_annotation_typenr
+
+    @include_annotation_typenr.setter
+    def include_annotation_typenr(self, include_typenr):
+        """Sets the nr to include"""
+        self._include_annotation_typenr = include_typenr
+        self._set_centroids()
+        self._set_bodies()
+
     def get_batch( self, zoom_size, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
             pos_sample_ratio=0.5, annotation_border_ratio=None,
@@ -1340,6 +1371,7 @@ class AnnotatedImageSet(object):
         self.ai_list = []
         self._body_dilation_factor = 0
         self._centroid_dilation_factor = 0
+        self._include_annotation_typenr = None
         self._n_channels = 0
 
     def __str__(self):
@@ -1355,6 +1387,21 @@ class AnnotatedImageSet(object):
     @property
     def n_channels(self):
         return self._n_channels
+
+    # ********************************************
+    # *****  Handling the annotation typenr  *****
+    @property
+    def include_annotation_typenr(self):
+        """Returns the annotation typenr"""
+        return(self._include_annotation_typenr)
+
+    @include_annotation_typenr.setter
+    def include_annotation_typenr(self, annotation_typenr):
+        """Updates the internal annotation typenr"""
+        if annotation_typenr != self._include_annotation_typenr:
+            for nr in range(self.n_annot_images):
+                self.ai_list[nr].include_annotation_typenr = annotation_typenr
+            self._include_annotation_typenr = annotation_typenr
 
     # *******************************************
     # *****  Handling the annotated bodies  *****

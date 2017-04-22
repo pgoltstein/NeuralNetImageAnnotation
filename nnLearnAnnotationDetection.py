@@ -46,6 +46,10 @@ parser.add_argument('-mp', '--morph',  action="store_true",
     default=defaults.morph_annotations,
     help='Flag enables random morphing of annotations (on/off; default={})'.format(
         "on" if defaults.morph_annotations else "off"))
+parser.add_argument('-tpnr', '--includeannotationtypenr', type=int,
+    default=defaults.include_annotation_typenr,
+    help="Include only annotations of certain type_nr (default={})".format(
+        defaults.include_annotation_typenr))
 parser.add_argument('-dl', '--dilationfactor', type=int,
     default=defaults.dilation_factor,
     help="Dilation factor of annotations (default={})".format(
@@ -150,6 +154,7 @@ annotation_type = args.annotationtype
 # Annotation arguments
 annotation_size = (args.size,args.size)
 morph_annotations = args.morph
+include_annotation_typenr = args.includeannotationtypenr
 dilation_factor = args.dilationfactor
 pos_sample_ratio = args.positivesampleratio
 annotation_border_ratio = args.annotationborderratio
@@ -256,6 +261,11 @@ elif annotation_type == 'Bodies':
     nn.log("Setting body dilation factor of the image " + \
                                     "to {}".format(dilation_factor))
     training_image_set.body_dilation_factor = dilation_factor
+
+if include_annotation_typenr is not None:
+    nn.log("Setting annotation typenr to be included " + \
+                                    "to {}".format(include_annotation_typenr))
+    training_image_set.include_annotation_typenr = include_annotation_typenr
 
 ########################################################################
 # Initialize and start
