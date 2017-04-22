@@ -154,6 +154,8 @@ class NeuralNetBase(object):
         self.log("n_epochs: {}".format(n_epochs))
         self.log("m_samples: {}".format(m_samples))
         self.log("annotation_type: {}".format(annotation_type))
+        self.log("pos_sample_ratio: {}".format(pos_sample_ratio))
+        self.log("annotation_border_ratio: {}".format(annotation_border_ratio))
         self.log("normalize_samples: {}".format(normalize_samples))
         self.log("morph_annotations: {}".format(morph_annotations))
 
@@ -243,6 +245,8 @@ class NeuralNetBase(object):
         self.log("n_epochs: {}".format(n_epochs))
         self.log("m_samples: {}".format(m_samples))
         self.log("annotation_type: {}".format(annotation_type))
+        self.log("pos_sample_ratio: {}".format(pos_sample_ratio))
+        self.log("annotation_border_ratio: {}".format(annotation_border_ratio))
         self.log("normalize_samples: {}".format(normalize_samples))
         self.log("morph_annotations: {}".format(morph_annotations))
 
@@ -379,6 +383,7 @@ class NeuralNetBase(object):
             zoom_size=(self.y_res,self.x_res), annotation_type=annotation_type,
             m_samples=m_samples, exclude_border=exclude_border,
             return_annotations=False,  pos_sample_ratio=pos_sample_ratio,
+            annotation_border_ratio=annotation_border_ratio,
             normalize_samples=normalize_samples,
             morph_annotations=morph_annotations,
             rotation_list=rotation_list, scale_list_x=scale_list_x,

@@ -7,7 +7,7 @@ annotation_size = 27 # Size of the images around the annotations
 morph_annotations = False # Random morphing of annotations
 dilation_factor = 0 # Dilation/erosion (negative) of annotation body/centroid
 pos_sample_ratio = 0.5 # Fraction positive samples (of all samples)
-annotation_border_ratio = 0.5 # Fraction from border between pos and neg samples
+annotation_border_ratio = None # Fraction from border between pos and neg samples
 use_channels = None # List of channels that are to be used, 1 based e.g. [1,2]
 normalize_samples = False # True/False
 

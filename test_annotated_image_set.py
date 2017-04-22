@@ -63,7 +63,7 @@ print(" ")
 print("Get training set (m={}) with morphed annotations from ais1".format(m_samples))
 t_start = time.time()
 samples,labels,annotations = ais1.data_sample( \
-        im_size, annotation_type='bodies', return_annotations=True,
+        im_size, annotation_type='centroids', return_annotations='centroids',
         m_samples=m_samples, exclude_border=(0,0,0,0), morph_annotations=False )
 t_curr = time.time()
 print(' -- Duration = {:.0f} ms'.format(1000*(t_curr-t_start)) )
@@ -72,8 +72,10 @@ print(' -- Duration = {:.0f} ms'.format(1000*(t_curr-t_start)) )
 print(" ")
 print("Get small training set with morphed annotations from ais1")
 samples,labels,annotations = ais1.data_sample( \
-        im_size, annotation_type='bodies', return_annotations=True,
-        m_samples=30, exclude_border=(0,0,0,0), morph_annotations=False )
+        im_size, annotation_type='centroids', return_annotations='centroids',
+        m_samples=30, exclude_border=(0,0,0,0), morph_annotations=False,
+        pos_sample_ratio=0.5,
+        annotation_border_ratio=None )
 
 print(" ")
 print("Construct RGB grid from first 16 annotations in training set")

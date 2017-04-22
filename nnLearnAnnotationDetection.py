@@ -302,7 +302,8 @@ if args.learningcurve:
 if args.F1report:
     nn.log("\nTraining set performance:")
     nn.report_F1( training_image_set,
-        annotation_type=annotation_type, m_samples=2000, pos_sample_ratio=0.5,
+        annotation_type=annotation_type, m_samples=2000, pos_sample_ratio=pos_sample_ratio,
+        annotation_border_ratio=annotation_border_ratio,
         morph_annotations=False, exclude_border=(40,40,40,40),
         channel_order=None, show_figure='On')
 

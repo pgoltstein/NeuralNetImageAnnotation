@@ -60,13 +60,15 @@ DEFAULT_ZOOM=(33,33)
 ########################################################################
 
 import numpy as np
-import time, datetime
 from skimage import measure
 from skimage.io import imread
 from scipy import ndimage
 from scipy.io import loadmat,savemat
 from os import path
 import glob
+
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 ########################################################################
@@ -1020,9 +1022,19 @@ class AnnotatedImage(object):
             m_samples_pos = m_samples_pos + 1
             m_samples_neg = m_samples_neg - 1
 
-        # # Get number of border annotations
-        # if annotation_border_ratio is not None:
-        #     m_border = np.int16( m_samples * annotation_border_ratio )
+        # Get number of border annotations (same strategy as above)
+        if annotation_border_ratio is not None:
+            m_border_pos = np.int16( m_samples_pos * annotation_border_ratio )
+            m_samples_pos = m_samples_pos-m_border_pos
+            if np.random.rand(1) < ((float(m_samples_pos)*annotation_border_ratio) % 1):
+                m_border_pos = m_border_pos + 1
+                m_samples_pos = m_samples_pos - 1
+
+            m_border_neg = np.int16( m_samples_neg * annotation_border_ratio )
+            m_samples_neg = m_samples_neg-m_border_neg
+            if np.random.rand(1) < ((float(m_samples_neg)*annotation_border_ratio) % 1):
+                m_border_neg = m_border_neg + 1
+                m_samples_neg = m_samples_neg - 1
 
         # Get lists with coordinates of pixels within and outside of centroids
         (pix_x,pix_y) = np.meshgrid(np.arange(self.y_res),np.arange(self.x_res))
@@ -1036,10 +1048,25 @@ class AnnotatedImage(object):
             elif return_annotations.lower() == 'bodies':
                 return_im_label = self.bodies
 
+        if annotation_border_ratio is not None:
+            im_label_dil = ndimage.binary_dilation(
+                                ndimage.binary_dilation(im_label>0))
+            im_label_er = ndimage.binary_erosion(
+                                ndimage.binary_erosion(im_label>0))
+            im_label_border_pos = im_label>0
+            im_label_border_pos[im_label_er>0] = 0
+            im_label_border_neg = im_label_dil>0
+            im_label_border_neg[im_label>0] = 0
+
         roi_positive_x = pix_x.ravel()[im_label.ravel() > 0.5]
         roi_positive_y = pix_y.ravel()[im_label.ravel() > 0.5]
         roi_negative_x = pix_x.ravel()[im_label.ravel() == 0]
         roi_negative_y = pix_y.ravel()[im_label.ravel() == 0]
+        if annotation_border_ratio is not None:
+            brdr_positive_x = pix_x.ravel()[im_label_border_pos.ravel() > 0.5]
+            brdr_positive_y = pix_y.ravel()[im_label_border_pos.ravel() > 0.5]
+            brdr_negative_x = pix_x.ravel()[im_label_border_neg.ravel() > 0.5]
+            brdr_negative_y = pix_y.ravel()[im_label_border_neg.ravel() > 0.5]
 
         # Exclude all pixels that are within half-zoom from the border
         roi_positive_inclusion = \
@@ -1050,6 +1077,7 @@ class AnnotatedImage(object):
                 roi_positive_y<(self.y_res-exclude_border[3]) )
         roi_positive_x = roi_positive_x[ roi_positive_inclusion ]
         roi_positive_y = roi_positive_y[ roi_positive_inclusion ]
+
         roi_negative_inclusion = \
             np.logical_and( np.logical_and( np.logical_and(
                 roi_negative_x>exclude_border[0],
@@ -1059,11 +1087,35 @@ class AnnotatedImage(object):
         roi_negative_x = roi_negative_x[ roi_negative_inclusion ]
         roi_negative_y = roi_negative_y[ roi_negative_inclusion ]
 
+        if annotation_border_ratio is not None:
+            brdr_positive_inclusion = \
+                np.logical_and( np.logical_and( np.logical_and(
+                    brdr_positive_x>exclude_border[0],
+                    brdr_positive_x<(self.x_res-exclude_border[1]) ),
+                    brdr_positive_y>exclude_border[2] ),
+                    brdr_positive_y<(self.y_res-exclude_border[3]) )
+            brdr_positive_x = brdr_positive_x[ brdr_positive_inclusion ]
+            brdr_positive_y = brdr_positive_y[ brdr_positive_inclusion ]
+
+            brdr_negative_inclusion = \
+                np.logical_and( np.logical_and( np.logical_and(
+                    brdr_negative_x>exclude_border[0],
+                    brdr_negative_x<(self.x_res-exclude_border[1]) ),
+                    brdr_negative_y>exclude_border[2] ),
+                    brdr_negative_y<(self.y_res-exclude_border[3]) )
+            brdr_negative_x = brdr_negative_x[ brdr_negative_inclusion ]
+            brdr_negative_y = brdr_negative_y[ brdr_negative_inclusion ]
+
         # Get list of random indices for pixel coordinates
         random_pos = np.random.choice( len(roi_positive_x),
                                         m_samples_pos, replace=False )
         random_neg = np.random.choice( len(roi_negative_x),
                                         m_samples_neg, replace=False )
+        if annotation_border_ratio is not None:
+            brdr_random_pos = np.random.choice( len(brdr_positive_x),
+                                            m_border_pos, replace=False )
+            brdr_random_neg = np.random.choice( len(brdr_negative_x),
+                                            m_border_neg, replace=False )
 
         # Predefine output matrices
         samples = np.zeros( (m_samples,
@@ -1102,6 +1154,36 @@ class AnnotatedImage(object):
             labels[count,1] = 1
             count = count + 1
 
+        # Positive border examples
+        if annotation_border_ratio is not None:
+            for p in brdr_random_pos:
+                nr = im_label[brdr_positive_y[p], brdr_positive_x[p]]
+                if not morph_annotations:
+                    samples[count,:] = image2vec( zoom( self.channel,
+                        brdr_positive_y[p], brdr_positive_x[p],
+                        zoom_size=zoom_size, normalize=normalize_samples ) )
+                    if return_annotations:
+                        annotations[count,:] = image2vec( zoom( return_im_label==nr,
+                            brdr_positive_y[p], brdr_positive_x[p],
+                            zoom_size=zoom_size, normalize=normalize_samples ) )
+                else:
+                    rotation = float(np.random.choice( rotation_list, 1 ))
+                    scale = ( float(np.random.choice( scale_list_y, 1 )), \
+                                float(np.random.choice( scale_list_x, 1 )) )
+                    noise_level = float(np.random.choice( noise_level_list, 1 ))
+
+                    samples[count,:] = image2vec( morphed_zoom( self.channel,
+                        brdr_positive_y[p], brdr_positive_x[p], zoom_size,
+                        rotation=rotation, scale_xy=scale,
+                        normalize=normalize_samples, noise_level=noise_level ) )
+                    if return_annotations:
+                        annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
+                            brdr_positive_y[p], brdr_positive_x[p], zoom_size,
+                            rotation=rotation, scale_xy=scale,
+                            normalize=normalize_samples, noise_level=noise_level ) )
+                labels[count,1] = 1
+                count = count + 1
+
         # Negative examples
         for p in random_neg:
             nr = im_label[roi_negative_y[p], roi_negative_x[p]]
@@ -1131,6 +1213,37 @@ class AnnotatedImage(object):
             labels[count,0] = 1
             count = count + 1
 
+        # Negative examples
+        if annotation_border_ratio is not None:
+            for p in brdr_random_neg:
+                nr = im_label[brdr_negative_y[p], brdr_negative_x[p]]
+                if not morph_annotations:
+                    samples[count,:] = image2vec( zoom( self.channel,
+                        brdr_negative_y[p], brdr_negative_x[p],
+                        zoom_size=zoom_size, normalize=normalize_samples ) )
+                    if return_annotations:
+                        annotations[count,:] = image2vec( zoom( return_im_label==nr,
+                            brdr_negative_y[p], brdr_negative_x[p],
+                            zoom_size=zoom_size, normalize=normalize_samples ) )
+                else:
+                    rotation = float(np.random.choice( rotation_list, 1 ))
+                    scale = ( float(np.random.choice( scale_list_y, 1 )), \
+                                float(np.random.choice( scale_list_x, 1 )) )
+                    noise_level = float(np.random.choice( noise_level_list, 1 ))
+
+                    samples[count,:] = image2vec( morphed_zoom( self.channel,
+                        brdr_negative_y[p], brdr_negative_x[p], zoom_size,
+                        rotation=rotation, scale_xy=scale,
+                        normalize=normalize_samples, noise_level=noise_level ) )
+                    if return_annotations:
+                        annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
+                            brdr_negative_y[p], brdr_negative_x[p], zoom_size,
+                            rotation=rotation, scale_xy=scale,
+                            normalize=normalize_samples, noise_level=noise_level ) )
+                labels[count,0] = 1
+                count = count + 1
+
+        # Return samples, labels, annotations etc
         if return_annotations:
             annotations[annotations<0.5]=0
             annotations[annotations>=0.5]=1
