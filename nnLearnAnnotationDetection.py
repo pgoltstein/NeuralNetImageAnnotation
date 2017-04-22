@@ -54,6 +54,10 @@ parser.add_argument('-r', '--positivesampleratio', type=float,
     default=defaults.pos_sample_ratio,
     help='Ratio of positive vs negative samples (default={})'.format(
         defaults.pos_sample_ratio))
+parser.add_argument('-ar', '--annotationborderratio', type=float,
+    default=defaults.annotation_border_ratio,
+    help='Ratio of samples from border between pos and neg samples' + \
+        ' (default={})'.format(defaults.annotation_border_ratio))
 parser.add_argument('-ch', '--imagechannels', nargs='+',
     default=defaults.use_channels,
     help="Select image channels to load (e.g. '-ch 1 2' " + \
@@ -148,6 +152,7 @@ annotation_size = (args.size,args.size)
 morph_annotations = args.morph
 dilation_factor = args.dilationfactor
 pos_sample_ratio = args.positivesampleratio
+annotation_border_ratio = args.annotationborderratio
 use_channels = args.imagechannels
 normalize_samples = args.normalizesamples
 
@@ -174,12 +179,16 @@ network_path = args.networkpath
 
 ########################################################################
 # Other variables
-exclude_border = (40,40,40,40)
-normalize_images = True
-rotation_list = np.array(range(360))
-scale_list_x = np.array(range(900,1100)) / 1000
-scale_list_y = np.array(range(900,1100)) / 1000
-noise_level_list = np.array(range(50)) / 10000
+exclude_border = defaults.exclude_border
+normalize_images = defaults.normalize_images
+rotation_list = np.arange( defaults.rotation_list[0],
+                    defaults.rotation_list[1],defaults.rotation_list[2] )
+scale_list_x = np.arange( defaults.scale_list_x[0],
+                    defaults.scale_list_x[1],defaults.scale_list_x[2] )
+scale_list_y = np.arange( defaults.scale_list_y[0],
+                    defaults.scale_list_y[1],defaults.scale_list_y[2] )
+noise_level_list = np.arange( defaults.noise_level_list[0],
+                    defaults.noise_level_list[1],defaults.noise_level_list[2] )
 
 ########################################################################
 # Load data
@@ -265,6 +274,7 @@ if training_procedure.lower() == "epochs":
         annotation_type=annotation_type,
         m_samples=m_samples, n_epochs=n_epochs, report_every=report_every,
         exclude_border=exclude_border, pos_sample_ratio=pos_sample_ratio,
+        annotation_border_ratio=annotation_border_ratio,
         normalize_samples=normalize_samples, morph_annotations=morph_annotations,
         rotation_list=rotation_list, scale_list_x=scale_list_x,
         scale_list_y=scale_list_y, noise_level_list=noise_level_list )
@@ -273,6 +283,7 @@ elif training_procedure.lower() == "batch":
         batch_size=batch_size, m_samples=m_samples, n_epochs=n_epochs,
         annotation_type=annotation_type,
         exclude_border=exclude_border, pos_sample_ratio=pos_sample_ratio,
+        annotation_border_ratio=annotation_border_ratio,
         normalize_samples=normalize_samples, morph_annotations=morph_annotations,
         rotation_list=rotation_list, scale_list_x=scale_list_x,
         scale_list_y=scale_list_y, noise_level_list=noise_level_list )

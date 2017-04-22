@@ -60,6 +60,7 @@ DEFAULT_ZOOM=(33,33)
 ########################################################################
 
 import numpy as np
+import time, datetime
 from skimage import measure
 from skimage.io import imread
 from scipy import ndimage
@@ -91,8 +92,8 @@ def zoom( image, y, x, zoom_size, normalize=False, pad_value=0 ):
                     + np.arange( 0, zoom_size[0] ) )
         ix_x  = np.int16( np.round( 1 + x - ((zoom_size[1]+1) / 2) )
                     + np.arange( 0, zoom_size[0] ) )
-        max_ix_exceed = np.max((np.abs(np.min(ix_y)), np.abs(np.min(ix_x)),
-                    np.max(ix_y)-image.shape[0], np.max(ix_x)-image.shape[1] ))
+        max_ix_exceed = -1 * np.min( ( np.min(ix_y), np.min(ix_x),
+            image.shape[0]-np.max(ix_y)-1, image.shape[1]-np.max(ix_x)-1 ) )
         if max_ix_exceed > 0:
             image_temp = np.zeros((image.shape+max_ix_exceed+1))+pad_value
             image_temp[0:image.shape[0],0:image.shape[1]] = image
@@ -982,7 +983,8 @@ class AnnotatedImage(object):
     # *****  Generate NN training/test data sets *****
     def get_batch( self, zoom_size, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
-            pos_sample_ratio=0.5, normalize_samples=False,
+            pos_sample_ratio=0.5, annotation_border_ratio=None,
+            normalize_samples=False,
             morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None ):
         """Constructs a 2d matrix (m samples x n pixels) with linearized data
@@ -997,6 +999,8 @@ class AnnotatedImage(object):
                                  list. Otherwise set to 'Bodies' or 'Centroids'
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
+            annotation_border_ratio: Fraction of samples drawn from 2px border
+                               betweem positive and negative samples
             normalize_samples: Scale each individual channel to its maximum
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
@@ -1015,6 +1019,10 @@ class AnnotatedImage(object):
         if np.random.rand(1) < ((float(m_samples)*pos_sample_ratio) % 1):
             m_samples_pos = m_samples_pos + 1
             m_samples_neg = m_samples_neg - 1
+
+        # # Get number of border annotations
+        # if annotation_border_ratio is not None:
+        #     m_border = np.int16( m_samples * annotation_border_ratio )
 
         # Get lists with coordinates of pixels within and outside of centroids
         (pix_x,pix_y) = np.meshgrid(np.arange(self.y_res),np.arange(self.x_res))
@@ -1122,6 +1130,7 @@ class AnnotatedImage(object):
                         normalize=normalize_samples, noise_level=noise_level ) )
             labels[count,0] = 1
             count = count + 1
+
         if return_annotations:
             annotations[annotations<0.5]=0
             annotations[annotations>=0.5]=1
@@ -1269,6 +1278,7 @@ class AnnotatedImageSet(object):
     def data_sample(self, zoom_size, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
             pos_sample_ratio=0.5, normalize_samples=False,
+            annotation_border_ratio=None,
             morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None ):
         """Constructs a random sample of with linearized annotation data,
@@ -1285,6 +1295,8 @@ class AnnotatedImageSet(object):
                                  list. Otherwise set to 'Bodies' or 'Centroids'
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
+            annotation_border_ratio: Fraction of samples drawn from 2px border
+                               betweem positive and negative samples
             normalize_samples: Scale each individual channel to its maximum
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
@@ -1323,6 +1335,7 @@ class AnnotatedImageSet(object):
                     m_samples=m_set_samples, exclude_border=exclude_border,
                     return_annotations=return_annotations,
                     pos_sample_ratio=pos_sample_ratio,
+                    annotation_border_ratio=annotation_border_ratio,
                     normalize_samples=normalize_samples,
                     morph_annotations=morph_annotations,
                     rotation_list=rotation_list, scale_list_x=scale_list_x,

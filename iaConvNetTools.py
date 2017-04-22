@@ -122,6 +122,7 @@ class NeuralNetBase(object):
     def train_epochs(self, annotated_image_set, n_epochs=100, report_every=10,
             annotation_type='Bodies', m_samples=100, exclude_border=(0,0,0,0),
             pos_sample_ratio=0.5, normalize_samples=False,
+            annotation_border_ratio=None,
             morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None):
         """Trains the network on a training set for a specified number of
@@ -137,6 +138,8 @@ class NeuralNetBase(object):
                                to each border. Pix from (left, right, up, down)
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
+            annotation_border_ratio: Fraction of samples drawn from 2px border
+                               betweem positive and negative samples
             normalize_samples: Scale each individual channel to its maximum
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
@@ -163,6 +166,7 @@ class NeuralNetBase(object):
                 annotation_type=annotation_type,
                 m_samples=m_samples, exclude_border=exclude_border,
                 return_annotations=False, pos_sample_ratio=pos_sample_ratio,
+                annotation_border_ratio=annotation_border_ratio,
                 normalize_samples=normalize_samples,
                 morph_annotations=morph_annotations,
                 rotation_list=rotation_list, scale_list_x=scale_list_x,
@@ -200,8 +204,9 @@ class NeuralNetBase(object):
     def train_batch(self, annotated_image_set, n_batches=10, n_epochs=100,
             annotation_type='Bodies', batch_size=1000, m_samples=100,
             exclude_border=(0,0,0,0), pos_sample_ratio=0.5,
-             normalize_samples=False, morph_annotations=False,
-             rotation_list=None, scale_list_x=None,
+            annotation_border_ratio=None,
+            normalize_samples=False, morph_annotations=False,
+            rotation_list=None, scale_list_x=None,
             scale_list_y=None, noise_level_list=None):
         """Trains the network on a training set for a specified number of
             batches of size batch_size. Every batch iteration it loads a
@@ -219,6 +224,8 @@ class NeuralNetBase(object):
                                to each border. Pix from (left, right, up, down)
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
+            annotation_border_ratio: Fraction of samples drawn from 2px border
+                               betweem positive and negative samples
             normalize_samples: Scale each individual channel to its maximum
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
@@ -248,6 +255,7 @@ class NeuralNetBase(object):
                 annotation_type=annotation_type,
                 m_samples=batch_size, exclude_border=exclude_border,
                 return_annotations=False,  pos_sample_ratio=pos_sample_ratio,
+                annotation_border_ratio=annotation_border_ratio,
                 normalize_samples=normalize_samples,
                 morph_annotations=morph_annotations,
                 rotation_list=rotation_list, scale_list_x=scale_list_x,
@@ -339,6 +347,7 @@ class NeuralNetBase(object):
 
     def report_F1(self, annotated_image_set, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0),  pos_sample_ratio=0.5,
+            annotation_border_ratio=None,
             channel_order=None,  normalize_samples=False,
             morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None,
@@ -353,6 +362,8 @@ class NeuralNetBase(object):
                                to each border. Pix from (left, right, up, down)
             pos_sample_ratio:  Ratio of positive to negative samples (0.5=
                                equal, 1=only positive samples)
+            annotation_border_ratio: Fraction of samples drawn from 2px border
+                               betweem positive and negative samples
             channel_order:     Tuple indicating which channels are R, G and B
             normalize_samples: Scale each individual channel to its maximum
             morph_annotations: Randomly morph the annotations
@@ -1287,3 +1298,6 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
             network_path,'net_architecture.npy'), net_architecture)
         self.log("Network architecture saved to file:\n{}".format(
                             os.path.join(network_path,'net_architecture.npy')))
+
+    def show_filters(self):
+        """Plot the convolutional filters"""
