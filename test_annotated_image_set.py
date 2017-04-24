@@ -22,7 +22,7 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 # Overall settings
-data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet_small'
+data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet_small2'
 im_size = (31,31)
 rotation_list = np.array(range(360))
 scale_list_x = np.array(range(500,1500)) / 1000
@@ -39,7 +39,8 @@ print(" >> " + ais1.__str__())
 print(" ")
 print("Loading data from directory into ais1:")
 print(data_path)
-ais1.load_data_dir_tiff_mat(data_path)
+# ais1.load_data_dir_tiff_mat(data_path, exclude_border="load")
+ais1.load_data_dir_tiff_mat(data_path, exclude_border=(10,20,30,40))
 print(" >> " + ais1.__str__())
 
 # Dilate centroids

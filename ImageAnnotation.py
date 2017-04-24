@@ -540,6 +540,7 @@ class AnnotatedImage(object):
         self._channel = []
         self._annotation = []
         self._exclude_border = {'left': 0, 'right': 0, 'top': 0, 'bottom': 0}
+        self._exclude_border_tuple = (0,0,0,0)
         if image_data is not None:
             self.channel = image_data
         if annotation_data is not None:
@@ -619,6 +620,11 @@ class AnnotatedImage(object):
         """Returns dictionary with border exclusion parameters"""
         return self._exclude_border
 
+    @property
+    def exclude_border_tuple(self):
+        """Returns dictionary with border exclusion parameters"""
+        return self._exclude_border_tuple
+
     @exclude_border.setter
     def exclude_border(self, exclude_border):
         """Sets the exclude_border parameter dictionary
@@ -628,22 +634,25 @@ class AnnotatedImage(object):
                         named ExclLeft, ExclRight, ExclTop, ExclBottom
         Returns dictionary {'left': #, 'right': #, 'top': #, 'bottom': #}
         """
-        if isinstance(exclude_border,list):
-            self.exclude_border['left'] = exclude_border[0]
-            self.exclude_border['right'] = exclude_border[1]
-            self.exclude_border['top'] = exclude_border[2]
-            self.exclude_border['bottom'] = exclude_border[3]
+        if isinstance(exclude_border,list) or isinstance(exclude_border,tuple):
+            self._exclude_border['left'] = exclude_border[0]
+            self._exclude_border['right'] = exclude_border[1]
+            self._exclude_border['top'] = exclude_border[2]
+            self._exclude_border['bottom'] = exclude_border[3]
         elif isinstance(exclude_border,dict):
-            self.exclude_border['left'] = exclude_border['left']
-            self.exclude_border['right'] = exclude_border['right']
-            self.exclude_border['top'] = exclude_border['top']
-            self.exclude_border['bottom'] = exclude_border['bottom']
+            self._exclude_border['left'] = exclude_border['left']
+            self._exclude_border['right'] = exclude_border['right']
+            self._exclude_border['top'] = exclude_border['top']
+            self._exclude_border['bottom'] = exclude_border['bottom']
         elif isinstance(exclude_border,str):
             mat_data = loadmat(exclude_border)
-            self.exclude_border['left'] = int(mat_data['ExclLeft'])
-            self.exclude_border['right'] = int(mat_data['ExclRight'])
-            self.exclude_border['top'] = int(mat_data['ExclTop'])
-            self.exclude_border['bottom'] = int(mat_data['ExclBottom'])
+            self._exclude_border['left'] = int(mat_data['ExclLeft'])
+            self._exclude_border['right'] = int(mat_data['ExclRight'])
+            self._exclude_border['top'] = int(mat_data['ExclTop'])
+            self._exclude_border['bottom'] = int(mat_data['ExclBottom'])
+        self._exclude_border_tuple = \
+            ( int(self._exclude_border['left']), int(self._exclude_border['right']),
+              int(self._exclude_border['top']), int(self._exclude_border['bottom']) )
 
     def add_image_from_file(self, file_name, file_path='.',
                                 normalize=True, use_channels=None):
@@ -919,7 +928,7 @@ class AnnotatedImage(object):
         self._set_bodies()
 
     def get_batch( self, zoom_size, annotation_type='Bodies',
-            m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
+            m_samples=100, return_annotations=False,
             sample_ratio=None, annotation_border_ratio=None,
             normalize_samples=False,
             morph_annotations=False, rotation_list=None,
@@ -929,8 +938,6 @@ class AnnotatedImage(object):
             zoom_size:         2 dimensional size of the image (y,x)
             annotation_type:   'Bodies' or 'Centroids'
             m_samples:         number of training samples
-            exclude_border:    exclude annotations that are a certain distance
-                               to each border. Pix from (left, right, up, down)
             return_annotations:  Returns annotations in addition to
                                  samples and labels. If False, returns empty
                                  list. Otherwise set to 'Bodies' or 'Centroids'
@@ -999,10 +1006,12 @@ class AnnotatedImage(object):
 
             # Get lists of all pixels that fall in one class
             pix_y,pix_x = get_labeled_pixel_coordinates( \
-                im_label_class==class_labels[c], exclude_border=exclude_border )
+                im_label_class==class_labels[c],
+                exclude_border=self.exclude_border_tuple )
             if annotation_border_ratio is not None:
                 brdr_pix_y,brdr_pix_x = get_labeled_pixel_coordinates( \
-                    im_label_border, exclude_border=exclude_border )
+                    im_label_border,
+                    exclude_border=self.exclude_border_tuple )
 
             # Get list of random indices for pixel coordinates
             random_px = np.random.choice( len(pix_x),
@@ -1420,7 +1429,7 @@ class AnnotatedImageSet(object):
     # ********************************************
     # *****  Produce training/test data set  *****
     def data_sample(self, zoom_size, annotation_type='Bodies',
-            m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
+            m_samples=100, return_annotations=False,
             sample_ratio=None, normalize_samples=False,
             annotation_border_ratio=None,
             morph_annotations=False, rotation_list=None,
@@ -1432,8 +1441,6 @@ class AnnotatedImageSet(object):
             zoom_size:         2 dimensional size of the image (y,x)
             annotation_type:   'Bodies' or 'Centroids'
             m_samples:         number of training samples
-            exclude_border:    exclude annotations that are a certain distance
-                               to each border. Pix from (left, right, up, down)
             return_annotations:  Returns annotations in addition to
                                  samples and labels. If False, returns empty
                                  list. Otherwise set to 'Bodies' or 'Centroids'
@@ -1478,7 +1485,7 @@ class AnnotatedImageSet(object):
             s_samples,s_labels,s_annotations = \
                 self.ai_list[s].get_batch(
                     zoom_size, annotation_type=annotation_type,
-                    m_samples=m_set_samples, exclude_border=exclude_border,
+                    m_samples=m_set_samples,
                     return_annotations=return_annotations,
                     sample_ratio=sample_ratio,
                     annotation_border_ratio=annotation_border_ratio,
@@ -1500,19 +1507,25 @@ class AnnotatedImageSet(object):
     # **************************************
     # *****  Load data from directory  *****
     def load_data_dir_tiff_mat(self, data_directory,
-                                normalize=True, use_channels=None):
+                    normalize=True, use_channels=None, exclude_border=None):
         """Loads all Tiff images or *channel.mat and accompanying ROI.mat
         files from a single directory that contains matching sets of .tiff
         or *channel.mat and .mat files
         data_directory:  path
         normalize:  Normalize to maximum of image
         use_channels:  tuple holding channel numbers/order to load (None=all)
+        exclude_border: Load border exclude region from file
         """
         # Get list of all .tiff file and .mat files
         image_files = glob.glob(path.join(data_directory,'*channels.mat'))
         if len(image_files) == 0:
             image_files = glob.glob(path.join(data_directory,'*.tiff'))
         mat_files = glob.glob(path.join(data_directory,'*ROI*.mat'))
+
+        # Exclude border files
+        if isinstance(exclude_border,str):
+            if exclude_border.lower() == 'load':
+                brdr_files = glob.glob(path.join(data_directory,'*Border*.mat'))
 
         # Loop files and load images and annotations
         print("\nLoading image and annotation files:")
@@ -1527,6 +1540,13 @@ class AnnotatedImageSet(object):
             anim.add_image_from_file( image_filename, image_filepath,
                             normalize=normalize, use_channels=use_channels )
             anim.import_annotations_from_mat( mat_filename, mat_filepath )
+
+            if isinstance(exclude_border,str):
+                if exclude_border.lower() == 'load':
+                    anim.exclude_border = brdr_files[f]
+            if isinstance(exclude_border,list) \
+                    or isinstance(exclude_border,tuple):
+                anim.exclude_border = exclude_border
 
             # Check if the number of channels is the same
             if len(self.ai_list) == 0:

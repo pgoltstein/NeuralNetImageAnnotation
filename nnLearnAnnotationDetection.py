@@ -203,7 +203,8 @@ if use_channels is not None:
         use_channels[nr] = int(ch)-1
 training_image_set = ia.AnnotatedImageSet()
 training_image_set.load_data_dir_tiff_mat( training_data_path,
-    normalize=normalize_images, use_channels=use_channels )
+    normalize=normalize_images, use_channels=use_channels,
+    exclude_border=exclude_border )
 
 if include_annotation_typenrs is not None:
     print("Setting annotation typenrs to be included " + \
@@ -285,9 +286,9 @@ nn.display_network_architecture()
 # Train network
 if training_procedure.lower() == "epochs":
     nn.train_epochs( training_image_set,
-        annotation_type=annotation_type,
-        m_samples=m_samples, n_epochs=n_epochs, report_every=report_every,
-        exclude_border=exclude_border, sample_ratio=sample_ratio,
+        annotation_type=annotation_type, m_samples=m_samples,
+        n_epochs=n_epochs, report_every=report_every,
+        sample_ratio=sample_ratio,
         annotation_border_ratio=annotation_border_ratio,
         normalize_samples=normalize_samples, morph_annotations=morph_annotations,
         rotation_list=rotation_list, scale_list_x=scale_list_x,
@@ -295,8 +296,7 @@ if training_procedure.lower() == "epochs":
 elif training_procedure.lower() == "batch":
     nn.train_batch( training_image_set, n_batches=number_of_batches,
         batch_size=batch_size, m_samples=m_samples, n_epochs=n_epochs,
-        annotation_type=annotation_type,
-        exclude_border=exclude_border, sample_ratio=sample_ratio,
+        annotation_type=annotation_type, sample_ratio=sample_ratio,
         annotation_border_ratio=annotation_border_ratio,
         normalize_samples=normalize_samples, morph_annotations=morph_annotations,
         rotation_list=rotation_list, scale_list_x=scale_list_x,

@@ -118,7 +118,7 @@ class NeuralNetSingleOutput(object):
         self.log('Network parameters saved to file:\n{}'.format(save_path))
 
     def train_epochs(self, annotated_image_set, n_epochs=100, report_every=10,
-            annotation_type='Bodies', m_samples=100, exclude_border=(0,0,0,0),
+            annotation_type='Bodies', m_samples=100,
             sample_ratio=None, normalize_samples=False,
             annotation_border_ratio=None,
             morph_annotations=False, rotation_list=None,
@@ -132,8 +132,6 @@ class NeuralNetSingleOutput(object):
             report_every:         Print a report every # of epochs
             annotation_type:      'Bodies' or 'Centroids'
             m_samples:            number of training samples
-            exclude_border:    exclude annotations that are a certain distance
-                               to each border. Pix from (left, right, up, down)
             sample_ratio:      List with ratio of samples per groups (sum=1)
             annotation_border_ratio: Fraction of samples drawn from 2px border
                                betweem positive and negative samples
@@ -162,8 +160,7 @@ class NeuralNetSingleOutput(object):
             # Get samples and labels for this epoch
             samples,labels,annotations = annotated_image_set.data_sample(
                 zoom_size=(self.y_res,self.x_res),
-                annotation_type=annotation_type,
-                m_samples=m_samples, exclude_border=exclude_border,
+                annotation_type=annotation_type, m_samples=m_samples,
                 return_annotations=False, sample_ratio=sample_ratio,
                 annotation_border_ratio=annotation_border_ratio,
                 normalize_samples=normalize_samples,
@@ -201,8 +198,7 @@ class NeuralNetSingleOutput(object):
 
     def train_batch(self, annotated_image_set, n_batches=10, n_epochs=100,
             annotation_type='Bodies', batch_size=1000, m_samples=100,
-            exclude_border=(0,0,0,0), sample_ratio=None,
-            annotation_border_ratio=None,
+            sample_ratio=None, annotation_border_ratio=None,
             normalize_samples=False, morph_annotations=False,
             rotation_list=None, scale_list_x=None,
             scale_list_y=None, noise_level_list=None):
@@ -218,8 +214,6 @@ class NeuralNetSingleOutput(object):
             annotation_type:      'Bodies' or 'Centroids'
             batch_size:           Number of training samples in batch
             m_samples:            Number of training samples in epoch
-            exclude_border:    exclude annotations that are a certain distance
-                               to each border. Pix from (left, right, up, down)
             sample_ratio:      List with ratio of samples per groups (sum=1)
             annotation_border_ratio: Fraction of samples drawn from 2px border
                                betweem positive and negative samples
@@ -251,8 +245,7 @@ class NeuralNetSingleOutput(object):
             # Get batch of samples and labels
             samples,labels,annotations = annotated_image_set.data_sample(
                 zoom_size=(self.y_res,self.x_res),
-                annotation_type=annotation_type,
-                m_samples=batch_size, exclude_border=exclude_border,
+                annotation_type=annotation_type, m_samples=batch_size,
                 return_annotations=False,  sample_ratio=sample_ratio,
                 annotation_border_ratio=annotation_border_ratio,
                 normalize_samples=normalize_samples,
@@ -347,7 +340,7 @@ class NeuralNetSingleOutput(object):
             no_enter=True, overwrite_last=True)
 
     def report_F1(self, annotated_image_set, annotation_type='Bodies',
-            m_samples=100, exclude_border=(0,0,0,0),  sample_ratio=None,
+            m_samples=100,  sample_ratio=None,
             annotation_border_ratio=None,
             channel_order=None,  normalize_samples=False,
             morph_annotations=False, rotation_list=None,
@@ -359,8 +352,6 @@ class NeuralNetSingleOutput(object):
                                   the image and annotation data to train on
             annotation_type:      'Bodies' or 'Centroids'
             m_samples:            number of test samples
-            exclude_border:    exclude annotations that are a certain distance
-                               to each border. Pix from (left, right, up, down)
             sample_ratio:      List with ratio of samples per groups (sum=1)
             annotation_border_ratio: Fraction of samples drawn from 2px border
                                betweem positive and negative samples
@@ -377,7 +368,7 @@ class NeuralNetSingleOutput(object):
         # Get m samples and labels from the AnnotatedImageSet
         samples,labels,annotations = annotated_image_set.data_sample(
             zoom_size=(self.y_res,self.x_res), annotation_type=annotation_type,
-            m_samples=m_samples, exclude_border=exclude_border,
+            m_samples=m_samples,
             return_annotations=False,  sample_ratio=sample_ratio,
             annotation_border_ratio=annotation_border_ratio,
             normalize_samples=normalize_samples,
