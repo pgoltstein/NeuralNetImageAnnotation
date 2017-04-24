@@ -49,8 +49,16 @@ ais1.centroid_dilation_factor = 0
 
 # Dilate centroids
 print(" ")
-print("Changing annotation type nr of ais1 centroids to 1")
-ais1.include_annotation_typenr = None
+print("Included type_nrs: {}".format(ais1.include_annotation_typenrs))
+# print("Changing annotation type nr of ais1 centroids to [1,2,3,4]")
+# ais1.include_annotation_typenrs = [1,2,3,4]
+# print("Included type_nrs: {}".format(ais1.include_annotation_typenrs))
+# print("Changing annotation type nr of ais1 centroids to 1")
+# ais1.include_annotation_typenrs = 1
+# print("Included type_nrs: {}".format(ais1.include_annotation_typenrs))
+# print("Changing annotation type nr of ais1 centroids to [1,4]")
+# ais1.include_annotation_typenrs = [1,4]
+# print("Included type_nrs: {}".format(ais1.include_annotation_typenrs))
 
 # Get non-morphed training set
 m_samples = 100
@@ -59,7 +67,9 @@ print("Get training set (m={}) with non-morphed annotations from ais1".format(m_
 t_start = time.time()
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='bodies', return_annotations=False,
-        m_samples=m_samples, exclude_border=(0,0,0,0), morph_annotations=False )
+        m_samples=m_samples, exclude_border=(0,0,0,0), morph_annotations=False,
+        sample_ratio=(0.4,0.4,0.2),
+        annotation_border_ratio=0.43 )
 t_curr = time.time()
 print(' -- Duration = {:.0f} ms'.format(1000*(t_curr-t_start)) )
 
@@ -69,7 +79,9 @@ print("Get training set (m={}) with morphed annotations from ais1".format(m_samp
 t_start = time.time()
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='centroids', return_annotations='centroids',
-        m_samples=m_samples, exclude_border=(0,0,0,0), morph_annotations=False )
+        m_samples=m_samples, exclude_border=(0,0,0,0), morph_annotations=False,
+        sample_ratio=(0.4,0.4,0.2),
+        annotation_border_ratio=0.43 )
 t_curr = time.time()
 print(' -- Duration = {:.0f} ms'.format(1000*(t_curr-t_start)) )
 
@@ -77,10 +89,11 @@ print(' -- Duration = {:.0f} ms'.format(1000*(t_curr-t_start)) )
 print(" ")
 print("Get small training set with morphed annotations from ais1")
 samples,labels,annotations = ais1.data_sample( \
-        im_size, annotation_type='centroids', return_annotations='centroids',
+        im_size, annotation_type='bodies', return_annotations='bodies',
         m_samples=30, exclude_border=(0,0,0,0), morph_annotations=False,
-        pos_sample_ratio=0.5,
-        annotation_border_ratio=None )
+        sample_ratio=(0.4,0.4,0.2),
+        annotation_border_ratio=.5 )
+print(labels)
 
 print(" ")
 print("Construct RGB grid from first 16 annotations in training set")

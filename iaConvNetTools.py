@@ -23,12 +23,13 @@ import ImageAnnotation as ia
 
 
 ########################################################################
-### General Neural Network Class
+### Single output neural network class
 ########################################################################
 
-class NeuralNetBase(object):
-    """Holds a  neural network for annotating (multi channel) images.
-    """
+class NeuralNetSingleOutput(object):
+    """Base class holding a neural network for annotating (multi channel)
+    images with single pixel output (but multi class clasification)
+    See NeuralNetBase for more info"""
 
     def __init__(self):
         """Does nothing, initialization should be done by subclasses
@@ -39,8 +40,7 @@ class NeuralNetBase(object):
         self.y_res:                 y resolution of input image patches
         self.x_res:                 x resolution of input image patches
         self.n_input_channels:      Number of input channels
-        self.out_y_res:             y resolution of output data
-        self.out_x_res:             x resolution of output data
+        self.n_output_classes:      Number of output classes
         self.fc1_dropout:           Dropout fraction of network during training
         self.alpha:                 Learning rate
 
@@ -54,11 +54,9 @@ class NeuralNetBase(object):
         self.saver:                 Saver OP
 
         self.n_samples_trained
-        self.n_pos_samples_trained
-        self.n_neg_samples_trained
-        self.n_pos_samples_list
-        self.n_neg_samples_list
+        self.n_class_samples_trained
         self.n_samples_list
+        self.n_class_samples_list
         self.accuracy_list
         self.precision_list
         self.recall_list
@@ -121,7 +119,7 @@ class NeuralNetBase(object):
 
     def train_epochs(self, annotated_image_set, n_epochs=100, report_every=10,
             annotation_type='Bodies', m_samples=100, exclude_border=(0,0,0,0),
-            pos_sample_ratio=0.5, normalize_samples=False,
+            sample_ratio=None, normalize_samples=False,
             annotation_border_ratio=None,
             morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None):
@@ -136,8 +134,7 @@ class NeuralNetBase(object):
             m_samples:            number of training samples
             exclude_border:    exclude annotations that are a certain distance
                                to each border. Pix from (left, right, up, down)
-            pos_sample_ratio:  Ratio of positive to negative samples (0.5=
-                               equal, 1=only positive samples)
+            sample_ratio:      List with ratio of samples per groups (sum=1)
             annotation_border_ratio: Fraction of samples drawn from 2px border
                                betweem positive and negative samples
             normalize_samples: Scale each individual channel to its maximum
@@ -154,7 +151,7 @@ class NeuralNetBase(object):
         self.log("n_epochs: {}".format(n_epochs))
         self.log("m_samples: {}".format(m_samples))
         self.log("annotation_type: {}".format(annotation_type))
-        self.log("pos_sample_ratio: {}".format(pos_sample_ratio))
+        self.log("sample_ratio: {}".format(sample_ratio))
         self.log("annotation_border_ratio: {}".format(annotation_border_ratio))
         self.log("normalize_samples: {}".format(normalize_samples))
         self.log("morph_annotations: {}".format(morph_annotations))
@@ -167,7 +164,7 @@ class NeuralNetBase(object):
                 zoom_size=(self.y_res,self.x_res),
                 annotation_type=annotation_type,
                 m_samples=m_samples, exclude_border=exclude_border,
-                return_annotations=False, pos_sample_ratio=pos_sample_ratio,
+                return_annotations=False, sample_ratio=sample_ratio,
                 annotation_border_ratio=annotation_border_ratio,
                 normalize_samples=normalize_samples,
                 morph_annotations=morph_annotations,
@@ -189,23 +186,22 @@ class NeuralNetBase(object):
             print('.', end="", flush=True)
 
             # Update total number of trained samples
-            self.n_samples_trained = self.n_samples_trained + m_samples
-            n_neg,n_pos = labels.sum(axis=0)
-            self.n_pos_samples_trained = \
-                self.n_pos_samples_trained + int(n_pos)
-            self.n_neg_samples_trained = \
-                self.n_neg_samples_trained + int(n_neg)
+            self.n_samples_trained += m_samples
+            for c in range(self.n_output_classes):
+                self.n_class_samples_trained[c] += int(labels[:,c].sum())
 
         self.log("\nNetwork has now been trained on a total of {} samples".format(
-                self.n_samples_trained) + "({} pos, {} neg)".format( \
-                self.n_pos_samples_trained,self.n_neg_samples_trained) )
+                self.n_samples_trained))
+        for c in range(self.n_output_classes):
+            self.log( " * Class {}, m = {}".format( \
+                c, self.n_class_samples_trained[c] ) )
         now = datetime.datetime.now()
         self.log("Done @ {}\n".format(
             now.strftime("%Y-%m-%d %H:%M") ) )
 
     def train_batch(self, annotated_image_set, n_batches=10, n_epochs=100,
             annotation_type='Bodies', batch_size=1000, m_samples=100,
-            exclude_border=(0,0,0,0), pos_sample_ratio=0.5,
+            exclude_border=(0,0,0,0), sample_ratio=None,
             annotation_border_ratio=None,
             normalize_samples=False, morph_annotations=False,
             rotation_list=None, scale_list_x=None,
@@ -224,8 +220,7 @@ class NeuralNetBase(object):
             m_samples:            Number of training samples in epoch
             exclude_border:    exclude annotations that are a certain distance
                                to each border. Pix from (left, right, up, down)
-            pos_sample_ratio:  Ratio of positive to negative samples (0.5=
-                               equal, 1=only positive samples)
+            sample_ratio:      List with ratio of samples per groups (sum=1)
             annotation_border_ratio: Fraction of samples drawn from 2px border
                                betweem positive and negative samples
             normalize_samples: Scale each individual channel to its maximum
@@ -245,7 +240,7 @@ class NeuralNetBase(object):
         self.log("n_epochs: {}".format(n_epochs))
         self.log("m_samples: {}".format(m_samples))
         self.log("annotation_type: {}".format(annotation_type))
-        self.log("pos_sample_ratio: {}".format(pos_sample_ratio))
+        self.log("sample_ratio: {}".format(sample_ratio))
         self.log("annotation_border_ratio: {}".format(annotation_border_ratio))
         self.log("normalize_samples: {}".format(normalize_samples))
         self.log("morph_annotations: {}".format(morph_annotations))
@@ -258,7 +253,7 @@ class NeuralNetBase(object):
                 zoom_size=(self.y_res,self.x_res),
                 annotation_type=annotation_type,
                 m_samples=batch_size, exclude_border=exclude_border,
-                return_annotations=False,  pos_sample_ratio=pos_sample_ratio,
+                return_annotations=False,  sample_ratio=sample_ratio,
                 annotation_border_ratio=annotation_border_ratio,
                 normalize_samples=normalize_samples,
                 morph_annotations=morph_annotations,
@@ -282,16 +277,15 @@ class NeuralNetBase(object):
                 print('.', end="", flush=True)
 
             # Update total number of trained samples
-            self.n_samples_trained = \
-                self.n_samples_trained + m_samples
-            self.n_pos_samples_trained = \
-                self.n_pos_samples_trained + int(labels[:,1].sum())
-            self.n_neg_samples_trained = \
-                self.n_neg_samples_trained + int(labels[:,0].sum())
+            self.n_samples_trained += m_samples
+            for c in range(self.n_output_classes):
+                self.n_class_samples_trained[c] += int(labels[:,c].sum())
 
         self.log("\nNetwork has now been trained on a total of {} samples".format(
-                self.n_samples_trained) + "({} pos, {} neg)".format( \
-                self.n_pos_samples_trained,self.n_neg_samples_trained) )
+                self.n_samples_trained))
+        for c in range(self.n_output_classes):
+            self.log( " * Class {}, m = {}".format( \
+                c, self.n_class_samples_trained[c] ) )
         now = datetime.datetime.now()
         self.log("Done @ {}\n".format(
             now.strftime("%Y-%m-%d %H:%M") ) )
@@ -324,33 +318,36 @@ class NeuralNetBase(object):
             self.fc1_keep_prob: 1.0 })
         pred = result[0]
 
-        # Calculate true/false pos/neg
-        true_pos = np.sum( pred[labels[:,1]==1]==1 )
-        false_pos = np.sum( pred[labels[:,1]==0]==1 )
-        false_neg = np.sum( pred[labels[:,1]==1]==0 )
-        true_neg = np.sum( pred[labels[:,1]==0]==0 )
+        # Loop for each output class
+        avg_accuracy = 0
+        for c in range(self.n_output_classes):
+            # Calculate true/false pos/neg
+            true_pos = np.sum( pred[labels[:,c]==1]==c )
+            false_pos = np.sum( pred[labels[:,c]==0]==c )
+            false_neg = np.sum( pred[labels[:,c]==1]!=c )
+            true_neg = np.sum( pred[labels[:,c]==0]!=c )
 
-        # Calculate accuracy, precision, recall, F1
-        accuracy = (true_pos+true_neg) / len(pred)
-        precision = np.nan_to_num(true_pos / (true_pos+false_pos))
-        recall = np.nan_to_num(true_pos / (true_pos+false_neg))
-        F1 = np.nan_to_num(2 * ((precision*recall)/(precision+recall)))
+            # Calculate accuracy, precision, recall, F1
+            accuracy = (true_pos+true_neg) / len(pred)
+            precision = np.nan_to_num(true_pos / (true_pos+false_pos))
+            recall = np.nan_to_num(true_pos / (true_pos+false_neg))
+            F1 = np.nan_to_num(2 * ((precision*recall)/(precision+recall)))
+            self.accuracy_list[c].append(float(accuracy))
+            self.precision_list[c].append(float(precision))
+            self.recall_list[c].append(float(recall))
+            self.F1_list[c].append(float(F1))
+            self.n_class_samples_list[c].append(int(self.n_class_samples_trained[c]))
+            avg_accuracy += accuracy
+        self.n_samples_list.append(int(self.n_samples_trained))
 
         t_curr = time.time()
         self.log('{} {:4d}: Acc = {:6.4f} (t={})'.format( \
-            counter_name, epoch_no, accuracy,
+            counter_name, epoch_no, avg_accuracy/self.n_output_classes,
             str(datetime.timedelta(seconds=np.round(t_curr-t_start))) ),
             no_enter=True, overwrite_last=True)
-        self.accuracy_list.append(float(accuracy))
-        self.precision_list.append(float(precision))
-        self.recall_list.append(float(recall))
-        self.F1_list.append(float(F1))
-        self.n_samples_list.append(int(self.n_samples_trained))
-        self.n_pos_samples_list.append(int(self.n_pos_samples_trained))
-        self.n_neg_samples_list.append(int(self.n_neg_samples_trained))
 
     def report_F1(self, annotated_image_set, annotation_type='Bodies',
-            m_samples=100, exclude_border=(0,0,0,0),  pos_sample_ratio=0.5,
+            m_samples=100, exclude_border=(0,0,0,0),  sample_ratio=None,
             annotation_border_ratio=None,
             channel_order=None,  normalize_samples=False,
             morph_annotations=False, rotation_list=None,
@@ -364,8 +361,7 @@ class NeuralNetBase(object):
             m_samples:            number of test samples
             exclude_border:    exclude annotations that are a certain distance
                                to each border. Pix from (left, right, up, down)
-            pos_sample_ratio:  Ratio of positive to negative samples (0.5=
-                               equal, 1=only positive samples)
+            sample_ratio:      List with ratio of samples per groups (sum=1)
             annotation_border_ratio: Fraction of samples drawn from 2px border
                                betweem positive and negative samples
             channel_order:     Tuple indicating which channels are R, G and B
@@ -382,7 +378,7 @@ class NeuralNetBase(object):
         samples,labels,annotations = annotated_image_set.data_sample(
             zoom_size=(self.y_res,self.x_res), annotation_type=annotation_type,
             m_samples=m_samples, exclude_border=exclude_border,
-            return_annotations=False,  pos_sample_ratio=pos_sample_ratio,
+            return_annotations=False,  sample_ratio=sample_ratio,
             annotation_border_ratio=annotation_border_ratio,
             normalize_samples=normalize_samples,
             morph_annotations=morph_annotations,
@@ -395,138 +391,117 @@ class NeuralNetBase(object):
             self.fc1_keep_prob: 1.0 })
         pred = result[0]
 
-        # Calculate true/false pos/neg
-        true_pos = np.sum( pred[labels[:,1]==1]==1 )
-        false_pos = np.sum( pred[labels[:,1]==0]==1 )
-        false_neg = np.sum( pred[labels[:,1]==1]==0 )
-        true_neg = np.sum( pred[labels[:,1]==0]==0 )
+        # Loop output classes
+        for c in range(self.n_output_classes):
+            # Calculate true/false pos/neg
+            true_pos = np.sum( pred[labels[:,c]==1]==c )
+            false_pos = np.sum( pred[labels[:,c]==0]==c )
+            false_neg = np.sum( pred[labels[:,c]==1]!=c )
+            true_neg = np.sum( pred[labels[:,c]==0]!=c )
 
-        # Calculate accuracy, precision, recall, F1
-        final_accuracy = (true_pos+true_neg) / len(pred)
-        final_precision = true_pos / (true_pos+false_pos)
-        final_recall = true_pos / (true_pos+false_neg)
-        final_F1 = \
-            2 * ((final_precision*final_recall)/(final_precision+final_recall))
-        self.log('Labeled image set of size m={} :'.format(m_samples))
-        self.log(' - # true positives = {:6.0f}'.format( true_pos ))
-        self.log(' - # false positives = {:6.0f}'.format( false_pos ))
-        self.log(' - # false negatives = {:6.0f}'.format( false_neg ))
-        self.log(' - # true negatives = {:6.0f}'.format( true_neg ))
-        self.log(' - Accuracy = {:6.4f}'.format( final_accuracy ))
-        self.log(' - Precision = {:6.4f}'.format( final_precision ))
-        self.log(' - Recall = {:6.4f}'.format( final_recall ))
-        self.log(' - F1-score = {:6.4f}'.format( final_F1 ))
+            # Calculate accuracy, precision, recall, F1
+            final_accuracy = (true_pos+true_neg) / len(pred)
+            final_precision = true_pos / (true_pos+false_pos)
+            final_recall = true_pos / (true_pos+false_neg)
+            final_F1 = \
+                2 * ((final_precision*final_recall)/(final_precision+final_recall))
+            self.log('Labeled image set of size m={}, class {} :'.format(m_samples,c))
+            self.log(' - # true positives = {:6.0f}'.format( true_pos ))
+            self.log(' - # false positives = {:6.0f}'.format( false_pos ))
+            self.log(' - # false negatives = {:6.0f}'.format( false_neg ))
+            self.log(' - # true negatives = {:6.0f}'.format( true_neg ))
+            self.log(' - Accuracy = {:6.4f}'.format( final_accuracy ))
+            self.log(' - Precision = {:6.4f}'.format( final_precision ))
+            self.log(' - Recall = {:6.4f}'.format( final_recall ))
+            self.log(' - F1-score = {:6.4f}'.format( final_F1 ))
 
-        # Display figure with examples if necessary
-        if show_figure.lower() == 'on':
-            titles = ["true positives","false positives",\
-                        "false negatives","true negatives"]
-            plot_positions = [(0,0),(0,1),(1,0),(1,1)]
-            samples_mat = []
-            samples_mat.append(
-                samples[ np.logical_and(pred[:]==1,labels[:,1]==1), : ])
-            samples_mat.append(samples[
-                np.logical_and(pred[:]==1,labels[:,1]==0), : ])
-            samples_mat.append(samples[
-                np.logical_and(pred[:]==0,labels[:,1]==1), : ])
-            samples_mat.append(samples[
-                np.logical_and(pred[:]==0,labels[:,1]==0), : ])
+            # Display figure with examples if necessary
+            if show_figure.lower() == 'on':
+                titles = ["true positives","false positives",\
+                            "false negatives","true negatives"]
+                plot_positions = [(0,0),(0,1),(1,0),(1,1)]
+                samples_mat = []
+                samples_mat.append(
+                    samples[ np.logical_and(pred[:]==c,labels[:,c]==1), : ])
+                samples_mat.append(
+                    samples[ np.logical_and(pred[:]==c,labels[:,c]==0), : ])
+                samples_mat.append(
+                    samples[ np.logical_and(pred[:]!=c,labels[:,c]==1), : ])
+                samples_mat.append(
+                    samples[ np.logical_and(pred[:]!=c,labels[:,c]==0), : ])
 
-            # Handle RGB channel order
-            if channel_order == None:
-                chan_order = []
-                for ch in range(3):
-                    if ch < self.n_input_channels:
-                        chan_order.append(ch)
-            else:
-                chan_order = channel_order
+                # Handle RGB channel order
+                if channel_order == None:
+                    chan_order = []
+                    for ch in range(3):
+                        if ch < self.n_input_channels:
+                            chan_order.append(ch)
+                else:
+                    chan_order = channel_order
 
-            plt.figure(figsize=(10,10), facecolor='w', edgecolor='w')
-            for cnt in range(4):
-                grid,_ = ia.image_grid_RGB( samples_mat[cnt],
-                    n_channels=annotated_image_set.n_channels,
-                    image_size=(self.y_res,self.x_res), n_x=10, n_y=10,
-                    channel_order=chan_order, amplitude_scaling=(1.33,1.33,1),
-                    line_color=1, auto_scale=True )
-                grid[:,:,2] = 0 # only show red and green channel
-                with sns.axes_style("white"):
-                    ax1 = plt.subplot2grid( (2,2), plot_positions[cnt] )
-                    ax1.imshow(
-                        grid, interpolation='nearest', vmax=grid.max()*0.8 )
-                    ax1.set_title(titles[cnt])
-                    plt.axis('tight')
-                    plt.axis('off')
-            plt.tight_layout()
+                plt.figure(figsize=(10,10), facecolor='w', edgecolor='w')
+                for cnt in range(4):
+                    grid,_ = ia.image_grid_RGB( samples_mat[cnt],
+                        n_channels=annotated_image_set.n_channels,
+                        image_size=(self.y_res,self.x_res), n_x=10, n_y=10,
+                        channel_order=chan_order, amplitude_scaling=(1.33,1.33,1),
+                        line_color=1, auto_scale=True )
+                    grid[:,:,2] = 0 # only show red and green channel
+                    with sns.axes_style("white"):
+                        ax1 = plt.subplot2grid( (2,2), plot_positions[cnt] )
+                        ax1.imshow(
+                            grid, interpolation='nearest', vmax=grid.max()*0.8 )
+                        ax1.set_title(titles[cnt]+", class={}".format(c))
+                        plt.axis('tight')
+                        plt.axis('off')
+                plt.tight_layout()
 
     def show_learning_curve(self):
         """Displays a learning curve of accuracy versus number of
         trained samples"""
 
-        # Get data
-        x_values = np.array(self.n_samples_list)
-        cum_samples = np.array(self.n_pos_samples_list)
-        cum_pos_samples = np.array(self.n_pos_samples_list)
-        cum_neg_samples = np.array(self.n_neg_samples_list)
-        samples_max = np.max(np.array( \
-            [cum_pos_samples.max(), cum_neg_samples.max()] ))
-        cum_pos_samples = cum_pos_samples / samples_max
-        cum_neg_samples = cum_neg_samples / samples_max
-        accuracy = np.array(self.accuracy_list)
-        precision = np.array(self.precision_list)
-        recall = np.array(self.recall_list)
-        F1 = np.array(self.F1_list)
+        # Loop output classes
+        for c in range(0,self.n_output_classes):
+            # Get data
+            x_values = np.array(self.n_class_samples_list[c])
+            accuracy = np.array(self.accuracy_list[c])
+            precision = np.array(self.precision_list[c])
+            recall = np.array(self.recall_list[c])
+            F1 = np.array(self.F1_list[c])
 
-        # Make plot
-        with sns.axes_style("ticks"):
-            fig,ax = plt.subplots()
-            plt.plot([np.min(x_values),np.max(x_values)],[0.5,0.5],
-                        color='#777777',linestyle='--')
-            plt.plot([np.min(x_values),np.max(x_values)],[0.66,0.66],
-                        color='#777777',linestyle=':')
-            plt.plot([np.min(x_values),np.max(x_values)],[0.8,0.8],
-                        color='#777777',linestyle=':')
-            plt.plot([np.min(x_values),np.max(x_values)],[0.9,0.9],
-                        color='#777777',linestyle=':')
+            # Make plot
+            with sns.axes_style("ticks"):
+                fig,ax = plt.subplots()
+                plt.plot([np.min(x_values),np.max(x_values)],[0.5,0.5],
+                            color='#777777',linestyle='--')
+                plt.plot([np.min(x_values),np.max(x_values)],[0.66,0.66],
+                            color='#777777',linestyle=':')
+                plt.plot([np.min(x_values),np.max(x_values)],[0.8,0.8],
+                            color='#777777',linestyle=':')
+                plt.plot([np.min(x_values),np.max(x_values)],[0.9,0.9],
+                            color='#777777',linestyle=':')
 
-            plt.plot( x_values, accuracy, color='#000000',
-                        linewidth=1, label='Accuracy' )
-            plt.plot( x_values, precision, color='#0000aa',
-                        linewidth=1, label='Precision' )
-            plt.plot( x_values, recall, color='#00aa00',
-                        linewidth=1, label='Recall' )
-            plt.plot( x_values, F1, color='#aa0000',
-                        linewidth=2, label='F1' )
-            plt.plot( x_values, cum_pos_samples, color='#77ff77',
-                        linewidth=1, label='Cumulative fraction \nof positive samples' )
-            plt.plot( x_values, cum_neg_samples, color='#ff7777',
-                        linewidth=1, label='Cumulative fraction \nof negative samples' )
+                plt.plot( x_values, accuracy, color='#000000',
+                            linewidth=1, label='Accuracy' )
+                plt.plot( x_values, precision, color='#0000aa',
+                            linewidth=1, label='Precision' )
+                plt.plot( x_values, recall, color='#00aa00',
+                            linewidth=1, label='Recall' )
+                plt.plot( x_values, F1, color='#aa0000',
+                            linewidth=2, label='F1' )
 
-            plt.yticks( [0, 0.5, 0.66, 0.8, 0.9, 1.0],
-                ['0','0.5','0.66','0.8','0.9','1.0'], ha='right' )
-            plt.xlim(np.max(x_values)*-0.02,np.max(x_values)*1.02)
-            plt.ylim(-0.02,1.02)
-            plt.xlabel('Number of training samples')
-            plt.ylabel('Performance')
-            plt.title('Learning curves')
-            sns.despine(ax=ax, offset=0, trim=True)
-            lgnd = plt.legend(loc=4, ncol=1, frameon=True, fontsize=9)
-            lgnd.get_frame().set_facecolor('#ffffff')
-            ax.spines['left'].set_bounds(0,1)
-            ax.spines['bottom'].set_bounds(np.min(x_values),np.max(x_values))
-
-
-########################################################################
-### Single output neural network class
-########################################################################
-
-class NeuralNetSingleOutput(NeuralNetBase):
-    """Base class for single output neural nets
-    See NeuralNetBase for more info"""
-
-    def __init__(self):
-        """Does nothing, initialization should be done by subclasses
-        See superclass "NeuralNetBase" for list of required subclass variables
-        """
+                plt.yticks( [0, 0.5, 0.66, 0.8, 0.9, 1.0],
+                    ['0','0.5','0.66','0.8','0.9','1.0'], ha='right' )
+                plt.xlim(np.max(x_values)*-0.02,np.max(x_values)*1.02)
+                plt.ylim(-0.02,1.02)
+                plt.xlabel('Number of training samples')
+                plt.ylabel('Performance')
+                plt.title('Learning curve, class {}'.format(c))
+                sns.despine(ax=ax, offset=0, trim=True)
+                lgnd = plt.legend(loc=4, ncol=1, frameon=True, fontsize=9)
+                lgnd.get_frame().set_facecolor('#ffffff')
+                ax.spines['left'].set_bounds(0,1)
+                ax.spines['bottom'].set_bounds(np.min(x_values),np.max(x_values))
 
     def annotate_image( self, anim ):
         """Loops through every pixels of an annotated image, classifies
@@ -567,7 +542,8 @@ class NeuralNet1Layer(NeuralNetSingleOutput):
     """Holds a single layer neural network for annotating images."""
 
     def __init__(self, network_path='.', logging=True,
-                input_image_size=None, n_input_channels=None, output_size=None,
+                input_image_size=None, n_input_channels=None,
+                n_output_classes=None,
                 fc1_dropout=1.0, alpha=4e-4 ):
         """Initializes all variables and sets up the network. If network
         already exists, load the variables from there.
@@ -594,20 +570,17 @@ class NeuralNet1Layer(NeuralNetSingleOutput):
             self.y_res = input_image_size[0]
             self.x_res = input_image_size[1]
             self.n_input_channels = n_input_channels
-            self.out_y_res = output_size[0]
-            self.out_x_res = output_size[1]
+            self.n_output_classes = n_output_classes
             self.fc1_dropout = fc1_dropout
             self.alpha = alpha
             self.n_samples_trained = 0
-            self.n_pos_samples_trained = 0
-            self.n_neg_samples_trained = 0
-            self.n_pos_samples_list = []
-            self.n_neg_samples_list = []
+            self.n_class_samples_trained = self.n_output_classes*[0]
             self.n_samples_list = []
-            self.accuracy_list = []
-            self.precision_list = []
-            self.recall_list = []
-            self.F1_list = []
+            self.n_class_samples_list = [[] for _ in range(self.n_output_classes)]
+            self.accuracy_list = [[] for _ in range(self.n_output_classes)]
+            self.precision_list = [[] for _ in range(self.n_output_classes)]
+            self.recall_list = [[] for _ in range(self.n_output_classes)]
+            self.F1_list = [[] for _ in range(self.n_output_classes)]
 
             # Save network architecture
             self.save_network_architecture( network_path=self.network_path )
@@ -628,16 +601,13 @@ class NeuralNet1Layer(NeuralNetSingleOutput):
             self.y_res = net_architecture['y_res']
             self.x_res = net_architecture['x_res']
             self.n_input_channels = net_architecture['n_input_channels']
-            self.out_y_res = net_architecture['out_y_res']
-            self.out_x_res = net_architecture['out_x_res']
+            self.n_output_classes = net_architecture['n_output_classes']
             self.fc1_dropout = net_architecture['fc1_dropout']
             self.alpha = net_architecture['alpha']
             self.n_samples_trained = net_architecture['n_samples_trained']
-            self.n_pos_samples_trained = net_architecture['n_pos_samples_trained']
-            self.n_neg_samples_trained = net_architecture['n_neg_samples_trained']
+            self.n_class_samples_trained = net_architecture['n_class_samples_trained']
             self.n_samples_list = net_architecture['n_samples_list']
-            self.n_pos_samples_list = net_architecture['n_pos_samples_list']
-            self.n_neg_samples_list = net_architecture['n_neg_samples_list']
+            self.n_class_samples_list = net_architecture['n_class_samples_list']
             self.accuracy_list = net_architecture['accuracy_list']
             self.precision_list = net_architecture['precision_list']
             self.recall_list = net_architecture['recall_list']
@@ -659,8 +629,8 @@ class NeuralNet1Layer(NeuralNetSingleOutput):
         # x = [ m_samples x [channel_1_data, channel_2_data, etc.] ]
         self.x = tf.placeholder( tf.float32, shape = [None,
             self.n_input_channels * self.y_res * self.x_res] )
-        self.y_trgt = tf.placeholder( tf.float32, shape = [None,
-            self.out_y_res * self.out_x_res] )
+        self.y_trgt = tf.placeholder( tf.float32, \
+                    shape = [None, self.n_output_classes] )
 
         # Set up dropout option for inputs
         self.fc1_keep_prob = tf.placeholder(tf.float32)
@@ -671,7 +641,7 @@ class NeuralNet1Layer(NeuralNetSingleOutput):
         # Weights and bias
         self.fc_out_shape = \
             [self.y_res * self.x_res * self.n_input_channels,
-                self.out_y_res*self.out_x_res]
+                self.n_output_classes]
         self.W_fc_out = tf.Variable( tf.truncated_normal(
                                 shape=self.fc_out_shape, stddev=0.1 ) )
         self.b_fc_out = tf.Variable( tf.constant(0.1,
@@ -708,13 +678,13 @@ class NeuralNet1Layer(NeuralNetSingleOutput):
         self.log("y_res: {}".format(self.y_res))
         self.log("x_res: {}".format(self.x_res))
         self.log("n_input_channels: {}".format(self.n_input_channels))
-        self.log("out_y_res: {}".format(self.out_y_res))
-        self.log("out_x_res: {}".format(self.out_x_res))
+        self.log("n_output_classes: {}".format(self.n_output_classes))
         self.log("input_dropout: {}".format(self.fc1_dropout))
         self.log("alpha: {}".format(self.alpha))
         self.log("n_samples_trained: {}".format(self.n_samples_trained))
-        self.log("n_pos_samples_trained: {}".format(self.n_pos_samples_trained))
-        self.log("n_neg_samples_trained: {}".format(self.n_neg_samples_trained))
+        for c in range(self.n_output_classes):
+            self.log( " * Class {}, m = {}".format( \
+                c, self.n_class_samples_trained[c] ) )
 
     def save_network_architecture(self,network_path):
         """Saves the network architecture into the network path"""
@@ -722,16 +692,13 @@ class NeuralNet1Layer(NeuralNetSingleOutput):
         net_architecture['y_res'] = self.y_res
         net_architecture['x_res'] = self.x_res
         net_architecture['n_input_channels'] = self.n_input_channels
-        net_architecture['out_y_res'] = self.out_y_res
-        net_architecture['out_x_res'] = self.out_x_res
+        net_architecture['n_output_classes'] = self.n_output_classes
         net_architecture['fc1_dropout'] = self.fc1_dropout
         net_architecture['alpha'] = self.alpha
         net_architecture['n_samples_trained'] = self.n_samples_trained
-        net_architecture['n_pos_samples_trained'] = self.n_pos_samples_trained
-        net_architecture['n_neg_samples_trained'] = self.n_neg_samples_trained
+        net_architecture['n_class_samples_trained'] = self.n_class_samples_trained
         net_architecture['n_samples_list'] = self.n_samples_list
-        net_architecture['n_pos_samples_list'] = self.n_pos_samples_list
-        net_architecture['n_neg_samples_list'] = self.n_neg_samples_list
+        net_architecture['n_class_samples_list'] = self.n_class_samples_list
         net_architecture['accuracy_list'] = self.accuracy_list
         net_architecture['precision_list'] = self.precision_list
         net_architecture['recall_list'] = self.recall_list
@@ -743,37 +710,28 @@ class NeuralNet1Layer(NeuralNetSingleOutput):
 
     def show_filters(self):
         """Plot the input weights"""
-        w = self.sess.run(self.W_fc_out)
-        w_list0 = ia.vec2image( lin_image=w[:,0],
-            n_channels=self.n_input_channels,
-            image_size=(self.y_res,self.x_res) )
-        w_list1 = ia.vec2image( lin_image=w[:,1],
-            n_channels=self.n_input_channels,
-            image_size=(self.y_res,self.x_res) )
+        weight_mat = self.sess.run(self.W_fc_out)
 
+        # Loop channels
         plt.figure(figsize=(12,5), facecolor='w', edgecolor='w')
         with sns.axes_style("white"):
-            for cnt,w in enumerate(w_list0):
-                print(w.min(),w.max())
-                ax = plt.subplot2grid( (3,self.n_input_channels), (0,cnt) )
-                ax.imshow( w, interpolation='nearest' )
-                ax.set_title("Channel {}".format(cnt))
-                plt.axis('tight')
-                plt.axis('off')
+            for cl in range(weight_mat.shape[1]):
+                # Get filters of this output class
+                w_list = ia.vec2image( lin_image=weight_mat[:,cl],
+                    n_channels=self.n_input_channels,
+                    image_size=(self.y_res,self.x_res) )
 
-            for cnt,w in enumerate(w_list1):
-                ax = plt.subplot2grid( (3,self.n_input_channels), (1,cnt) )
-                ax.imshow( w, interpolation='nearest' )
-                ax.set_title("Channel {}".format(cnt))
-                plt.axis('tight')
-                plt.axis('off')
-
-            for cnt,(w0,w1) in enumerate(zip(w_list0,w_list1)):
-                ax = plt.subplot2grid( (3,self.n_input_channels), (2,cnt) )
-                ax.imshow( w0-w1, interpolation='nearest' )
-                ax.set_title("Channel {}".format(cnt))
-                plt.axis('tight')
-                plt.axis('off')
+                # Show channels
+                for ch,w in enumerate(w_list):
+                    colormax = np.abs(w).max()
+                    ax = plt.subplot2grid( (self.n_output_classes,
+                            self.n_input_channels), (cl,ch) )
+                    ax.imshow( w, interpolation='nearest',
+                        cmap=plt.get_cmap('seismic'),
+                        clim=(-1*colormax,colormax) )
+                    ax.set_title("Class {}, Channel {}".format(cl,ch))
+                    plt.axis('tight')
+                    plt.axis('off')
         plt.tight_layout()
 
 
@@ -786,7 +744,8 @@ class NeuralNet2Layer(NeuralNetSingleOutput):
     """Holds a two layer neural network for annotating images."""
 
     def __init__(self, network_path='.', logging=True,
-                input_image_size=None, n_input_channels=None, output_size=None,
+                input_image_size=None, n_input_channels=None,
+                n_output_classes=None,
                 fc1_n_chan=1024, fc1_dropout=0.5, alpha=4e-4 ):
         """Initializes all variables and sets up the network. If network
         already exists, load the variables from there.
@@ -813,21 +772,18 @@ class NeuralNet2Layer(NeuralNetSingleOutput):
             self.y_res = input_image_size[0]
             self.x_res = input_image_size[1]
             self.n_input_channels = n_input_channels
-            self.out_y_res = output_size[0]
-            self.out_x_res = output_size[1]
+            self.n_output_classes = n_output_classes
             self.fc1_n_chan = fc1_n_chan
             self.fc1_dropout = fc1_dropout
             self.alpha = alpha
             self.n_samples_trained = 0
-            self.n_pos_samples_trained = 0
-            self.n_neg_samples_trained = 0
-            self.n_pos_samples_list = []
-            self.n_neg_samples_list = []
+            self.n_class_samples_trained = self.n_output_classes*[0]
             self.n_samples_list = []
-            self.accuracy_list = []
-            self.precision_list = []
-            self.recall_list = []
-            self.F1_list = []
+            self.n_class_samples_list = [[] for _ in range(self.n_output_classes)]
+            self.accuracy_list = [[] for _ in range(self.n_output_classes)]
+            self.precision_list = [[] for _ in range(self.n_output_classes)]
+            self.recall_list = [[] for _ in range(self.n_output_classes)]
+            self.F1_list = [[] for _ in range(self.n_output_classes)]
 
             # Save network architecture
             self.save_network_architecture( network_path=self.network_path )
@@ -848,17 +804,14 @@ class NeuralNet2Layer(NeuralNetSingleOutput):
             self.y_res = net_architecture['y_res']
             self.x_res = net_architecture['x_res']
             self.n_input_channels = net_architecture['n_input_channels']
-            self.out_y_res = net_architecture['out_y_res']
-            self.out_x_res = net_architecture['out_x_res']
+            self.n_output_classes = net_architecture['n_output_classes']
             self.fc1_n_chan = net_architecture['fc1_n_chan']
             self.fc1_dropout = net_architecture['fc1_dropout']
             self.alpha = net_architecture['alpha']
             self.n_samples_trained = net_architecture['n_samples_trained']
-            self.n_pos_samples_trained = net_architecture['n_pos_samples_trained']
-            self.n_neg_samples_trained = net_architecture['n_neg_samples_trained']
+            self.n_class_samples_trained = net_architecture['n_class_samples_trained']
             self.n_samples_list = net_architecture['n_samples_list']
-            self.n_pos_samples_list = net_architecture['n_pos_samples_list']
-            self.n_neg_samples_list = net_architecture['n_neg_samples_list']
+            self.n_class_samples_list = net_architecture['n_class_samples_list']
             self.accuracy_list = net_architecture['accuracy_list']
             self.precision_list = net_architecture['precision_list']
             self.recall_list = net_architecture['recall_list']
@@ -880,8 +833,8 @@ class NeuralNet2Layer(NeuralNetSingleOutput):
         # x = [ m_samples x [channel_1_data, channel_2_data, etc.] ]
         self.x = tf.placeholder( tf.float32, shape = [None,
             self.n_input_channels * self.y_res * self.x_res] )
-        self.y_trgt = tf.placeholder( tf.float32, shape = [None,
-            self.out_y_res * self.out_x_res] )
+        self.y_trgt = tf.placeholder( tf.float32, \
+                                    shape = [None, self.n_output_classes] )
 
         #########################################################
         # Densely Connected Layer
@@ -904,7 +857,7 @@ class NeuralNet2Layer(NeuralNetSingleOutput):
         #########################################################
         # Readout layer
         # Weights and bias
-        self.fc_out_shape = [self.fc1_n_chan, self.out_y_res*self.out_x_res]
+        self.fc_out_shape = [self.fc1_n_chan, self.n_output_classes]
         self.W_fc_out = tf.Variable( tf.truncated_normal(
                                 shape=self.fc_out_shape, stddev=0.1 ) )
         self.b_fc_out = tf.Variable( tf.constant(0.1,
@@ -941,14 +894,14 @@ class NeuralNet2Layer(NeuralNetSingleOutput):
         self.log("y_res: {}".format(self.y_res))
         self.log("x_res: {}".format(self.x_res))
         self.log("n_input_channels: {}".format(self.n_input_channels))
-        self.log("out_y_res: {}".format(self.out_y_res))
-        self.log("out_x_res: {}".format(self.out_x_res))
+        self.log("n_output_classes: {}".format(self.n_output_classes))
         self.log("fc1_n_chan: {}".format(self.fc1_n_chan))
         self.log("fc1_dropout: {}".format(self.fc1_dropout))
         self.log("alpha: {}".format(self.alpha))
         self.log("n_samples_trained: {}".format(self.n_samples_trained))
-        self.log("n_pos_samples_trained: {}".format(self.n_pos_samples_trained))
-        self.log("n_neg_samples_trained: {}".format(self.n_neg_samples_trained))
+        for c in range(self.n_output_classes):
+            self.log( " * Class {}, m = {}".format( \
+                c, self.n_class_samples_trained[c] ) )
 
     def save_network_architecture(self,network_path):
         """Saves the network architecture into the network path"""
@@ -956,17 +909,14 @@ class NeuralNet2Layer(NeuralNetSingleOutput):
         net_architecture['y_res'] = self.y_res
         net_architecture['x_res'] = self.x_res
         net_architecture['n_input_channels'] = self.n_input_channels
-        net_architecture['out_y_res'] = self.out_y_res
-        net_architecture['out_x_res'] = self.out_x_res
+        net_architecture['n_output_classes'] = self.n_output_classes
         net_architecture['fc1_n_chan'] = self.fc1_n_chan
         net_architecture['fc1_dropout'] = self.fc1_dropout
         net_architecture['alpha'] = self.alpha
         net_architecture['n_samples_trained'] = self.n_samples_trained
-        net_architecture['n_pos_samples_trained'] = self.n_pos_samples_trained
-        net_architecture['n_neg_samples_trained'] = self.n_neg_samples_trained
+        net_architecture['n_class_samples_trained'] = self.n_class_samples_trained
         net_architecture['n_samples_list'] = self.n_samples_list
-        net_architecture['n_pos_samples_list'] = self.n_pos_samples_list
-        net_architecture['n_neg_samples_list'] = self.n_neg_samples_list
+        net_architecture['n_class_samples_list'] = self.n_class_samples_list
         net_architecture['accuracy_list'] = self.accuracy_list
         net_architecture['precision_list'] = self.precision_list
         net_architecture['recall_list'] = self.recall_list
@@ -979,7 +929,6 @@ class NeuralNet2Layer(NeuralNetSingleOutput):
     def show_filters(self):
         """Plot the weights of the hidden layer"""
         w_mat = np.transpose(self.sess.run(self.W_fc1))
-        w_mat[w_mat<0] = 0
 
         plt.figure(figsize=(10,10), facecolor='w', edgecolor='w')
         plot_positions = [(0,0),(0,1),(1,0),(1,1)]
@@ -989,33 +938,17 @@ class NeuralNet2Layer(NeuralNetSingleOutput):
                 image_size=(self.y_res,self.x_res), n_x=6, n_y=6,
                 channel_order=(ch,ch,ch), amplitude_scaling=(1,1,1),
                 line_color=1, auto_scale=True )
+            colormax = np.abs(grid).max()
             with sns.axes_style("white"):
                 ax = plt.subplot2grid( (2,2), plot_positions[ch] )
-                ax.imshow( grid, interpolation='nearest' )
+                ax.imshow( grid[:,:,0], interpolation='nearest',
+                    cmap=plt.get_cmap('seismic'),
+                    clim=(-1*colormax,colormax) )
                 ax.set_title("Hidden units, channel {}".format(ch))
                 plt.axis('tight')
                 plt.axis('off')
                 plt.tight_layout()
 
-        w_mat = np.transpose(self.sess.run(self.W_fc1))
-        w_mat[w_mat>0] = 0
-        w_mat = w_mat * -1
-
-        plt.figure(figsize=(10,10), facecolor='w', edgecolor='w')
-        plot_positions = [(0,0),(0,1),(1,0),(1,1)]
-        for ch in range(4):
-            grid,_ = ia.image_grid_RGB( w_mat,
-                n_channels=self.n_input_channels,
-                image_size=(self.y_res,self.x_res), n_x=6, n_y=6,
-                channel_order=(ch,ch,ch), amplitude_scaling=(1,1,1),
-                line_color=1, auto_scale=True )
-            with sns.axes_style("white"):
-                ax = plt.subplot2grid( (2,2), plot_positions[ch] )
-                ax.imshow( grid, interpolation='nearest' )
-                ax.set_title("Hidden units, channel {}".format(ch))
-                plt.axis('tight')
-                plt.axis('off')
-                plt.tight_layout()
 
 ########################################################################
 ### Deep convolutional neural network
@@ -1027,7 +960,8 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
     2 convolutional layers, 1 fully connected layer, 1 output layer"""
 
     def __init__(self, network_path='.', logging=True,
-                input_image_size=None, n_input_channels=None, output_size=None,
+                input_image_size=None, n_input_channels=None,
+                n_output_classes=None,
                 conv1_size=5, conv1_n_chan=32, conv1_n_pool=2,
                 conv2_size=5, conv2_n_chan=64, conv2_n_pool=2,
                 fc1_n_chan=1024, fc1_dropout=0.5, alpha=4e-4 ):
@@ -1056,8 +990,7 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
             self.y_res = input_image_size[0]
             self.x_res = input_image_size[1]
             self.n_input_channels = n_input_channels
-            self.out_y_res = output_size[0]
-            self.out_x_res = output_size[1]
+            self.n_output_classes = n_output_classes
             self.conv1_size = conv1_size
             self.conv1_n_chan = conv1_n_chan
             self.conv1_n_pool = conv1_n_pool
@@ -1072,15 +1005,13 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
             self.fc1_dropout = fc1_dropout
             self.alpha = alpha
             self.n_samples_trained = 0
-            self.n_pos_samples_trained = 0
-            self.n_neg_samples_trained = 0
-            self.n_pos_samples_list = []
-            self.n_neg_samples_list = []
+            self.n_class_samples_trained = self.n_output_classes*[0]
             self.n_samples_list = []
-            self.accuracy_list = []
-            self.precision_list = []
-            self.recall_list = []
-            self.F1_list = []
+            self.n_class_samples_list = [[] for _ in range(self.n_output_classes)]
+            self.accuracy_list = [[] for _ in range(self.n_output_classes)]
+            self.precision_list = [[] for _ in range(self.n_output_classes)]
+            self.recall_list = [[] for _ in range(self.n_output_classes)]
+            self.F1_list = [[] for _ in range(self.n_output_classes)]
 
             # Save network architecture
             self.save_network_architecture( network_path=self.network_path )
@@ -1101,8 +1032,7 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
             self.y_res = net_architecture['y_res']
             self.x_res = net_architecture['x_res']
             self.n_input_channels = net_architecture['n_input_channels']
-            self.out_y_res = net_architecture['out_y_res']
-            self.out_x_res = net_architecture['out_x_res']
+            self.n_output_classes = net_architecture['n_output_classes']
             self.conv1_size = net_architecture['conv1_size']
             self.conv1_n_chan = net_architecture['conv1_n_chan']
             self.conv1_n_pool = net_architecture['conv1_n_pool']
@@ -1117,11 +1047,9 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
             self.fc1_dropout = net_architecture['fc1_dropout']
             self.alpha = net_architecture['alpha']
             self.n_samples_trained = net_architecture['n_samples_trained']
-            self.n_pos_samples_trained = net_architecture['n_pos_samples_trained']
-            self.n_neg_samples_trained = net_architecture['n_neg_samples_trained']
+            self.n_class_samples_trained = net_architecture['n_class_samples_trained']
             self.n_samples_list = net_architecture['n_samples_list']
-            self.n_pos_samples_list = net_architecture['n_pos_samples_list']
-            self.n_neg_samples_list = net_architecture['n_neg_samples_list']
+            self.n_class_samples_list = net_architecture['n_class_samples_list']
             self.accuracy_list = net_architecture['accuracy_list']
             self.precision_list = net_architecture['precision_list']
             self.recall_list = net_architecture['recall_list']
@@ -1143,8 +1071,8 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
         # x = [ m_samples x [channel_1_data, channel_2_data, etc.] ]
         self.x = tf.placeholder( tf.float32, shape = [None,
             self.n_input_channels * self.y_res * self.x_res] )
-        self.y_trgt = tf.placeholder( tf.float32, shape = [None,
-            self.out_y_res * self.out_x_res] )
+        self.y_trgt = tf.placeholder( tf.float32, \
+                                        shape = [None, self.n_output_classes] )
 
         # Convert input image to tensor with channel as last dimension
         # x_image = [-1 x im-height x im-width x n-input-channels]
@@ -1220,7 +1148,7 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
         #########################################################
         # Readout layer
         # Weights and bias
-        self.fc_out_shape = [self.fc1_n_chan, self.out_y_res*self.out_x_res]
+        self.fc_out_shape = [self.fc1_n_chan, self.n_output_classes]
         self.W_fc_out = tf.Variable( tf.truncated_normal(
                                 shape=self.fc_out_shape, stddev=0.1 ) )
         self.b_fc_out = tf.Variable( tf.constant(0.1,
@@ -1257,8 +1185,7 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
         self.log("y_res: {}".format(self.y_res))
         self.log("x_res: {}".format(self.x_res))
         self.log("n_input_channels: {}".format(self.n_input_channels))
-        self.log("out_y_res: {}".format(self.out_y_res))
-        self.log("out_x_res: {}".format(self.out_x_res))
+        self.log("n_output_classes: {}".format(self.n_output_classes))
         self.log("conv1_size: {}".format(self.conv1_size))
         self.log("conv1_n_chan: {}".format(self.conv1_n_chan))
         self.log("conv1_n_pool: {}".format(self.conv1_n_pool))
@@ -1269,8 +1196,9 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
         self.log("fc1_dropout: {}".format(self.fc1_dropout))
         self.log("alpha: {}".format(self.alpha))
         self.log("n_samples_trained: {}".format(self.n_samples_trained))
-        self.log("n_pos_samples_trained: {}".format(self.n_pos_samples_trained))
-        self.log("n_neg_samples_trained: {}".format(self.n_neg_samples_trained))
+        for c in range(self.n_output_classes):
+            self.log( " * Class {}, m = {}".format( \
+                c, self.n_class_samples_trained[c] ) )
 
     def save_network_architecture(self,network_path):
         """Saves the network architecture into the network path"""
@@ -1278,8 +1206,7 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
         net_architecture['y_res'] = self.y_res
         net_architecture['x_res'] = self.x_res
         net_architecture['n_input_channels'] = self.n_input_channels
-        net_architecture['out_y_res'] = self.out_y_res
-        net_architecture['out_x_res'] = self.out_x_res
+        net_architecture['n_output_classes'] = self.n_output_classes
         net_architecture['conv1_size'] = self.conv1_size
         net_architecture['conv1_n_chan'] = self.conv1_n_chan
         net_architecture['conv1_n_pool'] = self.conv1_n_pool
@@ -1290,11 +1217,9 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
         net_architecture['fc1_dropout'] = self.fc1_dropout
         net_architecture['alpha'] = self.alpha
         net_architecture['n_samples_trained'] = self.n_samples_trained
-        net_architecture['n_pos_samples_trained'] = self.n_pos_samples_trained
-        net_architecture['n_neg_samples_trained'] = self.n_neg_samples_trained
+        net_architecture['n_class_samples_trained'] = self.n_class_samples_trained
         net_architecture['n_samples_list'] = self.n_samples_list
-        net_architecture['n_pos_samples_list'] = self.n_pos_samples_list
-        net_architecture['n_neg_samples_list'] = self.n_neg_samples_list
+        net_architecture['n_class_samples_list'] = self.n_class_samples_list
         net_architecture['accuracy_list'] = self.accuracy_list
         net_architecture['precision_list'] = self.precision_list
         net_architecture['recall_list'] = self.recall_list

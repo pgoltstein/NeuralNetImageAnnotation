@@ -46,18 +46,18 @@ parser.add_argument('-mp', '--morph',  action="store_true",
     default=defaults.morph_annotations,
     help='Flag enables random morphing of annotations (on/off; default={})'.format(
         "on" if defaults.morph_annotations else "off"))
-parser.add_argument('-tpnr', '--includeannotationtypenr', type=int,
-    default=defaults.include_annotation_typenr,
+parser.add_argument('-tpnr', '--includeannotationtypenrs', type=int,
+    default=defaults.include_annotation_typenrs,
     help="Include only annotations of certain type_nr (default={})".format(
-        defaults.include_annotation_typenr))
+        defaults.include_annotation_typenrs))
 parser.add_argument('-dl', '--dilationfactor', type=int,
     default=defaults.dilation_factor,
     help="Dilation factor of annotations (default={})".format(
         defaults.dilation_factor))
 parser.add_argument('-r', '--positivesampleratio', type=float,
-    default=defaults.pos_sample_ratio,
+    default=defaults.sample_ratio,
     help='Ratio of positive vs negative samples (default={})'.format(
-        defaults.pos_sample_ratio))
+        defaults.sample_ratio))
 parser.add_argument('-ar', '--annotationborderratio', type=float,
     default=defaults.annotation_border_ratio,
     help='Ratio of samples from border between pos and neg samples' + \
@@ -154,9 +154,9 @@ annotation_type = args.annotationtype
 # Annotation arguments
 annotation_size = (args.size,args.size)
 morph_annotations = args.morph
-include_annotation_typenr = args.includeannotationtypenr
+include_annotation_typenrs = args.includeannotationtypenrs
 dilation_factor = args.dilationfactor
-pos_sample_ratio = args.positivesampleratio
+sample_ratio = args.positivesampleratio
 annotation_border_ratio = args.annotationborderratio
 use_channels = args.imagechannels
 normalize_samples = args.normalizesamples
@@ -205,6 +205,11 @@ training_image_set = ia.AnnotatedImageSet()
 training_image_set.load_data_dir_tiff_mat( training_data_path,
     normalize=normalize_images, use_channels=use_channels )
 
+if include_annotation_typenrs is not None:
+    print("Setting annotation typenrs to be included " + \
+                                "to {}".format(include_annotation_typenrs))
+    training_image_set.include_annotation_typenrs = include_annotation_typenrs
+
 ########################################################################
 # Set up network
 if network_type.lower() == "1layer":
@@ -212,20 +217,21 @@ if network_type.lower() == "1layer":
             network_path=os.path.join(network_path,network_name),
             input_image_size=annotation_size,
             n_input_channels=training_image_set.n_channels,
-            output_size=(1,2), fc1_dropout=fc1_dropout, alpha=alpha )
+            n_output_classes=len(training_image_set.include_annotation_typenrs)+1,
+            fc1_dropout=fc1_dropout, alpha=alpha )
 elif network_type.lower() == "2layer":
     nn = cn.NeuralNet2Layer( \
             network_path=os.path.join(network_path,network_name),
             input_image_size=annotation_size,
             n_input_channels=training_image_set.n_channels,
-            output_size=(1,2),
+            n_output_classes=len(training_image_set.include_annotation_typenrs)+1,
             fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
 elif network_type.lower() == "c2fc1":
     nn = cn.ConvNetCnv2Fc1( \
             network_path=os.path.join(network_path,network_name),
             input_image_size=annotation_size,
             n_input_channels=training_image_set.n_channels,
-            output_size=(1,2),
+            n_output_classes=len(training_image_set.include_annotation_typenrs)+1,
             conv1_size=conv_size, conv1_n_chan=conv_chan, conv1_n_pool=conv_pool,
             conv2_size=conv_size, conv2_n_chan=conv_chan*2, conv2_n_pool=conv_pool,
             fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
@@ -249,23 +255,21 @@ else:
     nn.log("Using image channels {} (zero-based)".format(use_channels))
 
 if annotation_type == 'Centroids':
-    if dilation_factor == -999:
+    if dilation_factor == None:
         dilation_factor = 3
     nn.log("Setting centroid dilation factor of the image " + \
                                     "to {}".format(dilation_factor))
     training_image_set.centroid_dilation_factor = dilation_factor
 
 elif annotation_type == 'Bodies':
-    if dilation_factor == -999:
+    if dilation_factor == None:
         dilation_factor = 0
     nn.log("Setting body dilation factor of the image " + \
                                     "to {}".format(dilation_factor))
     training_image_set.body_dilation_factor = dilation_factor
 
-if include_annotation_typenr is not None:
-    nn.log("Setting annotation typenr to be included " + \
-                                    "to {}".format(include_annotation_typenr))
-    training_image_set.include_annotation_typenr = include_annotation_typenr
+nn.log("Included annotation typenrs: {}".format( \
+    training_image_set.include_annotation_typenrs))
 
 ########################################################################
 # Initialize and start
@@ -283,7 +287,7 @@ if training_procedure.lower() == "epochs":
     nn.train_epochs( training_image_set,
         annotation_type=annotation_type,
         m_samples=m_samples, n_epochs=n_epochs, report_every=report_every,
-        exclude_border=exclude_border, pos_sample_ratio=pos_sample_ratio,
+        exclude_border=exclude_border, sample_ratio=sample_ratio,
         annotation_border_ratio=annotation_border_ratio,
         normalize_samples=normalize_samples, morph_annotations=morph_annotations,
         rotation_list=rotation_list, scale_list_x=scale_list_x,
@@ -292,7 +296,7 @@ elif training_procedure.lower() == "batch":
     nn.train_batch( training_image_set, n_batches=number_of_batches,
         batch_size=batch_size, m_samples=m_samples, n_epochs=n_epochs,
         annotation_type=annotation_type,
-        exclude_border=exclude_border, pos_sample_ratio=pos_sample_ratio,
+        exclude_border=exclude_border, sample_ratio=sample_ratio,
         annotation_border_ratio=annotation_border_ratio,
         normalize_samples=normalize_samples, morph_annotations=morph_annotations,
         rotation_list=rotation_list, scale_list_x=scale_list_x,
@@ -312,7 +316,7 @@ if args.learningcurve:
 if args.F1report:
     nn.log("\nTraining set performance:")
     nn.report_F1( training_image_set,
-        annotation_type=annotation_type, m_samples=2000, pos_sample_ratio=pos_sample_ratio,
+        annotation_type=annotation_type, m_samples=2000, sample_ratio=sample_ratio,
         annotation_border_ratio=annotation_border_ratio,
         morph_annotations=False, exclude_border=(40,40,40,40),
         channel_order=None, show_figure='On')
@@ -320,7 +324,7 @@ if args.F1report:
     # Test morphed performance
     nn.log("\nMorphed training set performance:")
     nn.report_F1( training_image_set, annotation_type=annotation_type,
-            m_samples=2000, exclude_border=(40,40,40,40), pos_sample_ratio=0.5,
+            m_samples=2000, exclude_border=(40,40,40,40), sample_ratio=None,
             morph_annotations=True,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list,

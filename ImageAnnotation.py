@@ -277,6 +277,73 @@ def image_grid_RGB( lin_images, n_channels, image_size, annotation_nrs=None,
             im_count += 1
     return grid, center_shift
 
+def split_samples( m_samples, n_groups, ratios=None ):
+    """Splits the total number of samples into n_groups according to the
+    relative ratios (compensates for rounding errors)
+    m_samples:  Total number of samples
+    n_groups:   Number of sample groups to return
+    ratios:     List with relative ratio of each group
+    returns list with sample counts per group"""
+
+    if ratios is None:
+        ratios = n_groups * [ (1/n_groups),]
+    elif isinstance( ratios, tuple ):
+        ratios = list(ratios)
+
+    # Calculate minimum number of positive and negative samples and round err
+    g_samples = []
+    g_round_ratios = []
+    for g in range(n_groups):
+        g_samples.append( np.int16( m_samples * ratios[g] ) )
+        g_round_ratios.append( (m_samples * ratios[g]) % 1 )
+
+    # Find how many samples are still missing
+    n_missing = m_samples - np.sum(g_samples)
+
+    # Assign missing samples by relative remainder fractional chance to groups
+    if n_missing > 0:
+        ratio_group_ids = list(range(len(g_round_ratios)))
+        for s in range(n_missing):
+            rand_num = np.random.rand(1)
+            for g in range(len(g_round_ratios)):
+                if rand_num < np.sum(g_round_ratios[:(g+1)]):
+                    g_samples[ratio_group_ids[g]] += 1
+                    del g_round_ratios[g]
+                    del ratio_group_ids[g]
+                    break
+    return g_samples
+
+
+def get_labeled_pixel_coordinates( bin_image, exclude_border=(0,0,0,0) ):
+    """Get the x and y pixels coordinates of all labeled pixels in a
+        binary image, excluding the pixels outside of the border
+    bin_image:         Binary image (numpy array)
+    exclude_border:    exclude annotations that are a certain distance
+                       to each border. Pix from (left, right, up, down)
+    returns tuple y_pix,x_pix with numpy.array pixel coordinates"""
+
+    # Get lists with all pixel coordinates
+    y_res,x_res = bin_image.shape
+    (pix_x,pix_y) = np.meshgrid(np.arange(y_res),np.arange(x_res))
+
+    # Get lists with coordinates of all labeled pixels
+    lab_pix_x = pix_x.ravel()[bin_image.ravel() == 1]
+    lab_pix_y = pix_y.ravel()[bin_image.ravel() == 1]
+
+    # Exclude all pixels that are too close to the border
+    if np.max(exclude_border) > 0:
+        include_pix = \
+            np.logical_and( np.logical_and( np.logical_and(
+                lab_pix_x > exclude_border[0],
+                lab_pix_x < (x_res-exclude_border[1]) ),
+                lab_pix_y > exclude_border[2] ),
+                lab_pix_y < (y_res-exclude_border[3]) )
+        lab_pix_x = lab_pix_x[ include_pix ]
+        lab_pix_y = lab_pix_y[ include_pix ]
+
+    # Return pixel coordinates
+    return lab_pix_y,lab_pix_x
+
 
 ########################################################################
 ### Class Annotation
@@ -467,7 +534,7 @@ class AnnotatedImage(object):
         self._body_dilation_factor = 0
         self._centroids = None
         self._centroid_dilation_factor = 0
-        self._include_annotation_typenr = None
+        self._include_annotation_typenrs = None
         self._y_res = 0
         self._x_res = 0
         self._channel = []
@@ -676,6 +743,7 @@ class AnnotatedImage(object):
         # Load mat file with ROI data
         mat_data = loadmat(path.join(file_path,file_name))
         annotation_list = []
+        type_nr_list = []
         nROIs = len(mat_data['ROI'][0])
         for c in range(nROIs):
             body = mat_data['ROI'][0][c]['body']
@@ -686,6 +754,8 @@ class AnnotatedImage(object):
             group_nr = int(mat_data['ROI'][0][c]['group'][0][0])
             annotation_list.append( Annotation( body_pixels_yx=body,
                     annotation_name=name, type_nr=type_nr, group_nr=group_nr ) )
+            type_nr_list.append(type_nr)
+        self.include_annotation_typenrs = type_nr_list
         self.annotation = annotation_list
 
     def export_annotations_to_mat(self, file_name, file_path='.'):
@@ -730,20 +800,22 @@ class AnnotatedImage(object):
         """Returns an image with annotation bodies masked"""
         return self._bodies
 
+    @property
+    def bodies_typenr(self):
+        """Returns an image with annotation bodies masked by type_nr"""
+        return self._bodies_type_nr
+
     def _set_bodies(self):
         """Sets the internal body annotation mask with specified parameters"""
         self._bodies = np.zeros_like(self._channel[0])
-        if self._include_annotation_typenr is not None:
-            for nr in range(self.n_annotations):
-                if self._include_annotation_typenr == self._annotation[nr].type_nr:
-                    self._annotation[nr].mask_body(self._bodies,
-                        dilation_factor=self._body_dilation_factor,
-                        mask_value=nr+1, keep_centroid=True)
-        else:
-            for nr in range(self.n_annotations):
+        self._bodies_type_nr = np.zeros_like(self._channel[0])
+        for nr in range(self.n_annotations):
+            if self._annotation[nr].type_nr in self._include_annotation_typenrs:
                 self._annotation[nr].mask_body(self._bodies,
                     dilation_factor=self._body_dilation_factor,
                     mask_value=nr+1, keep_centroid=True)
+                self._bodies_type_nr[self._bodies==nr+1] = \
+                                        self._annotation[nr].type_nr
 
     @property
     def body_dilation_factor(self):
@@ -764,21 +836,23 @@ class AnnotatedImage(object):
         """Returns an image with annotation centroids masked"""
         return self._centroids
 
+    @property
+    def centroids_typenr(self):
+        """Returns an image with annotation centroids masked by type_nr"""
+        return self._centroids_type_nr
+
     def _set_centroids(self):
         """Sets the internal centroids annotation mask with specified
         parameters"""
         self._centroids = np.zeros_like(self._channel[0])
-        if self._include_annotation_typenr is not None:
-            for nr in range(self.n_annotations):
-                if self._include_annotation_typenr == self._annotation[nr].type_nr:
-                    self._annotation[nr].mask_centroid(self._centroids,
-                        dilation_factor=self._centroid_dilation_factor,
-                        mask_value=nr+1)
-        else:
-            for nr in range(self.n_annotations):
+        self._centroids_type_nr = np.zeros_like(self._channel[0])
+        for nr in range(self.n_annotations):
+            if self._annotation[nr].type_nr in self._include_annotation_typenrs:
                 self._annotation[nr].mask_centroid(self._centroids,
                     dilation_factor=self._centroid_dilation_factor,
                     mask_value=nr+1)
+                self._centroids_type_nr[self._centroids==nr+1] = \
+                                            self._annotation[nr].type_nr
 
     @property
     def centroid_dilation_factor(self):
@@ -800,6 +874,8 @@ class AnnotatedImage(object):
         self.channel = combined_annotated_image['image_data']
         self.annotation = combined_annotated_image['annotation_data']
         self.exclude_border = combined_annotated_image['exclude_border']
+        self.include_annotation_typenrs = \
+                        combined_annotated_image['include_annotation_typenrs']
         self.detected_centroids = combined_annotated_image['detected_centroids']
         self.detected_bodies = combined_annotated_image['detected_bodies']
         self.labeled_centroids = combined_annotated_image['labeled_centroids']
@@ -813,6 +889,8 @@ class AnnotatedImage(object):
         combined_annotated_image['image_data'] = self.channel
         combined_annotated_image['annotation_data'] = self.annotation
         combined_annotated_image['exclude_border'] = self.exclude_border
+        combined_annotated_image['include_annotation_typenrs'] = \
+                                            self.include_annotation_typenrs
         combined_annotated_image['detected_centroids'] = self.detected_centroids
         combined_annotated_image['detected_bodies'] = self.detected_bodies
         combined_annotated_image['labeled_centroids'] = self.labeled_centroids
@@ -820,6 +898,185 @@ class AnnotatedImage(object):
         np.save(path.join(file_path,file_name), combined_annotated_image)
         print("Saved AnnotatedImage as: {}".format(
                                     path.join(file_path,file_name)+".npy"))
+
+
+    # ************************************************
+    # *****  Generate NN training/test data sets *****
+
+    @property
+    def include_annotation_typenrs(self):
+        """Includes only ROI's with certain typenrs in body and centroid masks
+        """
+        return self._include_annotation_typenrs
+
+    @include_annotation_typenrs.setter
+    def include_annotation_typenrs(self, include_typenrs):
+        """Sets the nrs to include, removes redundancy by using sets"""
+        if isinstance(include_typenrs,int):
+            include_typenrs = [include_typenrs,]
+        self._include_annotation_typenrs = set(include_typenrs)
+        self._set_centroids()
+        self._set_bodies()
+
+    def get_batch( self, zoom_size, annotation_type='Bodies',
+            m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
+            sample_ratio=None, annotation_border_ratio=None,
+            normalize_samples=False,
+            morph_annotations=False, rotation_list=None,
+            scale_list_x=None, scale_list_y=None, noise_level_list=None ):
+        """Constructs a 2d matrix (m samples x n pixels) with linearized data
+            half of which is from within an annotation, and half from outside
+            zoom_size:         2 dimensional size of the image (y,x)
+            annotation_type:   'Bodies' or 'Centroids'
+            m_samples:         number of training samples
+            exclude_border:    exclude annotations that are a certain distance
+                               to each border. Pix from (left, right, up, down)
+            return_annotations:  Returns annotations in addition to
+                                 samples and labels. If False, returns empty
+                                 list. Otherwise set to 'Bodies' or 'Centroids'
+            sample_ratio:        List with ratio of samples per groups (sum=1)
+            annotation_border_ratio: Fraction of samples drawn from 2px border
+                               betweem positive and negative samples
+            normalize_samples: Scale each individual channel to its maximum
+            morph_annotations: Randomly morph the annotations
+            rotation_list:     List of rotation values to choose from in degrees
+            scale_list_x:      List of horizontal scale factors to choose from
+            scale_list_y:      List of vertical scale factors to choose from
+            noise_level_list:  List of noise levels to choose from
+            Returns tuple with samples as 2d numpy matrix, labels as
+            2d numpy matrix and if requested annotations as 2d numpy matrix
+            or otherwise an empty list as third item"""
+
+        # Calculate number of samples per class
+        class_labels = [0,]
+        class_labels.extend(list(self.include_annotation_typenrs))
+        n_classes = len(class_labels)
+        m_class_samples = split_samples(
+            m_samples, n_classes, ratios=sample_ratio )
+
+        # Get number of border annotations (same strategy as above)
+        if annotation_border_ratio is not None:
+            m_class_borders = list(range(n_classes))
+            for c in range(n_classes):
+                m_class_samples[c],m_class_borders[c] = split_samples(
+                    m_class_samples[c], 2,
+                    ratios=[1-annotation_border_ratio,annotation_border_ratio] )
+
+        # Get labeled image for identifying annotations
+        if annotation_type.lower() == 'centroids':
+            im_label = self.centroids
+            im_label_class = self.centroids_typenr
+        elif annotation_type.lower() == 'bodies':
+            im_label = self.bodies
+            im_label_class = self.bodies_typenr
+
+        # Get labeled image for return annotations
+        if return_annotations is not False:
+            if return_annotations.lower() == 'centroids':
+                return_im_label = self.centroids
+            elif return_annotations.lower() == 'bodies':
+                return_im_label = self.bodies
+
+        # Predefine output matrices
+        samples = np.zeros( (m_samples,
+            self.n_channels*zoom_size[0]*zoom_size[1]) )
+        if return_annotations is not False:
+            annotations = np.zeros( (m_samples, zoom_size[0]*zoom_size[1]) )
+        labels = np.zeros( (m_samples, n_classes) )
+        count = 0
+
+        # Loop over output classes
+        for c in range(n_classes):
+
+            # Get image where only border pixels are labeled (either pos or neg)
+            if annotation_border_ratio is not None:
+                brdr_val = 1 if class_labels[c] == 0 else 0
+                im_label_er = ndimage.binary_erosion(
+                    ndimage.binary_erosion( im_label_class==class_labels[c],
+                        border_value=brdr_val ), border_value=brdr_val )
+                im_label_border = im_label_class==class_labels[c]
+                im_label_border[im_label_er>0] = 0
+
+            # Get lists of all pixels that fall in one class
+            pix_y,pix_x = get_labeled_pixel_coordinates( \
+                im_label_class==class_labels[c], exclude_border=exclude_border )
+            if annotation_border_ratio is not None:
+                brdr_pix_y,brdr_pix_x = get_labeled_pixel_coordinates( \
+                    im_label_border, exclude_border=exclude_border )
+
+            # Get list of random indices for pixel coordinates
+            random_px = np.random.choice( len(pix_x),
+                                        m_class_samples[c], replace=False )
+            if annotation_border_ratio is not None:
+                random_brdr_px = np.random.choice( len(brdr_pix_x),
+                                        m_class_borders[c], replace=False )
+
+            # Loop samples
+            for p in random_px:
+                nr = im_label[pix_y[p], pix_x[p]]
+                if not morph_annotations:
+                    samples[count,:] = image2vec( zoom( self.channel,
+                        pix_y[p], pix_x[p],
+                        zoom_size=zoom_size, normalize=normalize_samples ) )
+                    if return_annotations:
+                        annotations[count,:] = image2vec( zoom( \
+                            return_im_label==nr, pix_y[p], pix_x[p],
+                            zoom_size=zoom_size, normalize=normalize_samples ) )
+                else:
+                    rotation = float(np.random.choice( rotation_list, 1 ))
+                    scale = ( float(np.random.choice( scale_list_y, 1 )), \
+                                float(np.random.choice( scale_list_x, 1 )) )
+                    noise_level = float(np.random.choice( noise_level_list, 1 ))
+
+                    samples[count,:] = image2vec( morphed_zoom( self.channel,
+                        pix_y[p], pix_x[p], zoom_size,
+                        rotation=rotation, scale_xy=scale,
+                        normalize=normalize_samples, noise_level=noise_level ) )
+                    if return_annotations:
+                        annotations[count,:] = image2vec( morphed_zoom( \
+                            return_im_label==nr, pix_y[p], pix_x[p], zoom_size,
+                            rotation=rotation, scale_xy=scale,
+                            normalize=normalize_samples, noise_level=noise_level ) )
+                labels[count,c] = 1
+                count = count + 1
+
+            # Positive border examples
+            if annotation_border_ratio is not None:
+                for p in random_brdr_px:
+                    nr = im_label[brdr_pix_y[p], brdr_pix_x[p]]
+                    if not morph_annotations:
+                        samples[count,:] = image2vec( zoom( self.channel,
+                            brdr_pix_y[p], brdr_pix_x[p],
+                            zoom_size=zoom_size, normalize=normalize_samples ) )
+                        if return_annotations:
+                            annotations[count,:] = image2vec( zoom( return_im_label==nr,
+                                brdr_pix_y[p], brdr_pix_x[p],
+                                zoom_size=zoom_size, normalize=normalize_samples ) )
+                    else:
+                        rotation = float(np.random.choice( rotation_list, 1 ))
+                        scale = ( float(np.random.choice( scale_list_y, 1 )), \
+                                    float(np.random.choice( scale_list_x, 1 )) )
+                        noise_level = float(np.random.choice( noise_level_list, 1 ))
+
+                        samples[count,:] = image2vec( morphed_zoom( self.channel,
+                            brdr_pix_y[p], brdr_pix_x[p], zoom_size,
+                            rotation=rotation, scale_xy=scale,
+                            normalize=normalize_samples, noise_level=noise_level ) )
+                        if return_annotations:
+                            annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
+                                brdr_pix_y[p], brdr_pix_x[p], zoom_size,
+                                rotation=rotation, scale_xy=scale,
+                                normalize=normalize_samples, noise_level=noise_level ) )
+                    labels[count,c] = 1
+                    count = count + 1
+
+        # Return samples, labels, annotations etc
+        if return_annotations:
+            annotations[annotations<0.5]=0
+            annotations[annotations>=0.5]=1
+            return samples,labels,annotations
+        else:
+            return samples,labels,[]
 
     def generate_cnn_annotations_cb(self, min_size=None, max_size=None,
                 dilation_factor_centroids=0, dilation_factor_bodies=0,
@@ -998,290 +1255,6 @@ class AnnotatedImage(object):
         self.annotation = ann_body_list
 
 
-    # ************************************************
-    # *****  Generate NN training/test data sets *****
-
-    @property
-    def include_annotation_typenr(self):
-        """Includes only ROI's with a certain typenr in body and centroid masks
-        """
-        return self._include_annotation_typenr
-
-    @include_annotation_typenr.setter
-    def include_annotation_typenr(self, include_typenr):
-        """Sets the nr to include"""
-        self._include_annotation_typenr = include_typenr
-        self._set_centroids()
-        self._set_bodies()
-
-    def get_batch( self, zoom_size, annotation_type='Bodies',
-            m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
-            pos_sample_ratio=0.5, annotation_border_ratio=None,
-            normalize_samples=False,
-            morph_annotations=False, rotation_list=None,
-            scale_list_x=None, scale_list_y=None, noise_level_list=None ):
-        """Constructs a 2d matrix (m samples x n pixels) with linearized data
-            half of which is from within an annotation, and half from outside
-            zoom_size:         2 dimensional size of the image (y,x)
-            annotation_type:   'Bodies' or 'Centroids'
-            m_samples:         number of training samples
-            exclude_border:    exclude annotations that are a certain distance
-                               to each border. Pix from (left, right, up, down)
-            return_annotations:  Returns annotations in addition to
-                                 samples and labels. If False, returns empty
-                                 list. Otherwise set to 'Bodies' or 'Centroids'
-            pos_sample_ratio:  Ratio of positive to negative samples (0.5=
-                               equal, 1=only positive samples)
-            annotation_border_ratio: Fraction of samples drawn from 2px border
-                               betweem positive and negative samples
-            normalize_samples: Scale each individual channel to its maximum
-            morph_annotations: Randomly morph the annotations
-            rotation_list:     List of rotation values to choose from in degrees
-            scale_list_x:      List of horizontal scale factors to choose from
-            scale_list_y:      List of vertical scale factors to choose from
-            noise_level_list:  List of noise levels to choose from
-            Returns tuple with samples as 2d numpy matrix, labels as
-            2d numpy matrix and if requested annotations as 2d numpy matrix
-            or otherwise an empty list as third item"""
-
-        # Calculate number of positive and negative samples
-        m_samples_pos = np.int16( m_samples * pos_sample_ratio )
-        m_samples_neg = m_samples - m_samples_pos
-
-        # randomly add 1 sample to compensate for rounding down positive samples
-        if np.random.rand(1) < ((float(m_samples)*pos_sample_ratio) % 1):
-            m_samples_pos = m_samples_pos + 1
-            m_samples_neg = m_samples_neg - 1
-
-        # Get number of border annotations (same strategy as above)
-        if annotation_border_ratio is not None:
-            m_border_pos = np.int16( m_samples_pos * annotation_border_ratio )
-            m_samples_pos = m_samples_pos-m_border_pos
-            if np.random.rand(1) < ((float(m_samples_pos)*annotation_border_ratio) % 1):
-                m_border_pos = m_border_pos + 1
-                m_samples_pos = m_samples_pos - 1
-
-            m_border_neg = np.int16( m_samples_neg * annotation_border_ratio )
-            m_samples_neg = m_samples_neg-m_border_neg
-            if np.random.rand(1) < ((float(m_samples_neg)*annotation_border_ratio) % 1):
-                m_border_neg = m_border_neg + 1
-                m_samples_neg = m_samples_neg - 1
-
-        # Get lists with coordinates of pixels within and outside of centroids
-        (pix_x,pix_y) = np.meshgrid(np.arange(self.y_res),np.arange(self.x_res))
-        if annotation_type.lower() == 'centroids':
-            im_label = self.centroids
-        elif annotation_type.lower() == 'bodies':
-            im_label = self.bodies
-        if return_annotations is not False:
-            if return_annotations.lower() == 'centroids':
-                return_im_label = self.centroids
-            elif return_annotations.lower() == 'bodies':
-                return_im_label = self.bodies
-
-        if annotation_border_ratio is not None:
-            im_label_dil = ndimage.binary_dilation(
-                                ndimage.binary_dilation(im_label>0))
-            im_label_er = ndimage.binary_erosion(
-                                ndimage.binary_erosion(im_label>0))
-            im_label_border_pos = im_label>0
-            im_label_border_pos[im_label_er>0] = 0
-            im_label_border_neg = im_label_dil>0
-            im_label_border_neg[im_label>0] = 0
-
-        roi_positive_x = pix_x.ravel()[im_label.ravel() > 0.5]
-        roi_positive_y = pix_y.ravel()[im_label.ravel() > 0.5]
-        roi_negative_x = pix_x.ravel()[im_label.ravel() == 0]
-        roi_negative_y = pix_y.ravel()[im_label.ravel() == 0]
-        if annotation_border_ratio is not None:
-            brdr_positive_x = pix_x.ravel()[im_label_border_pos.ravel() > 0.5]
-            brdr_positive_y = pix_y.ravel()[im_label_border_pos.ravel() > 0.5]
-            brdr_negative_x = pix_x.ravel()[im_label_border_neg.ravel() > 0.5]
-            brdr_negative_y = pix_y.ravel()[im_label_border_neg.ravel() > 0.5]
-
-        # Exclude all pixels that are within half-zoom from the border
-        roi_positive_inclusion = \
-            np.logical_and( np.logical_and( np.logical_and(
-                roi_positive_x>exclude_border[0],
-                roi_positive_x<(self.x_res-exclude_border[1]) ),
-                roi_positive_y>exclude_border[2] ),
-                roi_positive_y<(self.y_res-exclude_border[3]) )
-        roi_positive_x = roi_positive_x[ roi_positive_inclusion ]
-        roi_positive_y = roi_positive_y[ roi_positive_inclusion ]
-
-        roi_negative_inclusion = \
-            np.logical_and( np.logical_and( np.logical_and(
-                roi_negative_x>exclude_border[0],
-                roi_negative_x<(self.x_res-exclude_border[1]) ),
-                roi_negative_y>exclude_border[2] ),
-                roi_negative_y<(self.y_res-exclude_border[3]) )
-        roi_negative_x = roi_negative_x[ roi_negative_inclusion ]
-        roi_negative_y = roi_negative_y[ roi_negative_inclusion ]
-
-        if annotation_border_ratio is not None:
-            brdr_positive_inclusion = \
-                np.logical_and( np.logical_and( np.logical_and(
-                    brdr_positive_x>exclude_border[0],
-                    brdr_positive_x<(self.x_res-exclude_border[1]) ),
-                    brdr_positive_y>exclude_border[2] ),
-                    brdr_positive_y<(self.y_res-exclude_border[3]) )
-            brdr_positive_x = brdr_positive_x[ brdr_positive_inclusion ]
-            brdr_positive_y = brdr_positive_y[ brdr_positive_inclusion ]
-
-            brdr_negative_inclusion = \
-                np.logical_and( np.logical_and( np.logical_and(
-                    brdr_negative_x>exclude_border[0],
-                    brdr_negative_x<(self.x_res-exclude_border[1]) ),
-                    brdr_negative_y>exclude_border[2] ),
-                    brdr_negative_y<(self.y_res-exclude_border[3]) )
-            brdr_negative_x = brdr_negative_x[ brdr_negative_inclusion ]
-            brdr_negative_y = brdr_negative_y[ brdr_negative_inclusion ]
-
-        # Get list of random indices for pixel coordinates
-        random_pos = np.random.choice( len(roi_positive_x),
-                                        m_samples_pos, replace=False )
-        random_neg = np.random.choice( len(roi_negative_x),
-                                        m_samples_neg, replace=False )
-        if annotation_border_ratio is not None:
-            brdr_random_pos = np.random.choice( len(brdr_positive_x),
-                                            m_border_pos, replace=False )
-            brdr_random_neg = np.random.choice( len(brdr_negative_x),
-                                            m_border_neg, replace=False )
-
-        # Predefine output matrices
-        samples = np.zeros( (m_samples,
-            self.n_channels*zoom_size[0]*zoom_size[1]) )
-        if return_annotations is not False:
-            annotations = np.zeros( (m_samples, zoom_size[0]*zoom_size[1]) )
-        labels = np.zeros( (m_samples, 2) )
-        count = 0
-
-        # Positive examples
-        for p in random_pos:
-            nr = im_label[roi_positive_y[p], roi_positive_x[p]]
-            if not morph_annotations:
-                samples[count,:] = image2vec( zoom( self.channel,
-                    roi_positive_y[p], roi_positive_x[p],
-                    zoom_size=zoom_size, normalize=normalize_samples ) )
-                if return_annotations:
-                    annotations[count,:] = image2vec( zoom( return_im_label==nr,
-                        roi_positive_y[p], roi_positive_x[p],
-                        zoom_size=zoom_size, normalize=normalize_samples ) )
-            else:
-                rotation = float(np.random.choice( rotation_list, 1 ))
-                scale = ( float(np.random.choice( scale_list_y, 1 )), \
-                            float(np.random.choice( scale_list_x, 1 )) )
-                noise_level = float(np.random.choice( noise_level_list, 1 ))
-
-                samples[count,:] = image2vec( morphed_zoom( self.channel,
-                    roi_positive_y[p], roi_positive_x[p], zoom_size,
-                    rotation=rotation, scale_xy=scale,
-                    normalize=normalize_samples, noise_level=noise_level ) )
-                if return_annotations:
-                    annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
-                        roi_positive_y[p], roi_positive_x[p], zoom_size,
-                        rotation=rotation, scale_xy=scale,
-                        normalize=normalize_samples, noise_level=noise_level ) )
-            labels[count,1] = 1
-            count = count + 1
-
-        # Positive border examples
-        if annotation_border_ratio is not None:
-            for p in brdr_random_pos:
-                nr = im_label[brdr_positive_y[p], brdr_positive_x[p]]
-                if not morph_annotations:
-                    samples[count,:] = image2vec( zoom( self.channel,
-                        brdr_positive_y[p], brdr_positive_x[p],
-                        zoom_size=zoom_size, normalize=normalize_samples ) )
-                    if return_annotations:
-                        annotations[count,:] = image2vec( zoom( return_im_label==nr,
-                            brdr_positive_y[p], brdr_positive_x[p],
-                            zoom_size=zoom_size, normalize=normalize_samples ) )
-                else:
-                    rotation = float(np.random.choice( rotation_list, 1 ))
-                    scale = ( float(np.random.choice( scale_list_y, 1 )), \
-                                float(np.random.choice( scale_list_x, 1 )) )
-                    noise_level = float(np.random.choice( noise_level_list, 1 ))
-
-                    samples[count,:] = image2vec( morphed_zoom( self.channel,
-                        brdr_positive_y[p], brdr_positive_x[p], zoom_size,
-                        rotation=rotation, scale_xy=scale,
-                        normalize=normalize_samples, noise_level=noise_level ) )
-                    if return_annotations:
-                        annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
-                            brdr_positive_y[p], brdr_positive_x[p], zoom_size,
-                            rotation=rotation, scale_xy=scale,
-                            normalize=normalize_samples, noise_level=noise_level ) )
-                labels[count,1] = 1
-                count = count + 1
-
-        # Negative examples
-        for p in random_neg:
-            nr = im_label[roi_negative_y[p], roi_negative_x[p]]
-            if not morph_annotations:
-                samples[count,:] = image2vec( zoom( self.channel,
-                    roi_negative_y[p], roi_negative_x[p],
-                    zoom_size=zoom_size, normalize=normalize_samples ) )
-                if return_annotations:
-                    annotations[count,:] = image2vec( zoom( return_im_label==nr,
-                        roi_negative_y[p], roi_negative_x[p],
-                        zoom_size=zoom_size, normalize=normalize_samples ) )
-            else:
-                rotation = float(np.random.choice( rotation_list, 1 ))
-                scale = ( float(np.random.choice( scale_list_y, 1 )), \
-                            float(np.random.choice( scale_list_x, 1 )) )
-                noise_level = float(np.random.choice( noise_level_list, 1 ))
-
-                samples[count,:] = image2vec( morphed_zoom( self.channel,
-                    roi_negative_y[p], roi_negative_x[p], zoom_size,
-                    rotation=rotation, scale_xy=scale,
-                    normalize=normalize_samples, noise_level=noise_level ) )
-                if return_annotations:
-                    annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
-                        roi_negative_y[p], roi_negative_x[p], zoom_size,
-                        rotation=rotation, scale_xy=scale,
-                        normalize=normalize_samples, noise_level=noise_level ) )
-            labels[count,0] = 1
-            count = count + 1
-
-        # Negative examples
-        if annotation_border_ratio is not None:
-            for p in brdr_random_neg:
-                nr = im_label[brdr_negative_y[p], brdr_negative_x[p]]
-                if not morph_annotations:
-                    samples[count,:] = image2vec( zoom( self.channel,
-                        brdr_negative_y[p], brdr_negative_x[p],
-                        zoom_size=zoom_size, normalize=normalize_samples ) )
-                    if return_annotations:
-                        annotations[count,:] = image2vec( zoom( return_im_label==nr,
-                            brdr_negative_y[p], brdr_negative_x[p],
-                            zoom_size=zoom_size, normalize=normalize_samples ) )
-                else:
-                    rotation = float(np.random.choice( rotation_list, 1 ))
-                    scale = ( float(np.random.choice( scale_list_y, 1 )), \
-                                float(np.random.choice( scale_list_x, 1 )) )
-                    noise_level = float(np.random.choice( noise_level_list, 1 ))
-
-                    samples[count,:] = image2vec( morphed_zoom( self.channel,
-                        brdr_negative_y[p], brdr_negative_x[p], zoom_size,
-                        rotation=rotation, scale_xy=scale,
-                        normalize=normalize_samples, noise_level=noise_level ) )
-                    if return_annotations:
-                        annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
-                            brdr_negative_y[p], brdr_negative_x[p], zoom_size,
-                            rotation=rotation, scale_xy=scale,
-                            normalize=normalize_samples, noise_level=noise_level ) )
-                labels[count,0] = 1
-                count = count + 1
-
-        # Return samples, labels, annotations etc
-        if return_annotations:
-            annotations[annotations<0.5]=0
-            annotations[annotations>=0.5]=1
-            return samples,labels,annotations
-        else:
-            return samples,labels,[]
-
     def image_grid_RGB( self, image_size, image_type='image', annotation_nrs=None,
                         n_x=10, n_y=6, channel_order=(0,1,2),
                         normalize_samples=False, auto_scale=False,
@@ -1371,7 +1344,7 @@ class AnnotatedImageSet(object):
         self.ai_list = []
         self._body_dilation_factor = 0
         self._centroid_dilation_factor = 0
-        self._include_annotation_typenr = None
+        self._include_annotation_typenrs = None
         self._n_channels = 0
 
     def __str__(self):
@@ -1391,17 +1364,28 @@ class AnnotatedImageSet(object):
     # ********************************************
     # *****  Handling the annotation typenr  *****
     @property
-    def include_annotation_typenr(self):
-        """Returns the annotation typenr"""
-        return(self._include_annotation_typenr)
+    def class_labels(self):
+        """Returns the class labels that are set for training"""
+        class_labels = [0,]
+        class_labels.extend(list(self.include_annotation_typenrs))
+        return class_labels
 
-    @include_annotation_typenr.setter
-    def include_annotation_typenr(self, annotation_typenr):
-        """Updates the internal annotation typenr"""
-        if annotation_typenr != self._include_annotation_typenr:
+    @property
+    def include_annotation_typenrs(self):
+        """Returns the annotation typenrs"""
+        return self._include_annotation_typenrs
+
+    @include_annotation_typenrs.setter
+    def include_annotation_typenrs(self, annotation_typenrs):
+        """Updates the internal annotation typenr if not equal to last set nrs
+        """
+        if isinstance(annotation_typenrs,int):
+            annotation_typenrs = [annotation_typenrs,]
+        if set(annotation_typenrs) != self._include_annotation_typenrs:
             for nr in range(self.n_annot_images):
-                self.ai_list[nr].include_annotation_typenr = annotation_typenr
-            self._include_annotation_typenr = annotation_typenr
+                if self.ai_list[nr].include_annotation_typenrs != set(annotation_typenrs):
+                    self.ai_list[nr].include_annotation_typenrs = annotation_typenrs
+            self._include_annotation_typenrs = annotation_typenrs
 
     # *******************************************
     # *****  Handling the annotated bodies  *****
@@ -1437,7 +1421,7 @@ class AnnotatedImageSet(object):
     # *****  Produce training/test data set  *****
     def data_sample(self, zoom_size, annotation_type='Bodies',
             m_samples=100, exclude_border=(0,0,0,0), return_annotations=False,
-            pos_sample_ratio=0.5, normalize_samples=False,
+            sample_ratio=None, normalize_samples=False,
             annotation_border_ratio=None,
             morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None ):
@@ -1453,8 +1437,7 @@ class AnnotatedImageSet(object):
             return_annotations:  Returns annotations in addition to
                                  samples and labels. If False, returns empty
                                  list. Otherwise set to 'Bodies' or 'Centroids'
-            pos_sample_ratio:  Ratio of positive to negative samples (0.5=
-                               equal, 1=only positive samples)
+            sample_ratio:        List with ratio of samples per groups (sum=1)
             annotation_border_ratio: Fraction of samples drawn from 2px border
                                betweem positive and negative samples
             normalize_samples: Scale each individual channel to its maximum
@@ -1466,6 +1449,9 @@ class AnnotatedImageSet(object):
             Returns tuple with samples as 2d numpy matrix, labels as
             2d numpy matrix and if requested annotations as 2d numpy matrix
             or otherwise an empty list as third item"""
+
+        # Get number of classes
+        n_classes = len(self.class_labels)
 
         # Calculate number of pixels in linearized image
         n_pix_lin = self.ai_list[0].n_channels * zoom_size[0] * zoom_size[1]
@@ -1480,7 +1466,7 @@ class AnnotatedImageSet(object):
             annotations = np.zeros( (m_samples, zoom_size[0]*zoom_size[1]) )
         else:
             annotations = []
-        labels = np.zeros( (m_samples, 2) )
+        labels = np.zeros( (m_samples, n_classes) )
 
         # Loop AnnotatedImages
         for s in range(self.n_annot_images):
@@ -1494,7 +1480,7 @@ class AnnotatedImageSet(object):
                     zoom_size, annotation_type=annotation_type,
                     m_samples=m_set_samples, exclude_border=exclude_border,
                     return_annotations=return_annotations,
-                    pos_sample_ratio=pos_sample_ratio,
+                    sample_ratio=sample_ratio,
                     annotation_border_ratio=annotation_border_ratio,
                     normalize_samples=normalize_samples,
                     morph_annotations=morph_annotations,
@@ -1530,6 +1516,7 @@ class AnnotatedImageSet(object):
 
         # Loop files and load images and annotations
         print("\nLoading image and annotation files:")
+        annotation_type_nrs = set()
         for f, (image_file, mat_file) in enumerate(zip(image_files,mat_files)):
             image_filepath, image_filename = path.split(image_file)
             mat_filepath, mat_filename = path.split(mat_file)
@@ -1552,3 +1539,5 @@ class AnnotatedImageSet(object):
             # Append AnnotatedImage to the internal list
             print("    - "+anim.__str__())
             self.ai_list.append(anim)
+            annotation_type_nrs.update(anim.include_annotation_typenrs)
+        self.include_annotation_typenrs = annotation_type_nrs
