@@ -1014,11 +1014,26 @@ class AnnotatedImage(object):
                     exclude_border=self.exclude_border_tuple )
 
             # Get list of random indices for pixel coordinates
-            random_px = np.random.choice( len(pix_x),
-                                        m_class_samples[c], replace=False )
+            if len(pix_x) < m_class_samples[c]:
+                print("!! Warning: fewer samples of class {} (n={})".format( \
+                    c, len(pix_x)) + " than requested (m={})".format(m_class_samples[c]))
+                print("   Returning duplicate samples...")
+                random_px = np.random.choice( len(pix_x),
+                                            m_class_samples[c], replace=True )
+            else:
+                random_px = np.random.choice( len(pix_x),
+                                            m_class_samples[c], replace=False )
+
             if annotation_border_ratio is not None:
-                random_brdr_px = np.random.choice( len(brdr_pix_x),
-                                        m_class_borders[c], replace=False )
+                if len(brdr_pix_x) < m_class_borders[c]:
+                    print("!! Warning: fewer border samples of class {} (n={})".format( \
+                        c, len(brdr_pix_x)) + " than requested (m={})".format(m_class_borders[c]))
+                    print("   Returning duplicate samples...")
+                    random_brdr_px = np.random.choice( len(brdr_pix_x),
+                                            m_class_borders[c], replace=True )
+                else:
+                    random_brdr_px = np.random.choice( len(brdr_pix_x),
+                                            m_class_borders[c], replace=False )
 
             # Loop samples
             for p in random_px:

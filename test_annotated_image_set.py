@@ -62,13 +62,13 @@ print("Included type_nrs: {}".format(ais1.include_annotation_typenrs))
 # print("Included type_nrs: {}".format(ais1.include_annotation_typenrs))
 
 # Get non-morphed training set
-m_samples = 100
+m_samples = 1000
 print(" ")
 print("Get training set (m={}) with non-morphed annotations from ais1".format(m_samples))
 t_start = time.time()
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='bodies', return_annotations=False,
-        m_samples=m_samples, exclude_border=(0,0,0,0), morph_annotations=False,
+        m_samples=m_samples, morph_annotations=False,
         sample_ratio=(0.4,0.4,0.2),
         annotation_border_ratio=0.43 )
 t_curr = time.time()
@@ -80,7 +80,7 @@ print("Get training set (m={}) with morphed annotations from ais1".format(m_samp
 t_start = time.time()
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='centroids', return_annotations='centroids',
-        m_samples=m_samples, exclude_border=(0,0,0,0), morph_annotations=False,
+        m_samples=m_samples, morph_annotations=False,
         sample_ratio=(0.4,0.4,0.2),
         annotation_border_ratio=0.43 )
 t_curr = time.time()
@@ -91,10 +91,10 @@ print(" ")
 print("Get small training set with morphed annotations from ais1")
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='bodies', return_annotations='bodies',
-        m_samples=30, exclude_border=(0,0,0,0), morph_annotations=False,
+        m_samples=30, morph_annotations=False,
         sample_ratio=(0.4,0.4,0.2),
         annotation_border_ratio=.5 )
-print(labels)
+# print(labels)
 
 print(" ")
 print("Construct RGB grid from first 16 annotations in training set")
