@@ -517,7 +517,7 @@ class AnnotatedImage(object):
     def __init__( self, image_data=None, annotation_data=None,
         exclude_border=None, detected_centroids=None, detected_bodies=None,
         labeled_centroids=None, labeled_bodies=None,
-        include_annotation_typenr=None):
+        include_annotation_typenr=None, downsample=None):
         """Initialize image list and channel list
             channel:             List or tuple of same size images
             annotation:          List or tuple of Annotation objects
@@ -529,6 +529,8 @@ class AnnotatedImage(object):
             detected_bodies:     Binary image with bodies labeled
             labeled_centroids:   Image with annotation centroids labeled by number
             labeled_bodies:      Image with annotation bodies labeled by number
+            downsample:          Downsample images, borders and ROI's by a
+                                 certain factor
             """
         self._bodies = None
         self._body_dilation_factor = 0
