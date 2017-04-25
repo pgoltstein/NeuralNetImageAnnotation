@@ -529,9 +529,10 @@ class AnnotatedImage(object):
             detected_bodies:     Binary image with bodies labeled
             labeled_centroids:   Image with annotation centroids labeled by number
             labeled_bodies:      Image with annotation bodies labeled by number
-            downsample:          Downsample images, borders and ROI's by a
-                                 certain factor
+            downsample:          Downsample to be imported images, borders
+                                 and ROI's by a certain factor
             """
+        self._downsample = downsample
         self._bodies = None
         self._body_dilation_factor = 0
         self._centroids = None
@@ -607,9 +608,17 @@ class AnnotatedImage(object):
         y_res_old,x_res_old = self.y_res,self.x_res
         if isinstance( image_data, list):
             for im in image_data:
-                self._channel.append( np.array(im) )
+                if self._downsample is not None:
+                    self._channel.append( ndimage.interpolation.zoom( \
+                        np.array(im), 1/self._downsample )
+                else:
+                    self._channel.append( np.array(im) )
         else:
-            self._channel.append( np.array(image_data) )
+            if self._downsample is not None:
+                self._channel.append( ndimage.interpolation.zoom( \
+                    np.array(image_data), 1/self._downsample ) )
+            else:
+                self._channel.append( np.array(image_data) )
         self._y_res,self._x_res = self._channel[0].shape
         # Update masks if there are annotations and the image resolution changed
         if self.n_annotations > 0 and ( (y_res_old != self.y_res)
