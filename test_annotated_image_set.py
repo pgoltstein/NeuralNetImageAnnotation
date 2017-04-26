@@ -48,6 +48,18 @@ print(" ")
 print("Changing dilation factor of ais1 centroids to 0")
 ais1.centroid_dilation_factor = 0
 
+print("ais1.include_annotation_typenrs = [1,4]")
+ais1.include_annotation_typenrs = [1,4]
+print("Class labels that are set for training: {}".format(ais1.class_labels))
+
+print("ais1.include_annotation_typenrs = 1")
+ais1.include_annotation_typenrs = 1
+print("Class labels that are set for training: {}".format(ais1.class_labels))
+
+print("ais1.include_annotation_typenrs = None")
+ais1.include_annotation_typenrs = None
+print("Class labels that are set for training: {}".format(ais1.class_labels))
+
 # Dilate centroids
 print(" ")
 print("Included type_nrs: {}".format(ais1.include_annotation_typenrs))

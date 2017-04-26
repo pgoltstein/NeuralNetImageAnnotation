@@ -202,14 +202,16 @@ if use_channels is not None:
     for nr,ch in enumerate(use_channels):
         use_channels[nr] = int(ch)-1
 training_image_set = ia.AnnotatedImageSet()
-training_image_set.load_data_dir_tiff_mat( training_data_path,
-    normalize=normalize_images, use_channels=use_channels,
-    exclude_border=exclude_border )
 
 if include_annotation_typenrs is not None:
     print("Setting annotation typenrs to be included " + \
                                 "to {}".format(include_annotation_typenrs))
     training_image_set.include_annotation_typenrs = include_annotation_typenrs
+
+training_image_set.load_data_dir_tiff_mat( training_data_path,
+    normalize=normalize_images, use_channels=use_channels,
+    exclude_border=exclude_border )
+
 
 ########################################################################
 # Set up network

@@ -287,8 +287,9 @@ def split_samples( m_samples, n_groups, ratios=None ):
 
     if ratios is None:
         ratios = n_groups * [ (1/n_groups),]
-    elif isinstance( ratios, tuple ):
-        ratios = list(ratios)
+    else:
+        ratios = np.array(ratios)
+        ratios = ratios/ratios.sum()
 
     # Calculate minimum number of positive and negative samples and round err
     g_samples = []
@@ -594,6 +595,13 @@ class AnnotatedImage(object):
         """Returns the (read-only) downsampling factor"""
         return self._downsample
 
+    @property
+    def class_labels(self):
+        """Returns the class labels that are set for training"""
+        class_labels = [0,]
+        class_labels.extend(list(self.include_annotation_typenrs))
+        return class_labels
+
     # ************************************
     # *****  Handling the image data *****
     @property
@@ -782,7 +790,8 @@ class AnnotatedImage(object):
                 group_nr=an.group_nr) )
             type_nr_list.append(an.type_nr)
         # Update masks if there is at least one image channel
-        self.include_annotation_typenrs = type_nr_list
+        if self.include_annotation_typenrs is None:
+            self.include_annotation_typenrs = type_nr_list
         if self.n_channels > 0:
             self._set_bodies()
             self._set_centroids()
@@ -808,7 +817,8 @@ class AnnotatedImage(object):
             annotation_list.append( Annotation( body_pixels_yx=body,
                     annotation_name=name, type_nr=type_nr, group_nr=group_nr ) )
             type_nr_list.append(type_nr)
-        self.include_annotation_typenrs = type_nr_list
+        if self.include_annotation_typenrs is None:
+            self.include_annotation_typenrs = type_nr_list
         self.annotation = annotation_list
 
     def export_annotations_to_mat(self, file_name,
@@ -889,7 +899,7 @@ class AnnotatedImage(object):
         self._bodies = np.zeros_like(self._channel[0])
         self._bodies_type_nr = np.zeros_like(self._channel[0])
         for nr in range(self.n_annotations):
-            if self._annotation[nr].type_nr in self._include_annotation_typenrs:
+            if self._annotation[nr].type_nr in self.include_annotation_typenrs:
                 self._annotation[nr].mask_body(self._bodies,
                     dilation_factor=self._body_dilation_factor,
                     mask_value=nr+1, keep_centroid=True)
@@ -926,7 +936,7 @@ class AnnotatedImage(object):
         self._centroids = np.zeros_like(self._channel[0])
         self._centroids_type_nr = np.zeros_like(self._channel[0])
         for nr in range(self.n_annotations):
-            if self._annotation[nr].type_nr in self._include_annotation_typenrs:
+            if self._annotation[nr].type_nr in self.include_annotation_typenrs:
                 self._annotation[nr].mask_centroid(self._centroids,
                     dilation_factor=self._centroid_dilation_factor,
                     mask_value=nr+1)
@@ -991,9 +1001,21 @@ class AnnotatedImage(object):
     @include_annotation_typenrs.setter
     def include_annotation_typenrs(self, include_typenrs):
         """Sets the nrs to include, removes redundancy by using sets"""
+
         if isinstance(include_typenrs,int):
-            include_typenrs = [include_typenrs,]
-        self._include_annotation_typenrs = set(include_typenrs)
+            annotation_typenrs = set([include_typenrs,])
+        elif include_typenrs is None:
+            type_nr_list = []
+            for an in self.annotation:
+                type_nr_list.append(an.type_nr)
+            annotation_typenrs = set(type_nr_list)
+        else:
+            annotation_typenrs = set(include_typenrs)
+
+        if 0 in annotation_typenrs:
+            annotation_typenrs.remove(0)
+
+        self._include_annotation_typenrs = annotation_typenrs
         if self.n_channels > 0:
             self._set_centroids()
             self._set_bodies()
@@ -1026,9 +1048,10 @@ class AnnotatedImage(object):
             or otherwise an empty list as third item"""
 
         # Calculate number of samples per class
-        class_labels = [0,]
-        class_labels.extend(list(self.include_annotation_typenrs))
+        class_labels = sorted(self.class_labels)
         n_classes = len(class_labels)
+        if len(sample_ratio) > n_classes:
+            sample_ratio = sample_ratio[:n_classes]
         m_class_samples = split_samples(
             m_samples, n_classes, ratios=sample_ratio )
 
@@ -1487,12 +1510,24 @@ class AnnotatedImageSet(object):
         """Updates the internal annotation typenr if not equal to last set nrs
         """
         if isinstance(annotation_typenrs,int):
-            annotation_typenrs = [annotation_typenrs,]
-        if set(annotation_typenrs) != self._include_annotation_typenrs:
+            annotation_typenrs = set([annotation_typenrs,])
+        elif annotation_typenrs is None:
+            pass
+        else:
+            annotation_typenrs = set(annotation_typenrs)
+
+        if isinstance(annotation_typenrs,set):
+            if 0 in annotation_typenrs:
+                annotation_typenrs.remove(0)
+
+        if annotation_typenrs != self._include_annotation_typenrs:
+            new_annotation_type_nrs = set()
             for nr in range(self.n_annot_images):
-                if self.ai_list[nr].include_annotation_typenrs != set(annotation_typenrs):
+                if self.ai_list[nr].include_annotation_typenrs != annotation_typenrs:
                     self.ai_list[nr].include_annotation_typenrs = annotation_typenrs
-            self._include_annotation_typenrs = annotation_typenrs
+                if annotation_typenrs is None:
+                    new_annotation_type_nrs.update(self.ai_list[nr].include_annotation_typenrs)
+            self._include_annotation_typenrs = new_annotation_type_nrs
 
     # *******************************************
     # *****  Handling the annotated bodies  *****
@@ -1635,6 +1670,8 @@ class AnnotatedImageSet(object):
 
             # Create new AnnotatedImage, add images and annotations
             anim = AnnotatedImage(downsample=self.downsamplingfactor)
+            if self.include_annotation_typenrs is not None:
+                anim.include_annotation_typenrs = self.include_annotation_typenrs
             anim.add_image_from_file( image_filename, image_filepath,
                             normalize=normalize, use_channels=use_channels )
             anim.import_annotations_from_mat( mat_filename, mat_filepath )
@@ -1658,4 +1695,7 @@ class AnnotatedImageSet(object):
             print("    - "+anim.__str__())
             self.ai_list.append(anim)
             annotation_type_nrs.update(anim.include_annotation_typenrs)
-        self.include_annotation_typenrs = annotation_type_nrs
+        if self.include_annotation_typenrs is None:
+            print("Updating the annotation_type_nrs of each annotated image to be equal")
+            self.include_annotation_typenrs = annotation_type_nrs
+        print("Class labels that are set for training: {}".format(self.class_labels))
