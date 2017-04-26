@@ -1436,8 +1436,13 @@ class AnnotatedImageSet(object):
     """Class that represents a dataset of annotated images and organizes
     the dataset for feeding in machine learning algorithms"""
 
-    def __init__(self):
+    def __init__(self, downsample=None):
+        """Initializes
+            downsample:          Downsample to be imported images, borders
+                                 and ROI's by a certain factor
+        """
         # initializes the list of annotated images
+        self._downsample = downsample
         self.ai_list = []
         self._body_dilation_factor = 0
         self._centroid_dilation_factor = 0
@@ -1457,6 +1462,11 @@ class AnnotatedImageSet(object):
     @property
     def n_channels(self):
         return self._n_channels
+
+    @property
+    def downsamplingfactor(self):
+        """Returns the (read-only) downsampling factor"""
+        return self._downsample
 
     # ********************************************
     # *****  Handling the annotation typenr  *****
@@ -1624,7 +1634,7 @@ class AnnotatedImageSet(object):
             print("{:2.0f}) {} -- {}".format(f+1,image_filename,mat_filename))
 
             # Create new AnnotatedImage, add images and annotations
-            anim = AnnotatedImage()
+            anim = AnnotatedImage(downsample=self.downsamplingfactor)
             anim.add_image_from_file( image_filename, image_filepath,
                             normalize=normalize, use_channels=use_channels )
             anim.import_annotations_from_mat( mat_filename, mat_filepath )
