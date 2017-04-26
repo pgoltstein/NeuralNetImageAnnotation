@@ -32,7 +32,7 @@ noise_level_list = np.array(range(25)) / 1000
 # Create an instance of the AnnotatedImage class
 print(" ")
 print("Create an instance of the AnnotatedImageSet class named: ais1")
-ais1 = ia.AnnotatedImageSet()
+ais1 = ia.AnnotatedImageSet(downsample=None)
 print("String output of ais1:")
 print(" >> " + ais1.__str__())
 
