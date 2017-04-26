@@ -673,7 +673,7 @@ class AnnotatedImage(object):
                 int(np.round(self._exclude_border['right']/self.downsamplingfactor))
             self._exclude_border['top'] = \
                 int(np.round(self._exclude_border['top']/self.downsamplingfactor))
-            self._exclude_border['bottom'] =
+            self._exclude_border['bottom'] = \
                 int(np.round(self._exclude_border['bottom']/self.downsamplingfactor))
         self._exclude_border_tuple = \
             ( int(self._exclude_border['left']), int(self._exclude_border['right']),
@@ -769,13 +769,20 @@ class AnnotatedImage(object):
         self._annotation = []
         if not isinstance( annotation_data, list):
             annotation_data = [annotation_data]
+        type_nr_list = []
         for an in annotation_data:
+            if self.downsamplingfactor is not None:
+                body_pixels = np.round(an.body / self.downsamplingfactor)
+            else:
+                body_pixels = an.body
             self._annotation.append( Annotation(
-                body_pixels_yx=an.body,
+                body_pixels_yx=body_pixels,
                 annotation_name=an.name,
                 type_nr=an.type_nr,
                 group_nr=an.group_nr) )
+            type_nr_list.append(an.type_nr)
         # Update masks if there is at least one image channel
+        self.include_annotation_typenrs = type_nr_list
         if self.n_channels > 0:
             self._set_bodies()
             self._set_centroids()
@@ -804,10 +811,37 @@ class AnnotatedImage(object):
         self.include_annotation_typenrs = type_nr_list
         self.annotation = annotation_list
 
-    def export_annotations_to_mat(self, file_name, file_path='.'):
+    def export_annotations_to_mat(self, file_name,
+                                        file_path='.', upsample=None):
         """Writes annotations to ROI.mat file
         file_name:  String holding name of ROI file
-        file_path:  String holding file path"""
+        file_path:  String holding file path
+        upsample:   Upsampling factor"""
+
+        if upsample is not None:
+            upsamplingfactor = upsample
+        elif self.downsamplingfactor is not None:
+            print("AnnotatedImage was downsampled by factor of {}".format( \
+                self.downsamplingfactor) + ", upsampling ROI's for export ")
+            upsamplingfactor = self.downsamplingfactor
+        else:
+            upsamplingfactor = None
+
+        # Upsample ROI's before export
+        if upsamplingfactor is not None:
+            annotation_export_list = []
+            for an in self.annotation:
+                annotation_mask = np.zeros_like(self._channel[0])
+                an.mask_body(image=annotation_mask)
+                annotation_mask = ndimage.interpolation.zoom( \
+                    annotation_mask, self.downsamplingfactor )
+                annotation_export_list.append( Annotation(
+                    body_pixels_yx=annotation_mask>0.5, annotation_name=an.name,
+                    type_nr=an.type_nr, group_nr=an.group_nr) )
+        else:
+            annotation_export_list = self.annotation
+
+        # Export ROIs
         nrs = []
         groups = []
         types = []
@@ -817,19 +851,18 @@ class AnnotatedImage(object):
         sizes = []
         perimeters = []
         bodys = []
-        for nr in range(self.n_annotations):
+        for nr,an in enumerate(annotation_export_list):
             nrs.append(nr)
-            groups.append(self.annotation[nr].group_nr)
-            types.append(self.annotation[nr].type_nr)
-            typenames.append(self.annotation[nr].name)
-            xs.append(self.annotation[nr].x+1)
-            ys.append(self.annotation[nr].y+1)
-            sizes.append(self.annotation[nr].size)
-            perimeter = np.array([self.annotation[nr].perimeter[:,1],
-                             self.annotation[nr].perimeter[:,0]]).transpose()+1
+            groups.append(an.group_nr)
+            types.append(an.type_nr)
+            typenames.append(an.name)
+            xs.append(an.x+1)
+            ys.append(an.y+1)
+            sizes.append(an.size)
+            perimeter = np.array( \
+                [an.perimeter[:,1],an.perimeter[:,0]] ).transpose()+1
             perimeters.append(perimeter)
-            body = np.array([self.annotation[nr].body[:,1],
-                             self.annotation[nr].body[:,0]]).transpose()+1
+            body = np.array( [an.body[:,1],an.body[:,0]] ).transpose()+1
             bodys.append(body)
         savedata = np.core.records.fromarrays( [ nrs, groups, types,
             typenames, xs, ys, sizes, perimeters, bodys ],
@@ -961,8 +994,9 @@ class AnnotatedImage(object):
         if isinstance(include_typenrs,int):
             include_typenrs = [include_typenrs,]
         self._include_annotation_typenrs = set(include_typenrs)
-        self._set_centroids()
-        self._set_bodies()
+        if self.n_channels > 0:
+            self._set_centroids()
+            self._set_bodies()
 
     def get_batch( self, zoom_size, annotation_type='Bodies',
             m_samples=100, return_annotations=False,
@@ -1095,9 +1129,10 @@ class AnnotatedImage(object):
                         normalize=normalize_samples, noise_level=noise_level ) )
                     if return_annotations:
                         annotations[count,:] = image2vec( morphed_zoom( \
-                            return_im_label==nr, pix_y[p], pix_x[p], zoom_size,
+                            (return_im_label==nr).astype(np.float),
+                            pix_y[p], pix_x[p], zoom_size,
                             rotation=rotation, scale_xy=scale,
-                            normalize=normalize_samples, noise_level=noise_level ) )
+                            normalize=normalize_samples, noise_level=0 ) )
                 labels[count,c] = 1
                 count = count + 1
 
@@ -1124,10 +1159,11 @@ class AnnotatedImage(object):
                             rotation=rotation, scale_xy=scale,
                             normalize=normalize_samples, noise_level=noise_level ) )
                         if return_annotations:
-                            annotations[count,:] = image2vec( morphed_zoom( return_im_label==nr,
+                            annotations[count,:] = image2vec( morphed_zoom(
+                                (return_im_label==nr).astype(np.float),
                                 brdr_pix_y[p], brdr_pix_x[p], zoom_size,
                                 rotation=rotation, scale_xy=scale,
-                                normalize=normalize_samples, noise_level=noise_level ) )
+                                normalize=normalize_samples, noise_level=0 ) )
                     labels[count,c] = 1
                     count = count + 1
 

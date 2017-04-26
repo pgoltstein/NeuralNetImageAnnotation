@@ -20,12 +20,12 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 # Overall settings
-filepath = '/Users/pgoltstein/Dropbox/TEMP/DataSet2'
+filepath = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
 im_size = (31,31)
-rotation_list = np.array(range(360))
-scale_list_x = np.array(range(500,1500)) / 1000
-scale_list_y = np.array(range(500,1500)) / 1000
-noise_level_list = np.array(range(25)) / 1000
+rotation_list = np.arange(0,360,1)
+scale_list_x = np.arange(0.9,1.1,0.01)
+scale_list_y = np.arange(0.9,1.1,0.01)
+noise_level_list = np.arange(0,0.05,0.001)
 
 # Create an instance of the AnnotatedImage class
 print(" ")
@@ -35,7 +35,7 @@ print("String output of anim1:")
 print(" >> " + anim1.__str__())
 
 # Import annotations from ROI file (matlab)
-roifile = 'F03-Loc5-V1-20160209-ovlSplitROI2.mat'
+roifile = 'F03-Loc5-V1-20160209-ovlSplitROI1.mat'
 print(" ")
 print("Importing annotations from ROI file (matlab) to anim1:")
 print(os.path.join(filepath,roifile))
@@ -43,7 +43,7 @@ anim1.import_annotations_from_mat(file_name=roifile,file_path=filepath)
 print(" >> " + anim1.__str__())
 
 # Add an image to anim
-imfile = 'F03-Loc5-V1-20160209-OverlayL2.tiff'
+imfile = 'F03-Loc5-V1-20160209-OverlayL1.tiff'
 print(" ")
 print("Importing image from tiff file to anim1:")
 print(os.path.join(filepath,roifile))
@@ -57,11 +57,11 @@ anim1.save('testAnim.npy',filepath)
 
 # Load anim
 print(" ")
-print("Define new annotated image (anim2) and load data from testAnim.anim")
-anim2 = ia.AnnotatedImage()
+print("Define new annotated image (anim2), with downsample=2 and load data from testAnim.anim")
+anim2 = ia.AnnotatedImage(downsample=2)
 anim2.load('testAnim.npy',filepath)
 print("String output of anim2:")
-print(" >> " + anim1.__str__())
+print(" >> " + anim2.__str__())
 
 # # Dilate bodies
 # print(" ")
@@ -89,14 +89,16 @@ print(" ")
 print("Get training set with non-morphed annotations from anim2")
 annot_show_list = list(range(16))
 samples,labels,annotations = anim2.get_batch( \
-        im_size, annotation_type='centroids', return_annotations=True,
-        m_samples=100, exclude_border=(0,0,0,0), morph_annotations=False )
+        im_size, annotation_type='bodies', return_annotations='bodies',
+        m_samples=len(annot_show_list), morph_annotations=False,
+        annotation_border_ratio=0.5 )
+
 samples_grid,_ = ia.image_grid_RGB( samples,
     n_channels=anim2.n_channels, annotation_nrs=annot_show_list,
     image_size=im_size, n_x=4, n_y=4, channel_order=(0,1,2),
     amplitude_scaling=(1.33,1.33,1), line_color=0, auto_scale=True )
 samples_grid[:,:,2] = 0
-annotations_grid,_ = ia.image_grid_RGB( annotations,
+annotations_grid,shift_grid = ia.image_grid_RGB( annotations,
     n_channels=1, annotation_nrs=annot_show_list,
     image_size=im_size, n_x=4, n_y=4, channel_order=(0,1,2),
     amplitude_scaling=(1.33,1.33,1), line_color=1, auto_scale=True )
@@ -105,8 +107,9 @@ annotations_grid,_ = ia.image_grid_RGB( annotations,
 print(" ")
 print("Get training set with morphed annotations from anim2")
 samples_mrph,labels_mrph,annotations_mrph = anim2.get_batch( \
-        im_size, annotation_type='centroids', return_annotations=True,
-        m_samples=100, exclude_border=(0,0,0,0),  morph_annotations=True,
+        im_size, annotation_type='bodies', return_annotations="bodies",
+        m_samples=len(annot_show_list),  morph_annotations=True,
+        annotation_border_ratio=0.5,
         rotation_list=rotation_list, scale_list_x=scale_list_x,
         scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
@@ -132,13 +135,32 @@ anim3 = ia.AnnotatedImage(image_data=anim1.channel)
 print("String output of anim3:")
 print(" >> " + anim3.__str__())
 
-# Import annotations from ROI file (matlab)
-roifile = 'F03-Loc5-V1-20160209-ROI2.mat'
+# Import annotations from zzROI file (matlab)
 print(" ")
 print("Importing annotations from zzROIpy.mat file to anim3:")
 print(os.path.join(filepath,'zzROIpy.mat'))
 anim3.import_annotations_from_mat(file_name='zzROIpy.mat',file_path=filepath)
 print(" >> " + anim3.__str__())
+
+
+# Save anim2 annotations
+print(" ")
+print("Exporting anim2 annotations to zzROIpy2.mat")
+anim2.export_annotations_to_mat( 'zzROIpy2.mat', file_path=filepath)
+
+# Load anim
+print(" ")
+print("Define new annotated image (anim4) and copy image data from anim1")
+anim4 = ia.AnnotatedImage(image_data=anim1.channel)
+print("String output of anim4:")
+print(" >> " + anim4.__str__())
+
+# Import annotations from zzROI2 file (matlab)
+print(" ")
+print("Importing annotations from zzROIpy2.mat file to anim4:")
+print(os.path.join(filepath,'zzROIpy2.mat'))
+anim4.import_annotations_from_mat(file_name='zzROIpy2.mat',file_path=filepath)
+print(" >> " + anim4.__str__())
 
 
 # ************************************************************
@@ -244,6 +266,13 @@ with sns.axes_style("white"):
     ax4 = plt.subplot2grid( (2,3), (1,1) )
     ax4.imshow( annotations_grid, interpolation='nearest', vmax=image_grid.max()*0.8 )
     ax4.set_title("First 16 training samples (body)")
+    for cnt,nr in enumerate(annot_show_list):
+        if labels[cnt,0] != 1:
+            an = ia.Annotation( ia.vec2image( annotations[nr,:],
+                                        n_channels=1, image_size=im_size ) )
+            ax4.plot( shift_grid[cnt][1]+(an.perimeter[:,1]-(im_size[1]/2)),
+                      shift_grid[cnt][0]+(an.perimeter[:,0]-(im_size[1]/2)),
+                        linewidth=1, color="#ff0000" )
     plt.axis('tight')
     plt.axis('off')
 
@@ -256,11 +285,12 @@ with sns.axes_style("white"):
     ax6 = plt.subplot2grid( (2,3), (1,2) )
     ax6.imshow( annotations_grid_mrph, interpolation='nearest', vmax=image_grid.max()*0.8 )
     for cnt,nr in enumerate(annot_show_list):
-        an = ia.Annotation( ia.vec2image( annotations_mrph[nr,:],
-                                    n_channels=1, image_size=im_size ) )
-        ax6.plot( shift_mrph[cnt][1]+(an.perimeter[:,1]-(im_size[1]/2)),
-                  shift_mrph[cnt][0]+(an.perimeter[:,0]-(im_size[1]/2)),
-                    linewidth=1, color="#ff0000" )
+        if labels_mrph[cnt,0] != 1:
+            an = ia.Annotation( ia.vec2image( annotations_mrph[nr,:],
+                                        n_channels=1, image_size=im_size ) )
+            ax6.plot( shift_mrph[cnt][1]+(an.perimeter[:,1]-(im_size[1]/2)),
+                      shift_mrph[cnt][0]+(an.perimeter[:,0]-(im_size[1]/2)),
+                        linewidth=1, color="#ff0000" )
     ax6.set_title("First 16 morphed training samples (body)")
     plt.axis('tight')
     plt.axis('off')
@@ -283,6 +313,27 @@ with sns.axes_style("white"):
         axr.plot( an.perimeter[:,1], an.perimeter[:,0],
             linewidth=1, color="#ffffff" )
     axr.set_title("anim3 with annotations of anim1")
+    plt.axis('tight')
+    plt.axis('off')
+
+# Show channels
+with sns.axes_style("white"):
+    plt.figure(figsize=(12,6), facecolor='w', edgecolor='w')
+    axr = plt.subplot2grid( (1,2), (0,0) )
+    axr.imshow(anim1.RGB(),interpolation='nearest')
+    for an in anim4.annotation:
+        axr.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    axr.set_title("anim1 with annotations of anim4")
+    plt.axis('tight')
+    plt.axis('off')
+
+    axr = plt.subplot2grid( (1,2), (0,1) )
+    axr.imshow(anim4.RGB(),interpolation='nearest')
+    for an in anim1.annotation:
+        axr.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    axr.set_title("anim4 with annotations of anim1")
     plt.axis('tight')
     plt.axis('off')
 
