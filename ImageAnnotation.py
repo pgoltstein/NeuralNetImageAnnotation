@@ -1528,7 +1528,11 @@ class AnnotatedImageSet(object):
                     self.ai_list[nr].include_annotation_typenrs = annotation_typenrs
                 if annotation_typenrs is None:
                     new_annotation_type_nrs.update(self.ai_list[nr].include_annotation_typenrs)
-            self._include_annotation_typenrs = new_annotation_type_nrs
+            if annotation_typenrs is not None:
+                self._include_annotation_typenrs = annotation_typenrs
+            else:
+                self._include_annotation_typenrs = new_annotation_type_nrs
+        print("self._include_annotation_typenrs={}".format(self._include_annotation_typenrs))
 
     # *******************************************
     # *****  Handling the annotated bodies  *****
@@ -1697,6 +1701,4 @@ class AnnotatedImageSet(object):
             self.ai_list.append(anim)
             annotation_type_nrs.update(anim.include_annotation_typenrs)
         if self.include_annotation_typenrs is None:
-            print("Updating the annotation_type_nrs of each annotated image to be equal")
             self.include_annotation_typenrs = annotation_type_nrs
-        print("Class labels that are set for training: {}".format(self.class_labels))

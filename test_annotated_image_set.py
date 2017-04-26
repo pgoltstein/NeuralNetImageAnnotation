@@ -24,10 +24,10 @@ matplotlib.rcParams['ps.fonttype'] = 42
 # Overall settings
 data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet_small2'
 im_size = (31,31)
-rotation_list = np.array(range(360))
-scale_list_x = np.array(range(500,1500)) / 1000
-scale_list_y = np.array(range(500,1500)) / 1000
-noise_level_list = np.array(range(25)) / 1000
+rotation_list = np.arange(0,360,1)
+scale_list_x = np.arange(0.9,1.1,0.01)
+scale_list_y = np.arange(0.9,1.1,0.01)
+noise_level_list = np.arange(0.019,0.02,0.001)
 
 # Create an instance of the AnnotatedImage class
 print(" ")
@@ -103,9 +103,11 @@ print(" ")
 print("Get small training set with morphed annotations from ais1")
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='bodies', return_annotations='bodies',
-        m_samples=30, morph_annotations=False,
+        m_samples=30, morph_annotations=True,
         sample_ratio=(0.4,0.4,0.2),
-        annotation_border_ratio=.5 )
+        annotation_border_ratio=0.5,
+        rotation_list=rotation_list, scale_list_x=scale_list_x,
+        scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 # print(labels)
 
 print(" ")

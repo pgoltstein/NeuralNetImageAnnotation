@@ -319,7 +319,7 @@ with sns.axes_style("white"):
     plt.axis('tight')
     plt.axis('off')
 
-# Show channels
+# Show channels anim1 anim4
 with sns.axes_style("white"):
     plt.figure(figsize=(12,6), facecolor='w', edgecolor='w')
     axr = plt.subplot2grid( (1,2), (0,0) )

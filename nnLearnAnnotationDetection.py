@@ -70,6 +70,10 @@ parser.add_argument('-nrm', '--normalizesamples',  action="store_true",
     default=defaults.normalize_samples,
     help="Normalizes the individual channels of the annotations " + \
         "(on/off; default={})".format("on" if defaults.normalize_samples else "off"))
+parser.add_argument('-dim', '--downsampleimage', type=float,
+    default=defaults.downsample_image,
+    help='Downsampling factor for the annotated images, borders and annotations' + \
+        ' (default={})'.format(defaults.downsample_image))
 
 # Training arguments
 parser.add_argument('-tr', '--trainingprocedure', type=str,
@@ -160,6 +164,7 @@ sample_ratio = args.positivesampleratio
 annotation_border_ratio = args.annotationborderratio
 use_channels = args.imagechannels
 normalize_samples = args.normalizesamples
+downsample_image = args.downsampleimage
 
 # Training arguments
 training_procedure = args.trainingprocedure
@@ -201,17 +206,16 @@ print("\nLoading data from directory into training_image_set:")
 if use_channels is not None:
     for nr,ch in enumerate(use_channels):
         use_channels[nr] = int(ch)-1
-training_image_set = ia.AnnotatedImageSet()
+training_image_set = ia.AnnotatedImageSet(downsample=downsample_image)
 
 if include_annotation_typenrs is not None:
-    print("Setting annotation typenrs to be included " + \
-                                "to {}".format(include_annotation_typenrs))
     training_image_set.include_annotation_typenrs = include_annotation_typenrs
 
 training_image_set.load_data_dir_tiff_mat( training_data_path,
     normalize=normalize_images, use_channels=use_channels,
     exclude_border=exclude_border )
 
+print("Included annotation classes: {}".format(training_image_set.class_labels))
 
 ########################################################################
 # Set up network
@@ -220,21 +224,21 @@ if network_type.lower() == "1layer":
             network_path=os.path.join(network_path,network_name),
             input_image_size=annotation_size,
             n_input_channels=training_image_set.n_channels,
-            n_output_classes=len(training_image_set.include_annotation_typenrs)+1,
+            n_output_classes=len(training_image_set.class_labels),
             fc1_dropout=fc1_dropout, alpha=alpha )
 elif network_type.lower() == "2layer":
     nn = cn.NeuralNet2Layer( \
             network_path=os.path.join(network_path,network_name),
             input_image_size=annotation_size,
             n_input_channels=training_image_set.n_channels,
-            n_output_classes=len(training_image_set.include_annotation_typenrs)+1,
+            n_output_classes=len(training_image_set.class_labels),
             fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
 elif network_type.lower() == "c2fc1":
     nn = cn.ConvNetCnv2Fc1( \
             network_path=os.path.join(network_path,network_name),
             input_image_size=annotation_size,
             n_input_channels=training_image_set.n_channels,
-            n_output_classes=len(training_image_set.include_annotation_typenrs)+1,
+            n_output_classes=len(training_image_set.class_labels),
             conv1_size=conv_size, conv1_n_chan=conv_chan, conv1_n_pool=conv_pool,
             conv2_size=conv_size, conv2_n_chan=conv_chan*2, conv2_n_pool=conv_pool,
             fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
@@ -320,13 +324,13 @@ if args.F1report:
     nn.report_F1( training_image_set,
         annotation_type=annotation_type, m_samples=2000, sample_ratio=sample_ratio,
         annotation_border_ratio=annotation_border_ratio,
-        morph_annotations=False, exclude_border=(40,40,40,40),
+        morph_annotations=False,
         channel_order=None, show_figure='On')
 
     # Test morphed performance
     nn.log("\nMorphed training set performance:")
     nn.report_F1( training_image_set, annotation_type=annotation_type,
-            m_samples=2000, exclude_border=(40,40,40,40), sample_ratio=None,
+            m_samples=2000, sample_ratio=None,
             morph_annotations=True,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list,
