@@ -1050,8 +1050,9 @@ class AnnotatedImage(object):
         # Calculate number of samples per class
         class_labels = sorted(self.class_labels)
         n_classes = len(class_labels)
-        if len(sample_ratio) > n_classes:
-            sample_ratio = sample_ratio[:n_classes]
+        if sample_ratio is not None:
+            if len(sample_ratio) > n_classes:
+                sample_ratio = sample_ratio[:n_classes]
         m_class_samples = split_samples(
             m_samples, n_classes, ratios=sample_ratio )
 

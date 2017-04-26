@@ -73,6 +73,9 @@ print(" ")
 print("Changing dilation factor of anim2 centroids to 2")
 anim2.centroid_dilation_factor = 2
 
+print("Class labels that are set for training: {}".format(anim2.class_labels))
+print("anim2.include_annotation_typenrs: {}".format(anim2.include_annotation_typenrs))
+
 # Make RGB grid with 20 anim1 annotations
 print(" ")
 print("Get RGB image grid with 16 annotations from anim2")
@@ -270,8 +273,8 @@ with sns.axes_style("white"):
         if labels[cnt,0] != 1:
             an = ia.Annotation( ia.vec2image( annotations[nr,:],
                                         n_channels=1, image_size=im_size ) )
-            ax4.plot( shift_grid[cnt][1]+(an.perimeter[:,1]-(im_size[1]/2)),
-                      shift_grid[cnt][0]+(an.perimeter[:,0]-(im_size[1]/2)),
+            ax4.plot( 0.5+shift_grid[cnt][1]+(an.perimeter[:,1]-(im_size[1]/2)),
+                      0.5+shift_grid[cnt][0]+(an.perimeter[:,0]-(im_size[1]/2)),
                         linewidth=1, color="#ff0000" )
     plt.axis('tight')
     plt.axis('off')
@@ -288,8 +291,8 @@ with sns.axes_style("white"):
         if labels_mrph[cnt,0] != 1:
             an = ia.Annotation( ia.vec2image( annotations_mrph[nr,:],
                                         n_channels=1, image_size=im_size ) )
-            ax6.plot( shift_mrph[cnt][1]+(an.perimeter[:,1]-(im_size[1]/2)),
-                      shift_mrph[cnt][0]+(an.perimeter[:,0]-(im_size[1]/2)),
+            ax6.plot( 0.5+shift_mrph[cnt][1]+(an.perimeter[:,1]-(im_size[1]/2)),
+                      0.5+shift_mrph[cnt][0]+(an.perimeter[:,0]-(im_size[1]/2)),
                         linewidth=1, color="#ff0000" )
     ax6.set_title("First 16 morphed training samples (body)")
     plt.axis('tight')
