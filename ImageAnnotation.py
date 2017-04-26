@@ -589,6 +589,11 @@ class AnnotatedImage(object):
         """Returns the (read-only) number of annotations"""
         return len(self._annotation)
 
+    @property
+    def downsamplingfactor(self):
+        """Returns the (read-only) downsampling factor"""
+        return self._downsample
+
     # ************************************
     # *****  Handling the image data *****
     @property
@@ -608,15 +613,15 @@ class AnnotatedImage(object):
         y_res_old,x_res_old = self.y_res,self.x_res
         if isinstance( image_data, list):
             for im in image_data:
-                if self._downsample is not None:
+                if self.downsamplingfactor is not None:
                     self._channel.append( ndimage.interpolation.zoom( \
-                        np.array(im), 1/self._downsample )
+                        np.array(im), 1/self.downsamplingfactor ) )
                 else:
                     self._channel.append( np.array(im) )
         else:
-            if self._downsample is not None:
+            if self.downsamplingfactor is not None:
                 self._channel.append( ndimage.interpolation.zoom( \
-                    np.array(image_data), 1/self._downsample ) )
+                    np.array(image_data), 1/self.downsamplingfactor ) )
             else:
                 self._channel.append( np.array(image_data) )
         self._y_res,self._x_res = self._channel[0].shape
@@ -637,7 +642,7 @@ class AnnotatedImage(object):
         return self._exclude_border_tuple
 
     @exclude_border.setter
-    def exclude_border(self, exclude_border):
+    def exclude_border( self, exclude_border ):
         """Sets the exclude_border parameter dictionary
         exclude_border: 4-Tuple containing border exclusion region (left,
                         right,top,bottom), dictionary, or file name of mat
@@ -661,6 +666,15 @@ class AnnotatedImage(object):
             self._exclude_border['right'] = int(mat_data['ExclRight'])
             self._exclude_border['top'] = int(mat_data['ExclTop'])
             self._exclude_border['bottom'] = int(mat_data['ExclBottom'])
+        if self.downsamplingfactor is not None:
+            self._exclude_border['left'] = \
+                int(np.round(self._exclude_border['left']/self.downsamplingfactor))
+            self._exclude_border['right'] = \
+                int(np.round(self._exclude_border['right']/self.downsamplingfactor))
+            self._exclude_border['top'] = \
+                int(np.round(self._exclude_border['top']/self.downsamplingfactor))
+            self._exclude_border['bottom'] =
+                int(np.round(self._exclude_border['bottom']/self.downsamplingfactor))
         self._exclude_border_tuple = \
             ( int(self._exclude_border['left']), int(self._exclude_border['right']),
               int(self._exclude_border['top']), int(self._exclude_border['bottom']) )
@@ -686,7 +700,11 @@ class AnnotatedImage(object):
                 im_x = np.float64(np.array(mat_data['Images'][0,ch]))
                 if normalize:
                     im_x = im_x / im_x.max()
-                self._channel.append(im_x)
+                if self.downsamplingfactor is not None:
+                    self._channel.append( ndimage.interpolation.zoom( \
+                        im_x, 1/self.downsamplingfactor ) )
+                else:
+                    self._channel.append(im_x)
 
         # Load from actual image
         else:
@@ -701,11 +719,19 @@ class AnnotatedImage(object):
                     im_x = im[:,:,ch]
                     if normalize:
                         im_x = im_x / im_x.max()
-                    self._channel.append(im_x)
+                    if self.downsamplingfactor is not None:
+                        self._channel.append( ndimage.interpolation.zoom( \
+                            im_x, 1/self.downsamplingfactor ) )
+                    else:
+                        self._channel.append(im_x)
             else:
                 if normalize:
                     im = im / im.max()
-                self._channel.append(im)
+                if self.downsamplingfactor is not None:
+                    self._channel.append( ndimage.interpolation.zoom( \
+                        im, 1/self.downsamplingfactor ) )
+                else:
+                    self._channel.append(im)
 
         # Set resolution
         self._y_res,self._x_res = self._channel[0].shape
