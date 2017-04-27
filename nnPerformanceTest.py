@@ -17,7 +17,7 @@ and outputs statistics and visualization off the performance
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import ImageAnnotation as ia
+import iaConvNetSingleOutput as ia
 import argparse, os, glob
 from scipy import ndimage
 from skimage import measure

@@ -15,7 +15,7 @@ body or centroid of an annotation
 import numpy as np
 import matplotlib.pyplot as plt
 import ImageAnnotation as ia
-import iaConvNetTools as cn
+import iaConvNetSingleOutput as cn
 import argparse
 import os
 
