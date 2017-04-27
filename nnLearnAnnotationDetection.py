@@ -365,7 +365,7 @@ if args.F1report is not None:
     # Test morphed performance
     nn.log("\nPerformance of {}:".format(f1_path))
     nn.report_F1( f1_image_set, annotation_type=annotation_type,
-            m_samples=5000, sample_ratio=None,
+            m_samples=10000, sample_ratio=None,
             morph_annotations=False,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list,

@@ -777,10 +777,14 @@ class AnnotatedImage(object):
         brdr = self.exclude_border.copy()
         brdr['left'] = np.max( [ brdr['left']-left, 0 ] )
         brdr['top'] = np.max( [ brdr['top']-top, 0 ] )
-        self._exclude_border['right'] = int(mat_data['ExclRight'])
-        self._exclude_border['top'] = int(mat_data['ExclTop'])
-        self._exclude_border['bottom'] = int(mat_data['ExclBottom'])
+        crop_from_right = self.x_res-(left+width)
+        brdr['right'] = np.max( [ brdr['right']-crop_from_right, 0 ] )
+        crop_from_bottom = self.x_res-(left+width)
+        brdr['bottom'] = np.max( [ brdr['bottom']-crop_from_bottom, 0 ] )
+        self.exclude_border = brdr
 
+        # Crop annotations
+        
 
     # *****************************************
     # *****  Handling the annotation data *****
