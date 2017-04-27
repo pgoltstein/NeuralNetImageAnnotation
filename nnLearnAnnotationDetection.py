@@ -209,11 +209,19 @@ if (training_procedure.lower()=="epochs" and n_epochs==0) or \
 
 ########################################################################
 # Load data
+if use_channels is not None:
+    for nr,ch in enumerate(use_channels):
+        use_channels[nr] = int(ch)-1
+
+if annotation_type == 'Centroids':
+    if dilation_factor == None:
+        dilation_factor = 2
+elif annotation_type == 'Bodies':
+    if dilation_factor == None:
+        dilation_factor = 0
+
 if perform_network_training:
     print("\nLoading data from directory into training_image_set:")
-    if use_channels is not None:
-        for nr,ch in enumerate(use_channels):
-            use_channels[nr] = int(ch)-1
     training_image_set = ia.AnnotatedImageSet(downsample=downsample_image)
 
     if include_annotation_typenrs is not None:
@@ -276,15 +284,11 @@ if perform_network_training:
         nn.log("Using image channels {} (zero-based)".format(use_channels))
 
     if annotation_type == 'Centroids':
-        if dilation_factor == None:
-            dilation_factor = 2
         nn.log("Setting centroid dilation factor of the image " + \
                                         "to {}".format(dilation_factor))
         training_image_set.centroid_dilation_factor = dilation_factor
 
     elif annotation_type == 'Bodies':
-        if dilation_factor == None:
-            dilation_factor = 0
         nn.log("Setting body dilation factor of the image " + \
                                         "to {}".format(dilation_factor))
         training_image_set.body_dilation_factor = dilation_factor
@@ -349,14 +353,10 @@ if args.F1report is not None:
         exclude_border=exclude_border )
     nn.log(" >> " + f1_image_set.__str__())
     if annotation_type == 'Centroids':
-        if dilation_factor == None:
-            dilation_factor = 2
         nn.log("Setting centroid dilation factor of the image " + \
                                         "to {}".format(dilation_factor))
         f1_image_set.centroid_dilation_factor = dilation_factor
     elif annotation_type == 'Bodies':
-        if dilation_factor == None:
-            dilation_factor = 0
         nn.log("Setting body dilation factor of the image " + \
                                         "to {}".format(dilation_factor))
         f1_image_set.body_dilation_factor = dilation_factor
