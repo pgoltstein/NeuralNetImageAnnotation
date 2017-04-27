@@ -50,10 +50,14 @@ parser.add_argument('-tpnr', '--includeannotationtypenrs', type=int,
     default=defaults.include_annotation_typenrs,
     help="Include only annotations of certain type_nr (default={})".format(
         defaults.include_annotation_typenrs))
-parser.add_argument('-dl', '--dilationfactor', type=int,
-    default=defaults.dilation_factor,
-    help="Dilation factor of annotations (default={})".format(
-        defaults.dilation_factor))
+parser.add_argument('-dlc', '--centroiddilationfactor', type=int,
+    default=defaults.centroid_dilation_factor,
+    help="Dilation factor of annotation centroids (default={})".format(
+        defaults.centroid_dilation_factor))
+parser.add_argument('-dlb', '--bodydilationfactor', type=int,
+    default=defaults.body_dilation_factor,
+    help="Dilation factor of annotation bodies (default={})".format(
+        defaults.body_dilation_factor))
 parser.add_argument('-r', '--positivesampleratio', type=float,
     default=defaults.sample_ratio,
     help='Ratio of positive vs negative samples (default={})'.format(
@@ -160,7 +164,8 @@ annotation_type = args.annotationtype
 annotation_size = (args.size,args.size)
 morph_annotations = args.morph
 include_annotation_typenrs = args.includeannotationtypenrs
-dilation_factor = args.dilationfactor
+centroid_dilation_factor = args.centroiddilationfactor
+body_dilation_factor = args.bodydilationfactor
 sample_ratio = args.positivesampleratio
 annotation_border_ratio = args.annotationborderratio
 use_channels = args.imagechannels
@@ -212,13 +217,6 @@ if (training_procedure.lower()=="epochs" and n_epochs==0) or \
 if use_channels is not None:
     for nr,ch in enumerate(use_channels):
         use_channels[nr] = int(ch)-1
-
-if annotation_type == 'Centroids':
-    if dilation_factor == None:
-        dilation_factor = 2
-elif annotation_type == 'Bodies':
-    if dilation_factor == None:
-        dilation_factor = 0
 
 if perform_network_training:
     print("\nLoading data from directory into training_image_set:")
@@ -285,13 +283,13 @@ if perform_network_training:
 
     if annotation_type == 'Centroids':
         nn.log("Setting centroid dilation factor of the image " + \
-                                        "to {}".format(dilation_factor))
-        training_image_set.centroid_dilation_factor = dilation_factor
+                                        "to {}".format(centroid_dilation_factor))
+        training_image_set.centroid_dilation_factor = centroid_dilation_factor
 
     elif annotation_type == 'Bodies':
         nn.log("Setting body dilation factor of the image " + \
-                                        "to {}".format(dilation_factor))
-        training_image_set.body_dilation_factor = dilation_factor
+                                        "to {}".format(body_dilation_factor))
+        training_image_set.body_dilation_factor = body_dilation_factor
 
     nn.log("Included annotation typenrs: {}".format( \
         training_image_set.include_annotation_typenrs))
@@ -354,12 +352,12 @@ if args.F1report is not None:
     nn.log(" >> " + f1_image_set.__str__())
     if annotation_type == 'Centroids':
         nn.log("Setting centroid dilation factor of the image " + \
-                                        "to {}".format(dilation_factor))
-        f1_image_set.centroid_dilation_factor = dilation_factor
+                                        "to {}".format(centroid_dilation_factor))
+        f1_image_set.centroid_dilation_factor = centroid_dilation_factor
     elif annotation_type == 'Bodies':
         nn.log("Setting body dilation factor of the image " + \
-                                        "to {}".format(dilation_factor))
-        f1_image_set.body_dilation_factor = dilation_factor
+                                        "to {}".format(body_dilation_factor))
+        f1_image_set.body_dilation_factor = body_dilation_factor
     nn.log("Included annotation classes: {}".format(f1_image_set.class_labels))
 
     # Test morphed performance
