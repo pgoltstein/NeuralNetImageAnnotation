@@ -277,7 +277,7 @@ if perform_network_training:
 
     if annotation_type == 'Centroids':
         if dilation_factor == None:
-            dilation_factor = 3
+            dilation_factor = 2
         nn.log("Setting centroid dilation factor of the image " + \
                                         "to {}".format(dilation_factor))
         training_image_set.centroid_dilation_factor = dilation_factor
@@ -350,7 +350,7 @@ if args.F1report is not None:
     nn.log(" >> " + f1_image_set.__str__())
     if annotation_type == 'Centroids':
         if dilation_factor == None:
-            dilation_factor = 3
+            dilation_factor = 2
         nn.log("Setting centroid dilation factor of the image " + \
                                         "to {}".format(dilation_factor))
         f1_image_set.centroid_dilation_factor = dilation_factor
