@@ -135,7 +135,7 @@ def morph( image, rotation=0, scale_xy=(1,1), noise_level=0 ):
         # Add noise
         if noise_level:
             noise_mask = np.random.normal(size=image.shape) * noise_level
-            image = image + noise_mask
+            image = image + (image * noise_mask)
         return image
 
 def morphed_zoom( image, y, x, zoom_size, pad_value=0, normalize=False,
