@@ -27,7 +27,7 @@ im_size = (31,31)
 rotation_list = np.arange(0,360,1)
 scale_list_x = np.arange(0.9,1.1,0.01)
 scale_list_y = np.arange(0.9,1.1,0.01)
-noise_level_list = np.arange(0.019,0.02,0.001)
+noise_level_list = np.arange(0.1,0.3,0.01)
 
 # Create an instance of the AnnotatedImage class
 print(" ")
