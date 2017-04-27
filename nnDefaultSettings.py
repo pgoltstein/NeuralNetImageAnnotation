@@ -1,8 +1,8 @@
 # Default Settings
 # network_path = '/Users/pgoltstein/Dropbox/NeuralNets'
 # training_data_path = '/data/Dataset_small1'
-network_path = 'E:\data\NeuralNets'
-training_data_path = 'E:\data\Dataset1'
+network_path = 'E:/data/NeuralNets'
+training_data_path = 'E:/data/Dataset1'
 
 # Annotation arguments
 annotation_size = 27 # Size of the images around the annotations
