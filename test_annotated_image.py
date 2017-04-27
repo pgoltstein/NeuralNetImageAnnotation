@@ -20,7 +20,7 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 # Overall settings
-filepath = '/Users/pgoltstein/Dropbox/TEMP/DataSet1'
+filepath = '/data/DataSet_small1'
 im_size = (31,31)
 rotation_list = np.arange(0,360,1)
 scale_list_x = np.arange(0.9,1.1,0.01)
@@ -35,7 +35,7 @@ print("String output of anim1:")
 print(" >> " + anim1.__str__())
 
 # Import annotations from ROI file (matlab)
-roifile = 'F03-Loc5-V1-20160209-ovlSplitROI1.mat'
+roifile = 'F03-Loc5-V1-20160202-ovlSplitROI1.mat'
 print(" ")
 print("Importing annotations from ROI file (matlab) to anim1:")
 print(os.path.join(filepath,roifile))
@@ -43,9 +43,9 @@ anim1.import_annotations_from_mat(file_name=roifile,file_path=filepath)
 print(" >> " + anim1.__str__())
 
 # Add an image to anim
-imfile = 'F03-Loc5-V1-20160209-OverlayL1.tiff'
+imfile = 'F03-Loc5-V1-20160202-L1-channels.mat'
 print(" ")
-print("Importing image from tiff file to anim1:")
+print("Importing image from .mat file to anim1:")
 print(os.path.join(filepath,roifile))
 anim1.add_image_from_file(file_name=imfile,file_path=filepath)
 print(" >> " + anim1.__str__())
@@ -337,6 +337,29 @@ with sns.axes_style("white"):
         axr.plot( an.perimeter[:,1], an.perimeter[:,0],
             linewidth=1, color="#ffffff" )
     axr.set_title("anim4 with annotations of anim1")
+    plt.axis('tight')
+    plt.axis('off')
+
+# Show channels anim1 anim4
+with sns.axes_style("white"):
+    plt.figure(figsize=(12,6), facecolor='w', edgecolor='w')
+    axr = plt.subplot2grid( (1,2), (0,0) )
+    axr.imshow(anim1.RGB(),interpolation='nearest')
+    for an in anim1.annotation:
+        axr.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    axr.set_title("anim1")
+    plt.axis('tight')
+    plt.axis('off')
+
+    anim1.crop(100,100,200,200)
+
+    axr = plt.subplot2grid( (1,2), (0,1) )
+    axr.imshow(anim1.RGB(),interpolation='nearest')
+    for an in anim1.annotation:
+        axr.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    axr.set_title("anim1 cropped")
     plt.axis('tight')
     plt.axis('off')
 

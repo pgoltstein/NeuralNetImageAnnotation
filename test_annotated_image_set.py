@@ -22,7 +22,7 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 # Overall settings
-data_path = '/Users/pgoltstein/Dropbox/TEMP/DataSet_small2'
+data_path = '/data/DataSet_small2'
 im_size = (31,31)
 rotation_list = np.arange(0,360,1)
 scale_list_x = np.arange(0.9,1.1,0.01)
@@ -72,6 +72,10 @@ print("Included type_nrs: {}".format(ais1.include_annotation_typenrs))
 # print("Changing annotation type nr of ais1 centroids to [1,4]")
 # ais1.include_annotation_typenrs = [1,4]
 # print("Included type_nrs: {}".format(ais1.include_annotation_typenrs))
+
+# Crop image
+print("Cropping image")
+ais1.crop(100,100,200,200)
 
 # Get non-morphed training set
 m_samples = 1000
