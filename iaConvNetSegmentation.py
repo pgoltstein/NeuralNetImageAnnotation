@@ -285,13 +285,13 @@ class NeuralNetSegmentation(object):
         pred = result[0]
 
         # Calculate true/false pos/neg
-        true_pos = np.sum( pred[labels[:,px]==1]==1 )
-        false_pos = np.sum( pred[labels[:,px]==0]==1 )
-        false_neg = np.sum( pred[labels[:,px]==1]==0 )
-        true_neg = np.sum( pred[labels[:,px]==0]==0 )
+        true_pos = np.sum( pred[annotations==1]==1 )
+        false_pos = np.sum( pred[annotations==0]==1 )
+        false_neg = np.sum( pred[annotations==1]==0 )
+        true_neg = np.sum( pred[annotations==0]==0 )
 
         # Calculate accuracy, precision, recall, F1
-        accuracy = (true_pos+true_neg) / len(pred)
+        accuracy = (true_pos+true_neg) / (annotations.shape[0]*annotations.shape[1])
         precision = np.nan_to_num(true_pos / (true_pos+false_pos))
         recall = np.nan_to_num(true_pos / (true_pos+false_neg))
         F1 = np.nan_to_num(2 * ((precision*recall)/(precision+recall)))
@@ -351,7 +351,7 @@ class NeuralNetSegmentation(object):
         true_neg = np.sum( pred[annotations==0]==0 )
 
         # Calculate accuracy, precision, recall, F1
-        final_accuracy = (true_pos+true_neg) / len(pred)
+        final_accuracy = (true_pos+true_neg) / (annotations.shape[0]*annotations.shape[1])
         final_precision = true_pos / (true_pos+false_pos)
         final_recall = true_pos / (true_pos+false_neg)
         final_F1 = \
@@ -368,90 +368,112 @@ class NeuralNetSegmentation(object):
 
         # Display figure with examples if necessary
         if show_figure.lower() == 'on':
-            titles = ["many true positives","many false positives",\
-                        "many false negatives","many true negatives"]
             plot_positions = [(0,0),(0,1),(1,0),(1,1)]
 
-            true_pos_frac = np.zeros(m_samples)
-            false_pos_frac = np.zeros(m_samples)
-            false_neg_frac = np.zeros(m_samples)
-            true_neg_frac = np.zeros(m_samples)
+            n_pixels = np.zeros(m_samples)
+            true_pos = np.zeros(m_samples)
+            false_pos = np.zeros(m_samples)
+            false_neg = np.zeros(m_samples)
+            true_neg = np.zeros(m_samples)
             for s in range(m_samples):
                 s_pred = pred[s,:]
-                true_pos_frac[s] = np.sum( s_pred[labels[s,:]==1]==1 )
-                false_pos_frac[s] = np.sum( s_pred[labels[s,:]==0]==1 )
-                false_neg_frac[s] = np.sum( s_pred[labels[s,:]==1]==0 )
-                true_neg_frac[s] = np.sum( s_pred[labels[s,:]==0]==0 )
+                n_pixels[s] = annotations.shape[1]
+                true_pos[s] = np.sum( s_pred[annotations[s,:]==1]==1 )
+                false_pos[s] = np.sum( s_pred[annotations[s,:]==0]==1 )
+                false_neg[s] = np.sum( s_pred[annotations[s,:]==1]==0 )
+                true_neg[s] = np.sum( s_pred[annotations[s,:]==0]==0 )
 
-            n_show = 16
-            samples_mat = []
-            samples_mat.append( samples[ true_pos_frac.argsort()[(-n_show):][::-1],:] )
-            samples_mat.append( samples[false_pos_frac.argsort()[(-n_show):][::-1],:] )
-            samples_mat.append( samples[false_neg_frac.argsort()[(-n_show):][::-1],:] )
-            samples_mat.append( samples[ true_neg_frac.argsort()[(-n_show):][::-1],:] )
-            annot_mat = []
-            annot_mat.append( annotations[ true_pos_frac.argsort()[(-n_show):][::-1],:] )
-            annot_mat.append( annotations[false_pos_frac.argsort()[(-n_show):][::-1],:] )
-            annot_mat.append( annotations[false_neg_frac.argsort()[(-n_show):][::-1],:] )
-            annot_mat.append( annotations[ true_neg_frac.argsort()[(-n_show):][::-1],:] )
-            pred_mat = []
-            pred_mat.append( pred[ true_pos_frac.argsort()[(-n_show):][::-1],:] )
-            pred_mat.append( pred[false_pos_frac.argsort()[(-n_show):][::-1],:] )
-            pred_mat.append( pred[false_neg_frac.argsort()[(-n_show):][::-1],:] )
-            pred_mat.append( pred[ true_neg_frac.argsort()[(-n_show):][::-1],:] )
+            accuracy = (true_pos+true_neg) / annotations.shape[1]
+            precision = true_pos / (true_pos+false_pos)
+            recall = true_pos / (true_pos+false_neg)
+            F1 = 2 * ((precision*recall)/(precision+recall))
 
-            # Handle RGB channel order
-            if channel_order == None:
-                chan_order = []
-                for ch in range(3):
-                    if ch < self.n_input_channels:
-                        chan_order.append(ch)
-            else:
-                chan_order = channel_order
+            for worst_best in range(2):
 
-            plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
-            for cnt in range(4):
-                grid_im,_ = ia.image_grid_RGB( samples_mat[cnt],
-                    n_channels=annotated_image_set.n_channels,
-                    image_size=(self.y_res,self.x_res), n_x=n_show, n_y=1,
-                    channel_order=chan_order, amplitude_scaling=(1.33,1.33,1),
-                    line_color=1, auto_scale=True )
-                grid_im[:,:,2] = 0 # only show red and green channel
+                n_show = 16
+                if worst_best == 0:
+                    sort_nr = 1
+                    titles = ["worst accuracy","worst precision","worst recall","worst F1"]
+                    samples_mat = []
+                    samples_mat.append( samples[ accuracy.argsort()[:n_show][::sort_nr],:] )
+                    samples_mat.append( samples[precision.argsort()[:n_show][::sort_nr],:] )
+                    samples_mat.append( samples[   recall.argsort()[:n_show][::sort_nr],:] )
+                    samples_mat.append( samples[       F1.argsort()[:n_show][::sort_nr],:] )
+                    annot_mat = []
+                    annot_mat.append( annotations[ accuracy.argsort()[:n_show][::sort_nr],:] )
+                    annot_mat.append( annotations[precision.argsort()[:n_show][::sort_nr],:] )
+                    annot_mat.append( annotations[   recall.argsort()[:n_show][::sort_nr],:] )
+                    annot_mat.append( annotations[       F1.argsort()[:n_show][::sort_nr],:] )
+                    pred_mat = []
+                    pred_mat.append( pred[ accuracy.argsort()[:n_show][::sort_nr],:] )
+                    pred_mat.append( pred[precision.argsort()[:n_show][::sort_nr],:] )
+                    pred_mat.append( pred[   recall.argsort()[:n_show][::sort_nr],:] )
+                    pred_mat.append( pred[       F1.argsort()[:n_show][::sort_nr],:] )
+                else:
+                    sort_nr = -1
+                    titles = ["best accuracy","best precision","best recall","best F1"]
+                    samples_mat = []
+                    samples_mat.append( samples[ accuracy.argsort()[(-n_show):][::sort_nr],:] )
+                    samples_mat.append( samples[precision.argsort()[(-n_show):][::sort_nr],:] )
+                    samples_mat.append( samples[   recall.argsort()[(-n_show):][::sort_nr],:] )
+                    samples_mat.append( samples[       F1.argsort()[(-n_show):][::sort_nr],:] )
+                    annot_mat = []
+                    annot_mat.append( annotations[ accuracy.argsort()[(-n_show):][::sort_nr],:] )
+                    annot_mat.append( annotations[precision.argsort()[(-n_show):][::sort_nr],:] )
+                    annot_mat.append( annotations[   recall.argsort()[(-n_show):][::sort_nr],:] )
+                    annot_mat.append( annotations[       F1.argsort()[(-n_show):][::sort_nr],:] )
+                    pred_mat = []
+                    pred_mat.append( pred[ accuracy.argsort()[(-n_show):][::sort_nr],:] )
+                    pred_mat.append( pred[precision.argsort()[(-n_show):][::sort_nr],:] )
+                    pred_mat.append( pred[   recall.argsort()[(-n_show):][::sort_nr],:] )
+                    pred_mat.append( pred[       F1.argsort()[(-n_show):][::sort_nr],:] )
 
-                grid_annot,_ = ia.image_grid_RGB( annot_mat[cnt],
-                    n_channels=1,
-                    image_size=(self.y_res,self.x_res), n_x=n_show, n_y=1,
-                    amplitude_scaling=(1.33,1.33,1),
-                    line_color=1, auto_scale=True )
-                grid_pred,_ = ia.image_grid_RGB( pred_mat[cnt],
-                    n_channels=1,
-                    image_size=(self.y_res,self.x_res), n_x=n_show, n_y=1,
-                    amplitude_scaling=(1.33,1.33,1),
-                    line_color=1, auto_scale=True )
-                grid_annot[:,:,1] = 0 # Annotations in red, prediction in blue
-                grid_annot[:,:,2] = grid_pred[:,:,0]
+                # Handle RGB channel order
+                if channel_order == None:
+                    chan_order = []
+                    for ch in range(3):
+                        if ch < self.n_input_channels:
+                            chan_order.append(ch)
+                else:
+                    chan_order = channel_order
 
-                with sns.axes_style("white"):
-                    ax = plt.subplot2grid( (8,1), ((cnt*2),0) )
-                    ax.imshow(
-                        grid_im, interpolation='nearest', vmax=grid_im.max()*0.8 )
-                    ax.set_title(titles[cnt])
-                    plt.axis('tight')
-                    plt.axis('off')
+                plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
+                for cnt in range(4):
+                    grid_im,_ = ia.image_grid_RGB( samples_mat[cnt],
+                        n_channels=annotated_image_set.n_channels,
+                        image_size=(self.y_res,self.x_res), n_x=n_show, n_y=1,
+                        channel_order=chan_order, amplitude_scaling=(1.33,1.33,1),
+                        line_color=1, auto_scale=True )
+                    grid_im[:,:,2] = 0 # only show red and green channel
 
-                    ax = plt.subplot2grid( (8,1), ((cnt*2)+1,0) )
-                    ax.imshow(
-                        grid_annot, interpolation='nearest', vmax=grid_annot.max()*0.8 )
-                    plt.axis('tight')
-                    plt.axis('off')
-            plt.tight_layout()
+                    grid_annot,_ = ia.image_grid_RGB( annot_mat[cnt],
+                        n_channels=1,
+                        image_size=(self.y_res,self.x_res), n_x=n_show, n_y=1,
+                        amplitude_scaling=(1.33,1.33,1),
+                        line_color=1, auto_scale=True )
+                    grid_pred,_ = ia.image_grid_RGB( pred_mat[cnt],
+                        n_channels=1,
+                        image_size=(self.y_res,self.x_res), n_x=n_show, n_y=1,
+                        amplitude_scaling=(1.33,1.33,1),
+                        line_color=1, auto_scale=True )
+                    grid_annot[:,:,1] = 0 # Annotations in red, prediction in blue
+                    grid_annot[:,:,2] = grid_pred[:,:,0]
+
+                    with sns.axes_style("white"):
+                        ax = plt.subplot2grid( (4,1), (cnt,0) )
+                        ax.imshow( np.concatenate( [grid_im,grid_annot], axis=0 ),
+                            interpolation='nearest', vmax=grid_im.max()*0.8 )
+                        ax.set_title(titles[cnt])
+                        plt.axis('tight')
+                        plt.axis('off')
+                plt.tight_layout()
 
     def show_learning_curve(self):
         """Displays a learning curve of accuracy versus number of
         trained samples"""
 
         # Get data
-        x_values = np.array(self.n_class_samples_list)
+        x_values = np.array(self.n_samples_list)
         accuracy = np.array(self.accuracy_list)
         precision = np.array(self.precision_list)
         recall = np.array(self.recall_list)
@@ -704,7 +726,7 @@ class ConvNetCnv2Fc1Nout(NeuralNetSegmentation):
         #########################################################
         # Define cost function and optimizer algorithm
         self.cross_entropy = tf.reduce_mean(
-                    tf.nn.softmax_cross_entropy_with_logits(
+                    tf.nn.sigmoid_cross_entropy_with_logits(
                                 logits=self.fc_out_lin, labels=self.y_trgt ) )
         self.train_step = tf.train.AdamOptimizer(self.alpha).minimize(
                                                         self.cross_entropy )

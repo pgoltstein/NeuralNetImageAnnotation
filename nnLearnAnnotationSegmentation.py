@@ -45,7 +45,7 @@ parser.add_argument('-mp', '--morph',  action="store_true",
     help='Flag enables random morphing of annotations (on/off; default={})'.format(
         "on" if defaults.morph_annotations else "off"))
 parser.add_argument('-tpnr', '--includeannotationtypenr', type=int, default=1,
-    help="Include only annotations of certain type_nr (default=1))
+    help="Include only annotations of certain type_nr (default=1)")
 parser.add_argument('-dlc', '--centroiddilationfactor', type=int,
     default=defaults.centroid_dilation_factor,
     help="Dilation factor of annotation centers (default={})".format(
@@ -148,12 +148,11 @@ args = parser.parse_args()
 
 # Required arguments
 network_name = args.name
-annotation_type = args.annotationtype
 
 # Annotation arguments
 annotation_size = (args.size,args.size)
 morph_annotations = args.morph
-include_annotation_typenrs = args.includeannotationtypenrs
+include_annotation_typenrs = args.includeannotationtypenr
 centroid_dilation_factor = args.centroiddilationfactor
 body_dilation_factor = args.bodydilationfactor
 use_channels = args.imagechannels
@@ -217,10 +216,10 @@ if perform_network_training:
         normalize=normalize_images, use_channels=use_channels,
         exclude_border=exclude_border )
     n_input_channels = training_image_set.n_channels
+    print(training_image_set.ai_list[0].__str__())
 else:
     n_input_channels = None
 
-print(training_image_set.ai_list[0].__str__())
 
 ########################################################################
 # Set up network
@@ -248,12 +247,12 @@ if perform_network_training:
         nn.log("Using image channels {} (zero-based)".format(use_channels))
 
     nn.log("Setting centroid dilation factor of the image " + \
-                                    "to {}".format(dilation_factor))
-    training_image_set.centroid_dilation_factor = dilation_factor
+                                    "to {}".format(centroid_dilation_factor))
+    training_image_set.centroid_dilation_factor = centroid_dilation_factor
 
     nn.log("Setting body dilation factor of the image " + \
-                                    "to {}".format(dilation_factor))
-    training_image_set.body_dilation_factor = dilation_factor
+                                    "to {}".format(body_dilation_factor))
+    training_image_set.body_dilation_factor = body_dilation_factor
 
     nn.log("Training on annotation class: {}".format( \
         training_image_set.class_labels))
@@ -303,26 +302,23 @@ if args.F1report is not None:
     nn.log("\nGenerating F1 report")
     nn.log("Loading data from {}:".format(f1_path))
     f1_image_set = ia.AnnotatedImageSet(downsample=downsample_image)
-    if include_annotation_typenrs is not None:
-        f1_image_set.include_annotation_typenrs = include_annotation_typenrs
+    f1_image_set.include_annotation_typenrs = include_annotation_typenrs
     f1_image_set.load_data_dir_tiff_mat( f1_path,
         normalize=normalize_images, use_channels=use_channels,
         exclude_border=exclude_border )
     nn.log(" >> " + f1_image_set.__str__())
-    if annotation_type == 'Centroids':
-        nn.log("Setting centroid dilation factor of the image " + \
-                                        "to {}".format(dilation_factor))
-        f1_image_set.centroid_dilation_factor = dilation_factor
-    elif annotation_type == 'Bodies':
-        nn.log("Setting body dilation factor of the image " + \
-                                        "to {}".format(dilation_factor))
-        f1_image_set.body_dilation_factor = dilation_factor
-    nn.log("Included annotation classes: {}".format(f1_image_set.class_labels))
+    print(f1_image_set.ai_list[0].__str__())
+    nn.log("Setting centroid dilation factor of the image " + \
+                                    "to {}".format(centroid_dilation_factor))
+    f1_image_set.centroid_dilation_factor = centroid_dilation_factor
+    nn.log("Setting body dilation factor of the image " + \
+                                    "to {}".format(body_dilation_factor))
+    f1_image_set.body_dilation_factor = body_dilation_factor
+    nn.log("Testing on annotation class: {}".format(f1_image_set.class_labels))
 
     # Test morphed performance
     nn.log("\nPerformance of {}:".format(f1_path))
-    nn.report_F1( f1_image_set, annotation_type=annotation_type,
-            m_samples=200, sample_ratio=None,
+    nn.report_F1( f1_image_set, m_samples=200,
             morph_annotations=False,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list,
