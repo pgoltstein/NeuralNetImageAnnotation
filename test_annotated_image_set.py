@@ -75,7 +75,7 @@ print("Included type_nrs: {}".format(ais1.include_annotation_typenrs))
 
 # Crop image
 print("Cropping image")
-ais1.crop(100,100,200,200)
+ais1.crop(100,100,300,300)
 
 # Get non-morphed training set
 m_samples = 1000
@@ -92,7 +92,7 @@ print(' -- Duration = {:.0f} ms'.format(1000*(t_curr-t_start)) )
 
 # Get training set
 print(" ")
-print("Get training set (m={}) with morphed annotations from ais1".format(m_samples))
+print("Get anothertraining set (m={}) with non-morphed annotations from ais1".format(m_samples))
 t_start = time.time()
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='centroids', return_annotations='centroids',

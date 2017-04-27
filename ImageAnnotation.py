@@ -769,7 +769,6 @@ class AnnotatedImage(object):
         width:  Width of cropped region
         height: Height of cropped region
         """
-        print(self.x_res,self.y_res,self.n_annotations,self.exclude_border)
 
         # Crop channels
         new_channel_list = []
@@ -799,8 +798,6 @@ class AnnotatedImage(object):
         self.annotation = new_annotation_list
         self.channel = new_channel_list
         self.exclude_border = brdr
-
-        print(self.x_res,self.y_res,self.n_annotations,self.exclude_border)
 
 
     # *****************************************
@@ -1586,7 +1583,6 @@ class AnnotatedImageSet(object):
         height: Height of cropped region
         """
         for nr in range(self.n_annot_images):
-            print("cropping annot nr {}".format(nr))
             self.ai_list[nr].crop(left, top, width, height )
 
     # *******************************************
