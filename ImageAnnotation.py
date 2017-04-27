@@ -1532,7 +1532,6 @@ class AnnotatedImageSet(object):
                 self._include_annotation_typenrs = annotation_typenrs
             else:
                 self._include_annotation_typenrs = new_annotation_type_nrs
-        print("self._include_annotation_typenrs={}".format(self._include_annotation_typenrs))
 
     # *******************************************
     # *****  Handling the annotated bodies  *****

@@ -144,9 +144,10 @@ parser.add_argument('-n', '--networkpath', type=str,
 # Output arguments
 parser.add_argument('-lc', '--learningcurve', action="store_true",
     help='Displays the learning curve at the end of training (on/off default=off)')
-parser.add_argument('-f1', '--F1report', action="store_true",
+parser.add_argument('-f1', '--F1report', type=str, default=None,
     help='Runs F1 report and displays examples of true/' + \
-        'false positives/negatives at the end of training (on/off; default=off)')
+        'false positives/negatives at the end of training ' + \
+        'takes path with (training/cv/test) annotated images as argument')
 
 # Parse arguments
 args = parser.parse_args()
@@ -200,22 +201,33 @@ scale_list_y = np.arange( defaults.scale_list_y[0],
 noise_level_list = np.arange( defaults.noise_level_list[0],
                     defaults.noise_level_list[1],defaults.noise_level_list[2] )
 
+# If no training, skip loading data
+perform_network_training = True
+if (training_procedure.lower()=="epochs" and n_epochs==0) or \
+    (training_procedure.lower()=="batch" and number_of_batches==0):
+    perform_network_training = False
+
 ########################################################################
 # Load data
-print("\nLoading data from directory into training_image_set:")
-if use_channels is not None:
-    for nr,ch in enumerate(use_channels):
-        use_channels[nr] = int(ch)-1
-training_image_set = ia.AnnotatedImageSet(downsample=downsample_image)
+if perform_network_training:
+    print("\nLoading data from directory into training_image_set:")
+    if use_channels is not None:
+        for nr,ch in enumerate(use_channels):
+            use_channels[nr] = int(ch)-1
+    training_image_set = ia.AnnotatedImageSet(downsample=downsample_image)
 
-if include_annotation_typenrs is not None:
-    training_image_set.include_annotation_typenrs = include_annotation_typenrs
+    if include_annotation_typenrs is not None:
+        training_image_set.include_annotation_typenrs = include_annotation_typenrs
 
-training_image_set.load_data_dir_tiff_mat( training_data_path,
-    normalize=normalize_images, use_channels=use_channels,
-    exclude_border=exclude_border )
-
-print("Included annotation classes: {}".format(training_image_set.class_labels))
+    training_image_set.load_data_dir_tiff_mat( training_data_path,
+        normalize=normalize_images, use_channels=use_channels,
+        exclude_border=exclude_border )
+    print("Included annotation classes: {}".format(training_image_set.class_labels))
+    n_input_channels = training_image_set.n_channels
+    n_output_channels = len(training_image_set.class_labels)
+else:
+    n_input_channels = None
+    n_output_channels = None
 
 ########################################################################
 # Set up network
@@ -223,60 +235,62 @@ if network_type.lower() == "1layer":
     nn = cn.NeuralNet1Layer( \
             network_path=os.path.join(network_path,network_name),
             input_image_size=annotation_size,
-            n_input_channels=training_image_set.n_channels,
-            n_output_classes=len(training_image_set.class_labels),
+            n_input_channels=n_input_channels,
+            n_output_classes=n_output_channels,
             fc1_dropout=fc1_dropout, alpha=alpha )
 elif network_type.lower() == "2layer":
     nn = cn.NeuralNet2Layer( \
             network_path=os.path.join(network_path,network_name),
             input_image_size=annotation_size,
-            n_input_channels=training_image_set.n_channels,
-            n_output_classes=len(training_image_set.class_labels),
+            n_input_channels=n_input_channels,
+            n_output_classes=n_output_channels,
             fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
 elif network_type.lower() == "c2fc1":
     nn = cn.ConvNetCnv2Fc1( \
             network_path=os.path.join(network_path,network_name),
             input_image_size=annotation_size,
-            n_input_channels=training_image_set.n_channels,
-            n_output_classes=len(training_image_set.class_labels),
+            n_input_channels=n_input_channels,
+            n_output_classes=n_output_channels,
             conv1_size=conv_size, conv1_n_chan=conv_chan, conv1_n_pool=conv_pool,
             conv2_size=conv_size, conv2_n_chan=conv_chan*2, conv2_n_pool=conv_pool,
             fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
 
-if nn.n_input_channels != training_image_set.n_channels:
-    print("\n\nExisting network has been set up with {} input channels,\n \
-        but function argument specified {} image channels.\n\n".format(
-        nn.n_input_channels,training_image_set.n_channels) )
-    print("Aborting network.\n")
-    quit()
+if perform_network_training:
+    if nn.n_input_channels != training_image_set.n_channels:
+        print("\n\nExisting network has been set up with {} input channels,\n \
+            but function argument specified {} image channels.\n\n".format(
+            nn.n_input_channels,training_image_set.n_channels) )
+        print("Aborting network.\n")
+        quit()
 
 ########################################################################
 # Set training data
-nn.log("\nUsing training_image_set from directory:")
-nn.log(training_data_path)
-nn.log(" >> " + training_image_set.__str__())
-if use_channels is None:
-    nn.log("Using all available {} image channels".format(
-            training_image_set.n_channels))
-else:
-    nn.log("Using image channels {} (zero-based)".format(use_channels))
+if perform_network_training:
+    nn.log("\nUsing training_image_set from directory:")
+    nn.log(training_data_path)
+    nn.log(" >> " + training_image_set.__str__())
+    if use_channels is None:
+        nn.log("Using all available {} image channels".format(
+                training_image_set.n_channels))
+    else:
+        nn.log("Using image channels {} (zero-based)".format(use_channels))
 
-if annotation_type == 'Centroids':
-    if dilation_factor == None:
-        dilation_factor = 3
-    nn.log("Setting centroid dilation factor of the image " + \
-                                    "to {}".format(dilation_factor))
-    training_image_set.centroid_dilation_factor = dilation_factor
+    if annotation_type == 'Centroids':
+        if dilation_factor == None:
+            dilation_factor = 3
+        nn.log("Setting centroid dilation factor of the image " + \
+                                        "to {}".format(dilation_factor))
+        training_image_set.centroid_dilation_factor = dilation_factor
 
-elif annotation_type == 'Bodies':
-    if dilation_factor == None:
-        dilation_factor = 0
-    nn.log("Setting body dilation factor of the image " + \
-                                    "to {}".format(dilation_factor))
-    training_image_set.body_dilation_factor = dilation_factor
+    elif annotation_type == 'Bodies':
+        if dilation_factor == None:
+            dilation_factor = 0
+        nn.log("Setting body dilation factor of the image " + \
+                                        "to {}".format(dilation_factor))
+        training_image_set.body_dilation_factor = dilation_factor
 
-nn.log("Included annotation typenrs: {}".format( \
-    training_image_set.include_annotation_typenrs))
+    nn.log("Included annotation typenrs: {}".format( \
+        training_image_set.include_annotation_typenrs))
 
 ########################################################################
 # Initialize and start
@@ -290,53 +304,74 @@ nn.display_network_architecture()
 
 ########################################################################
 # Train network
-if training_procedure.lower() == "epochs":
-    nn.train_epochs( training_image_set,
-        annotation_type=annotation_type, m_samples=m_samples,
-        n_epochs=n_epochs, report_every=report_every,
-        sample_ratio=sample_ratio,
-        annotation_border_ratio=annotation_border_ratio,
-        normalize_samples=normalize_samples, morph_annotations=morph_annotations,
-        rotation_list=rotation_list, scale_list_x=scale_list_x,
-        scale_list_y=scale_list_y, noise_level_list=noise_level_list )
-elif training_procedure.lower() == "batch":
-    nn.train_batch( training_image_set, n_batches=number_of_batches,
-        batch_size=batch_size, m_samples=m_samples, n_epochs=n_epochs,
-        annotation_type=annotation_type, sample_ratio=sample_ratio,
-        annotation_border_ratio=annotation_border_ratio,
-        normalize_samples=normalize_samples, morph_annotations=morph_annotations,
-        rotation_list=rotation_list, scale_list_x=scale_list_x,
-        scale_list_y=scale_list_y, noise_level_list=noise_level_list )
+if perform_network_training:
+    if training_procedure.lower() == "epochs":
+        nn.train_epochs( training_image_set,
+            annotation_type=annotation_type, m_samples=m_samples,
+            n_epochs=n_epochs, report_every=report_every,
+            sample_ratio=sample_ratio,
+            annotation_border_ratio=annotation_border_ratio,
+            normalize_samples=normalize_samples, morph_annotations=morph_annotations,
+            rotation_list=rotation_list, scale_list_x=scale_list_x,
+            scale_list_y=scale_list_y, noise_level_list=noise_level_list )
+    elif training_procedure.lower() == "batch":
+        nn.train_batch( training_image_set, n_batches=number_of_batches,
+            batch_size=batch_size, m_samples=m_samples, n_epochs=n_epochs,
+            annotation_type=annotation_type, sample_ratio=sample_ratio,
+            annotation_border_ratio=annotation_border_ratio,
+            normalize_samples=normalize_samples, morph_annotations=morph_annotations,
+            rotation_list=rotation_list, scale_list_x=scale_list_x,
+            scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
-# Save network parameters and settings
-nn.save()
+    # Save network parameters and settings
+    nn.save()
 
 ########################################################################
-# Display performance
+# Display learning curve and filters
 
 if args.learningcurve:
     nn.log("\nDisplay learning curve and filters:")
     nn.show_learning_curve()
     nn.show_filters()
 
-if args.F1report:
-    nn.log("\nTraining set performance:")
-    nn.report_F1( training_image_set,
-        annotation_type=annotation_type, m_samples=2000, sample_ratio=sample_ratio,
-        annotation_border_ratio=annotation_border_ratio,
-        morph_annotations=False,
-        channel_order=None, show_figure='On')
+########################################################################
+# Generate F1 report for training/cv/test data
+
+if args.F1report is not None:
+    f1_path = args.F1report
+    nn.log("\nGenerating F1 report")
+    nn.log("Loading data from {}:".format(f1_path))
+    f1_image_set = ia.AnnotatedImageSet(downsample=downsample_image)
+    if include_annotation_typenrs is not None:
+        f1_image_set.include_annotation_typenrs = include_annotation_typenrs
+    f1_image_set.load_data_dir_tiff_mat( f1_path,
+        normalize=normalize_images, use_channels=use_channels,
+        exclude_border=exclude_border )
+    nn.log(" >> " + f1_image_set.__str__())
+    if annotation_type == 'Centroids':
+        if dilation_factor == None:
+            dilation_factor = 3
+        nn.log("Setting centroid dilation factor of the image " + \
+                                        "to {}".format(dilation_factor))
+        f1_image_set.centroid_dilation_factor = dilation_factor
+    elif annotation_type == 'Bodies':
+        if dilation_factor == None:
+            dilation_factor = 0
+        nn.log("Setting body dilation factor of the image " + \
+                                        "to {}".format(dilation_factor))
+        f1_image_set.body_dilation_factor = dilation_factor
+    nn.log("Included annotation classes: {}".format(f1_image_set.class_labels))
 
     # Test morphed performance
-    nn.log("\nMorphed training set performance:")
-    nn.report_F1( training_image_set, annotation_type=annotation_type,
-            m_samples=2000, sample_ratio=None,
-            morph_annotations=True,
+    nn.log("\nPerformance of {}:".format(f1_path))
+    nn.report_F1( f1_image_set, annotation_type=annotation_type,
+            m_samples=5000, sample_ratio=None,
+            morph_annotations=False,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list,
             channel_order=None, show_figure='On')
 
-if args.learningcurve or args.F1report:
+if args.learningcurve or (args.F1report is not None):
     plt.show()
 
 nn.log('Done!\n')

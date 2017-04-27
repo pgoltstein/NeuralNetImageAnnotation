@@ -383,7 +383,7 @@ class NeuralNetSingleOutput(object):
         pred = result[0]
 
         # Loop output classes
-        for c in range(self.n_output_classes):
+        for c in range(1,self.n_output_classes):
             # Calculate true/false pos/neg
             true_pos = np.sum( pred[labels[:,c]==1]==c )
             false_pos = np.sum( pred[labels[:,c]==0]==c )
@@ -452,7 +452,7 @@ class NeuralNetSingleOutput(object):
         trained samples"""
 
         # Loop output classes
-        for c in range(0,self.n_output_classes):
+        for c in range(1,self.n_output_classes):
             # Get data
             x_values = np.array(self.n_class_samples_list[c])
             accuracy = np.array(self.accuracy_list[c])
