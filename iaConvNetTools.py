@@ -923,7 +923,7 @@ class NeuralNet2Layer(NeuralNetSingleOutput):
 
         plt.figure(figsize=(10,10), facecolor='w', edgecolor='w')
         plot_positions = [(0,0),(0,1),(1,0),(1,1)]
-        for ch in range(4):
+        for ch in range(self.n_input_channels):
             grid,_ = ia.image_grid_RGB( w_mat,
                 n_channels=self.n_input_channels,
                 image_size=(self.y_res,self.x_res), n_x=6, n_y=6,
