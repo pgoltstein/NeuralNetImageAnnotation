@@ -761,6 +761,27 @@ class AnnotatedImage(object):
                 RGB[:,:,ch] = self.channel[channel_order[ch]]
         return RGB
 
+    def crop( self, left, top, width, height ):
+        """Crops the image channels, annotations and borders
+        left:   Left most pixel in cropped image (0 based)
+        top:    Top most pixel in cropped image (0 based)
+        width:  Width of cropped region
+        height: Height of cropped region
+        """
+
+        # Crop channels
+        for nr in range(self.n_channels):
+            self.channel[ch] = self.channel[ch][top:top+height,left:left+width]
+
+        # Crop borders
+        brdr = self.exclude_border.copy()
+        brdr['left'] = np.max( [ brdr['left']-left, 0 ] )
+        brdr['top'] = np.max( [ brdr['top']-top, 0 ] )
+        self._exclude_border['right'] = int(mat_data['ExclRight'])
+        self._exclude_border['top'] = int(mat_data['ExclTop'])
+        self._exclude_border['bottom'] = int(mat_data['ExclBottom'])
+
+
     # *****************************************
     # *****  Handling the annotation data *****
     @property
