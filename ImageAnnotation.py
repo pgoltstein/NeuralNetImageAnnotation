@@ -633,6 +633,7 @@ class AnnotatedImage(object):
             else:
                 self._channel.append( np.array(image_data) )
         self._y_res,self._x_res = self._channel[0].shape
+
         # Update masks if there are annotations and the image resolution changed
         if self.n_annotations > 0 and ( (y_res_old != self.y_res)
                                     or (x_res_old != self.x_res) ):
@@ -770,8 +771,23 @@ class AnnotatedImage(object):
         """
 
         # Crop channels
+        new_channel_list = []
         for nr in range(self.n_channels):
-            self.channel[ch] = self.channel[ch][top:top+height,left:left+width]
+            new_channel_list.append( self.channel[ch][top:top+height,left:left+width] )
+
+        # Crop annotations
+        new_annotation_list = []
+        for an in self.annotation:
+            an_mask = np.zeros(self.detected_bodies.shape)
+            an.mask_body( image=an_mask )
+            new_an_mask = an_mask[top:top+height,left:left+width]
+            if new_an_mask.sum() > 0:
+                new_annotation_list.append( Annotation( body_pixels_yx=new_an_mask
+                    annotation_name=an.name, type_nr=an.type_nr, group_nr=an.group_nr) )
+
+        # Update annotations and channels
+        self.annotation = new_annot_list
+        self.channel = new_channel_list
 
         # Crop borders
         brdr = self.exclude_border.copy()
@@ -783,8 +799,6 @@ class AnnotatedImage(object):
         brdr['bottom'] = np.max( [ brdr['bottom']-crop_from_bottom, 0 ] )
         self.exclude_border = brdr
 
-        # Crop annotations
-        
 
     # *****************************************
     # *****  Handling the annotation data *****
@@ -1557,6 +1571,19 @@ class AnnotatedImageSet(object):
                 self._include_annotation_typenrs = annotation_typenrs
             else:
                 self._include_annotation_typenrs = new_annotation_type_nrs
+
+
+    # ********************************************
+    # *****  Handling cropping of annot-ims  *****
+    def crop( self, left, top, width, height ):
+        """Crops the image channels, annotations and borders
+        left:   Left most pixel in cropped image (0 based)
+        top:    Top most pixel in cropped image (0 based)
+        width:  Width of cropped region
+        height: Height of cropped region
+        """
+        for nr in range(self.n_annot_images):
+            self.ai_list[nr].crop(left, top, width, height )
 
     # *******************************************
     # *****  Handling the annotated bodies  *****
