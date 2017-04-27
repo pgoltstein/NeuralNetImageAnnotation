@@ -20,7 +20,7 @@ import argparse
 import os
 
 # Settings
-import nnDefaultSettings as defaults
+import nnSegmentationDefaults as defaults
 
 #########################################################
 # Arguments
