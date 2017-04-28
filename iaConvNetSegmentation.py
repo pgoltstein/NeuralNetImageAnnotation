@@ -118,6 +118,7 @@ class NeuralNetSegmentation(object):
         self.log('Network parameters saved to file:\n{}'.format(save_path))
 
     def train_epochs(self, annotated_image_set,
+            selection_type="Bodies", annotation_type='Bodies',
             n_epochs=100, m_samples=100, report_every=10,
             normalize_samples=False, morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None):
@@ -127,6 +128,8 @@ class NeuralNetSegmentation(object):
             centroids
             annotated_image_set:  Instance of class AnnotatedImageSet holding
                                   the image and annotation data to train on
+            selection_type:       'Bodies' or 'Centroids'
+            annotation_type:      'Bodies' or 'Centroids'
             n_epochs:             Number of training epochs
             report_every:         Print a report every # of epochs
             m_samples:            number of training samples
@@ -143,6 +146,8 @@ class NeuralNetSegmentation(object):
             now.strftime("%Y-%m-%d %H:%M") ) )
         self.log("n_epochs: {}".format(n_epochs))
         self.log("m_samples: {}".format(m_samples))
+        self.log("selection_type: {}".format(selection_type))
+        self.log("annotation_type: {}".format(annotation_type))
         self.log("normalize_samples: {}".format(normalize_samples))
         self.log("morph_annotations: {}".format(morph_annotations))
 
@@ -152,8 +157,8 @@ class NeuralNetSegmentation(object):
             # Get samples and labels for this epoch
             samples,labels,annotations = annotated_image_set.data_sample(
                 zoom_size=(self.y_res,self.x_res),
-                annotation_type="Centroids", m_samples=m_samples,
-                return_annotations="Bodies", sample_ratio=[0,1],
+                annotation_type=selection_type, m_samples=m_samples,
+                return_annotations=annotation_type, sample_ratio=[0,1],
                 annotation_border_ratio=None,
                 normalize_samples=normalize_samples,
                 morph_annotations=morph_annotations,
@@ -184,6 +189,7 @@ class NeuralNetSegmentation(object):
             now.strftime("%Y-%m-%d %H:%M") ) )
 
     def train_batch(self, annotated_image_set,
+            selection_type="Bodies", annotation_type='Bodies',
             n_batches=10, n_epochs=100, batch_size=1000, m_samples=100,
             normalize_samples=False, morph_annotations=False,
             rotation_list=None, scale_list_x=None,
@@ -195,6 +201,8 @@ class NeuralNetSegmentation(object):
             that is selected from the current batch.
             annotated_image_set:  Instance of class AnnotatedImageSet holding
                                   the image and annotation data to train on
+            selection_type:       'Bodies' or 'Centroids'
+            annotation_type:      'Bodies' or 'Centroids'
             n_batches:            Number of batches to run
             n_epochs:             Number of training epochs
             batch_size:           Number of training samples in batch
@@ -215,6 +223,8 @@ class NeuralNetSegmentation(object):
         self.log("batch_size: {}".format(batch_size))
         self.log("n_epochs: {}".format(n_epochs))
         self.log("m_samples: {}".format(m_samples))
+        self.log("selection_type: {}".format(selection_type))
+        self.log("annotation_type: {}".format(annotation_type))
         self.log("normalize_samples: {}".format(normalize_samples))
         self.log("morph_annotations: {}".format(morph_annotations))
 
@@ -224,8 +234,8 @@ class NeuralNetSegmentation(object):
             # Get batch of samples and labels
             samples,labels,annotations = annotated_image_set.data_sample(
                 zoom_size=(self.y_res,self.x_res),
-                annotation_type="Centroids", m_samples=batch_size,
-                return_annotations="Bodies",  sample_ratio=[0,1],
+                annotation_type=selection_type, m_samples=batch_size,
+                return_annotations=annotation_type,  sample_ratio=[0,1],
                 annotation_border_ratio=None,
                 normalize_samples=normalize_samples,
                 morph_annotations=morph_annotations,
@@ -308,6 +318,7 @@ class NeuralNetSegmentation(object):
             no_enter=True, overwrite_last=True)
 
     def report_F1(self, annotated_image_set,
+            selection_type="Bodies", annotation_type='Bodies',
             m_samples=100, channel_order=None, normalize_samples=False,
             morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None,
@@ -316,6 +327,8 @@ class NeuralNetSegmentation(object):
             reports accuracy, precision, recall and F1 score.
             annotated_image_set:  Instance of class AnnotatedImageSet holding
                                   the image and annotation data to train on
+            annotation_type:      'Bodies' or 'Centroids'
+            selection_type:       'Bodies' or 'Centroids'
             m_samples:            number of test samples
             channel_order:     Tuple indicating which channels are R, G and B
             normalize_samples: Scale each individual channel to its maximum
@@ -330,8 +343,8 @@ class NeuralNetSegmentation(object):
         # Get m samples and labels from the AnnotatedImageSet
         samples,labels,annotations = annotated_image_set.data_sample(
             zoom_size=(self.y_res,self.x_res),
-            annotation_type="Centroids", m_samples=m_samples,
-            return_annotations="Bodies",  sample_ratio=[0,1],
+            annotation_type=selection_type, m_samples=m_samples,
+            return_annotations=annotation_type,  sample_ratio=[0,1],
             annotation_border_ratio=None,
             normalize_samples=normalize_samples,
             morph_annotations=morph_annotations,

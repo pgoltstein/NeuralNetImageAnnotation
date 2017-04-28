@@ -32,10 +32,16 @@ parser = argparse.ArgumentParser( \
             "ADAM optimizer. (written by Pieter Goltstein - April 2017)")
 
 # Required arguments
+parser.add_argument('annotationtype', type=str,
+                    help= "To be annotated region: 'Centroids' or 'Bodies'")
 parser.add_argument('name', type=str,
                     help= 'Name by which to identify the network')
 
 # Annotation arguments
+parser.add_argument('-stp', '--selectiontype', type=str,
+    default=defaults.selection_type,
+    help= "Selective positive annotations from ('Centroids' or 'Bodies'; " + \
+        "default={})".format(defaults.selection_type))
 parser.add_argument('-z', '--size', type=int,
     default=defaults.annotation_size,
     help="Size of the image annotations (default={})".format(
@@ -148,8 +154,10 @@ args = parser.parse_args()
 
 # Required arguments
 network_name = args.name
+annotation_type = args.annotationtype
 
 # Annotation arguments
+selection_type = args.annotationtype
 annotation_size = (args.size,args.size)
 morph_annotations = args.morph
 include_annotation_typenrs = args.includeannotationtypenr
@@ -246,13 +254,15 @@ if perform_network_training:
     else:
         nn.log("Using image channels {} (zero-based)".format(use_channels))
 
-    nn.log("Setting centroid dilation factor of the image " + \
-                                    "to {}".format(centroid_dilation_factor))
-    training_image_set.centroid_dilation_factor = centroid_dilation_factor
+    if annotation_type == 'Centroids' or selection_type == 'Centroids':
+        nn.log("Setting centroid dilation factor of the image " + \
+                                        "to {}".format(centroid_dilation_factor))
+        training_image_set.centroid_dilation_factor = centroid_dilation_factor
 
-    nn.log("Setting body dilation factor of the image " + \
-                                    "to {}".format(body_dilation_factor))
-    training_image_set.body_dilation_factor = body_dilation_factor
+    elif annotation_type == 'Bodies' or selection_type == 'Bodies':
+        nn.log("Setting body dilation factor of the image " + \
+                                        "to {}".format(body_dilation_factor))
+        training_image_set.body_dilation_factor = body_dilation_factor
 
     nn.log("Training on annotation class: {}".format( \
         training_image_set.class_labels))
@@ -273,12 +283,14 @@ if perform_network_training:
     if training_procedure.lower() == "epochs":
         nn.train_epochs( training_image_set, m_samples=m_samples,
             n_epochs=n_epochs, report_every=report_every,
+            selection_type=selection_type, annotation_type=annotation_type,
             normalize_samples=normalize_samples, morph_annotations=morph_annotations,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list )
     elif training_procedure.lower() == "batch":
         nn.train_batch( training_image_set, n_batches=number_of_batches,
             batch_size=batch_size, m_samples=m_samples, n_epochs=n_epochs,
+            selection_type=selection_type, annotation_type=annotation_type,
             normalize_samples=normalize_samples, morph_annotations=morph_annotations,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list )
@@ -307,18 +319,21 @@ if args.F1report is not None:
         normalize=normalize_images, use_channels=use_channels,
         exclude_border=exclude_border )
     nn.log(" >> " + f1_image_set.__str__())
-    print(f1_image_set.ai_list[0].__str__())
-    nn.log("Setting centroid dilation factor of the image " + \
-                                    "to {}".format(centroid_dilation_factor))
-    f1_image_set.centroid_dilation_factor = centroid_dilation_factor
-    nn.log("Setting body dilation factor of the image " + \
-                                    "to {}".format(body_dilation_factor))
-    f1_image_set.body_dilation_factor = body_dilation_factor
+    if annotation_type == 'Centroids' or selection_type == 'Centroids':
+        nn.log("Setting centroid dilation factor of the image " + \
+                                        "to {}".format(centroid_dilation_factor))
+        f1_image_set.centroid_dilation_factor = centroid_dilation_factor
+    elif annotation_type == 'Bodies' or selection_type == 'Bodies':
+        nn.log("Setting body dilation factor of the image " + \
+                                        "to {}".format(body_dilation_factor))
+        f1_image_set.body_dilation_factor = body_dilation_factor
     nn.log("Testing on annotation class: {}".format(f1_image_set.class_labels))
 
     # Test morphed performance
     nn.log("\nPerformance of {}:".format(f1_path))
-    nn.report_F1( f1_image_set, m_samples=200,
+    nn.report_F1( f1_image_set,
+            selection_type=selection_type, annotation_type=annotation_type,
+            m_samples=200,
             morph_annotations=False,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list,
