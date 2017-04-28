@@ -169,7 +169,7 @@ network_name = args.name
 annotation_type = args.annotationtype
 
 # Annotation arguments
-selection_type = args.annotationtype
+selection_type = args.selectiontype
 segment_all = args.segmentall
 annotation_size = (args.size,args.size)
 morph_annotations = args.morph

@@ -7,7 +7,7 @@ training_data_path = '/data/Dataset_small'
 # Annotation arguments
 selection_type = "Bodies"
 segment_all = True
-annotation_size = 27 # Size of the images around the annotations
+annotation_size = 36 # Size of the images around the annotations
 morph_annotations = False # Random morphing of annotations
 include_annotation_typenrs = 1 # Include only annotations of certain type_nr
 centroid_dilation_factor = 3 # Dilation/erosion (negative) of annotation centroid
@@ -19,11 +19,11 @@ normalize_samples = False # True/False
 downsample_image = None # downsampling of image by factor of #
 
 # Training arguments
-training_procedure = "epochs" # "batch" or "epochs"
-n_epochs = 50
-m_samples = 200
-number_of_batches = 10
-batch_size = 200
+training_procedure = "batch" # "batch" or "epochs"
+n_epochs = 10
+m_samples = 1000
+number_of_batches = 100
+batch_size = 1000
 report_every = 5
 fc1_dropout = 1.0 # Keep-fraction in last fully connectd layer during training
 alpha = 0.0002 # Learning rate (typically smaller than 0.001)
