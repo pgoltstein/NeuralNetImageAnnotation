@@ -22,8 +22,8 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 # Overall settings
-data_path = '/data/DataSet_small2'
-im_size = (31,31)
+data_path = '/data/DataSet_small'
+im_size = (41,41)
 rotation_list = np.arange(0,360,1)
 scale_list_x = np.arange(0.9,1.1,0.01)
 scale_list_y = np.arange(0.9,1.1,0.01)
@@ -107,9 +107,11 @@ print(" ")
 print("Get small training set with morphed annotations from ais1")
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='bodies', return_annotations='bodies',
-        m_samples=30, morph_annotations=True,
+        m_samples=30,
+        # sample_ratio=None,
         sample_ratio=(0.4,0.4,0.2),
         annotation_border_ratio=0.5,
+        segment_all=True, morph_annotations=False,
         rotation_list=rotation_list, scale_list_x=scale_list_x,
         scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 # print(labels)

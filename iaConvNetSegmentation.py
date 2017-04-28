@@ -120,7 +120,9 @@ class NeuralNetSegmentation(object):
     def train_epochs(self, annotated_image_set,
             selection_type="Bodies", annotation_type='Bodies',
             n_epochs=100, m_samples=100, report_every=10,
-            normalize_samples=False, morph_annotations=False, rotation_list=None,
+            annotation_border_ratio=None, sample_ratio=None,
+            normalize_samples=False, segment_all=False,
+            morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None):
         """Trains the network on a training set for a specified number of
             epochs. It loads a random training set from the annotated_image_set
@@ -133,7 +135,11 @@ class NeuralNetSegmentation(object):
             n_epochs:             Number of training epochs
             report_every:         Print a report every # of epochs
             m_samples:            number of training samples
+            annotation_border_ratio: Fraction of samples drawn from 2px border
+                               betweem positive and negative samples
+            sample_ratio:      List with ratio of samples per groups (sum=1)
             normalize_samples: Scale each individual channel to its maximum
+            segment_all:       Segments all instead of single annotations (T/F)
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -148,7 +154,10 @@ class NeuralNetSegmentation(object):
         self.log("m_samples: {}".format(m_samples))
         self.log("selection_type: {}".format(selection_type))
         self.log("annotation_type: {}".format(annotation_type))
+        self.log("annotation_border_ratio: {}".format(annotation_border_ratio))
+        self.log("sample_ratio: {}".format(sample_ratio))
         self.log("normalize_samples: {}".format(normalize_samples))
+        self.log("segment_all: {}".format(segment_all))
         self.log("morph_annotations: {}".format(morph_annotations))
 
         # Loop across training epochs
@@ -158,9 +167,10 @@ class NeuralNetSegmentation(object):
             samples,labels,annotations = annotated_image_set.data_sample(
                 zoom_size=(self.y_res,self.x_res),
                 annotation_type=selection_type, m_samples=m_samples,
-                return_annotations=annotation_type, sample_ratio=[0,1],
-                annotation_border_ratio=None,
-                normalize_samples=normalize_samples,
+                return_annotations=annotation_type,
+                annotation_border_ratio=annotation_border_ratio,
+                sample_ratio=sample_ratio,
+                normalize_samples=normalize_samples, segment_all=segment_all,
                 morph_annotations=morph_annotations,
                 rotation_list=rotation_list, scale_list_x=scale_list_x,
                 scale_list_y=scale_list_y, noise_level_list=noise_level_list )
@@ -191,9 +201,10 @@ class NeuralNetSegmentation(object):
     def train_batch(self, annotated_image_set,
             selection_type="Bodies", annotation_type='Bodies',
             n_batches=10, n_epochs=100, batch_size=1000, m_samples=100,
-            normalize_samples=False, morph_annotations=False,
-            rotation_list=None, scale_list_x=None,
-            scale_list_y=None, noise_level_list=None):
+            annotation_border_ratio=None, sample_ratio=None,
+            normalize_samples=False, segment_all=False,
+            morph_annotations=False, rotation_list=None,
+            scale_list_x=None, scale_list_y=None, noise_level_list=None):
         """Trains the network on a training set for a specified number of
             batches of size batch_size. Every batch iteration it loads a
             random training batch from the annotated_image_set. Per batch,
@@ -207,7 +218,11 @@ class NeuralNetSegmentation(object):
             n_epochs:             Number of training epochs
             batch_size:           Number of training samples in batch
             m_samples:            Number of training samples in epoch
+            annotation_border_ratio: Fraction of samples drawn from 2px border
+                               betweem positive and negative samples
+            sample_ratio:      List with ratio of samples per groups (sum=1)
             normalize_samples: Scale each individual channel to its maximum
+            segment_all:       Segments all instead of single annotations (T/F)
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -225,7 +240,10 @@ class NeuralNetSegmentation(object):
         self.log("m_samples: {}".format(m_samples))
         self.log("selection_type: {}".format(selection_type))
         self.log("annotation_type: {}".format(annotation_type))
+        self.log("annotation_border_ratio: {}".format(annotation_border_ratio))
+        self.log("sample_ratio: {}".format(sample_ratio))
         self.log("normalize_samples: {}".format(normalize_samples))
+        self.log("segment_all: {}".format(segment_all))
         self.log("morph_annotations: {}".format(morph_annotations))
 
         # Loop across training batches
@@ -235,9 +253,10 @@ class NeuralNetSegmentation(object):
             samples,labels,annotations = annotated_image_set.data_sample(
                 zoom_size=(self.y_res,self.x_res),
                 annotation_type=selection_type, m_samples=batch_size,
-                return_annotations=annotation_type,  sample_ratio=[0,1],
-                annotation_border_ratio=None,
-                normalize_samples=normalize_samples,
+                return_annotations=annotation_type,
+                annotation_border_ratio=annotation_border_ratio,
+                sample_ratio=sample_ratio,
+                normalize_samples=normalize_samples, segment_all=segment_all,
                 morph_annotations=morph_annotations,
                 rotation_list=rotation_list, scale_list_x=scale_list_x,
                 scale_list_y=scale_list_y, noise_level_list=noise_level_list )
@@ -319,10 +338,12 @@ class NeuralNetSegmentation(object):
 
     def report_F1(self, annotated_image_set,
             selection_type="Bodies", annotation_type='Bodies',
-            m_samples=100, channel_order=None, normalize_samples=False,
+            m_samples=100, channel_order=None,
+            annotation_border_ratio=None, sample_ratio=None,
+            normalize_samples=False, segment_all=False,
             morph_annotations=False, rotation_list=None,
-            scale_list_x=None, scale_list_y=None,
-            noise_level_list=None, show_figure='Off'):
+            scale_list_x=None, scale_list_y=None, noise_level_list=None,
+            show_figure='Off'):
         """Loads a random training set from the annotated_image_set and
             reports accuracy, precision, recall and F1 score.
             annotated_image_set:  Instance of class AnnotatedImageSet holding
@@ -331,7 +352,11 @@ class NeuralNetSegmentation(object):
             selection_type:       'Bodies' or 'Centroids'
             m_samples:            number of test samples
             channel_order:     Tuple indicating which channels are R, G and B
+            sample_ratio:      List with ratio of samples per groups (sum=1)
+            annotation_border_ratio: Fraction of samples drawn from 2px border
+                               betweem positive and negative samples
             normalize_samples: Scale each individual channel to its maximum
+            segment_all:       Segments all instead of single annotations (T/F)
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -345,8 +370,9 @@ class NeuralNetSegmentation(object):
             zoom_size=(self.y_res,self.x_res),
             annotation_type=selection_type, m_samples=m_samples,
             return_annotations=annotation_type,  sample_ratio=[0,1],
-            annotation_border_ratio=None,
-            normalize_samples=normalize_samples,
+            annotation_border_ratio=annotation_border_ratio,
+            sample_ratio=sample_ratio,
+            normalize_samples=normalize_samples, segment_all=segment_all,
             morph_annotations=morph_annotations,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list )

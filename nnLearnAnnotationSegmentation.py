@@ -42,6 +42,10 @@ parser.add_argument('-stp', '--selectiontype', type=str,
     default=defaults.selection_type,
     help= "Selective positive annotations from ('Centroids' or 'Bodies'; " + \
         "default={})".format(defaults.selection_type))
+parser.add_argument('-all', '--segmentall',  action="store_true",
+    default=defaults.segment_all,
+    help='Flag enables segmantation of all (instead of single) annotations ' + \
+        ' (on/off; default={})'.format("on" if defaults.segment_all else "off"))
 parser.add_argument('-z', '--size', type=int,
     default=defaults.annotation_size,
     help="Size of the image annotations (default={})".format(
@@ -60,6 +64,14 @@ parser.add_argument('-dlb', '--bodydilationfactor', type=int,
     default=defaults.body_dilation_factor,
     help="Dilation factor of the to be annotated bodies (default={})".format(
         defaults.body_dilation_factor))
+parser.add_argument('-r', '--positivesampleratio', type=float,
+    default=defaults.sample_ratio,
+    help='Ratio of positive vs negative samples (default={})'.format(
+        defaults.sample_ratio))
+parser.add_argument('-ar', '--annotationborderratio', type=float,
+    default=defaults.annotation_border_ratio,
+    help='Ratio of samples from border between pos and neg samples' + \
+        ' (default={})'.format(defaults.annotation_border_ratio))
 parser.add_argument('-ch', '--imagechannels', nargs='+',
     default=defaults.use_channels,
     help="Select image channels to load (e.g. '-ch 1 2' " + \
@@ -158,11 +170,14 @@ annotation_type = args.annotationtype
 
 # Annotation arguments
 selection_type = args.annotationtype
+segment_all = args.segmentall
 annotation_size = (args.size,args.size)
 morph_annotations = args.morph
 include_annotation_typenrs = args.includeannotationtypenr
 centroid_dilation_factor = args.centroiddilationfactor
 body_dilation_factor = args.bodydilationfactor
+sample_ratio = args.positivesampleratio
+annotation_border_ratio = args.annotationborderratio
 use_channels = args.imagechannels
 normalize_samples = args.normalizesamples
 downsample_image = args.downsampleimage
@@ -284,14 +299,20 @@ if perform_network_training:
         nn.train_epochs( training_image_set, m_samples=m_samples,
             n_epochs=n_epochs, report_every=report_every,
             selection_type=selection_type, annotation_type=annotation_type,
-            normalize_samples=normalize_samples, morph_annotations=morph_annotations,
+            annotation_border_ratio=annotation_border_ratio,
+            sample_ratio=sample_ratio,
+            normalize_samples=normalize_samples, segment_all=segment_all,
+            morph_annotations=morph_annotations,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list )
     elif training_procedure.lower() == "batch":
         nn.train_batch( training_image_set, n_batches=number_of_batches,
             batch_size=batch_size, m_samples=m_samples, n_epochs=n_epochs,
             selection_type=selection_type, annotation_type=annotation_type,
-            normalize_samples=normalize_samples, morph_annotations=morph_annotations,
+            annotation_border_ratio=annotation_border_ratio,
+            sample_ratio=sample_ratio,
+            normalize_samples=normalize_samples, segment_all=segment_all,
+            morph_annotations=morph_annotations,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 
@@ -334,6 +355,9 @@ if args.F1report is not None:
     nn.report_F1( f1_image_set,
             selection_type=selection_type, annotation_type=annotation_type,
             m_samples=200,
+            annotation_border_ratio=annotation_border_ratio,
+            sample_ratio=sample_ratio,
+            normalize_samples=normalize_samples, segment_all=segment_all,
             morph_annotations=False,
             rotation_list=rotation_list, scale_list_x=scale_list_x,
             scale_list_y=scale_list_y, noise_level_list=noise_level_list,

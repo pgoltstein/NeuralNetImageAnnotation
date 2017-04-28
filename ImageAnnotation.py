@@ -1062,7 +1062,7 @@ class AnnotatedImage(object):
     def get_batch( self, zoom_size, annotation_type='Bodies',
             m_samples=100, return_annotations=False,
             sample_ratio=None, annotation_border_ratio=None,
-            normalize_samples=False,
+            normalize_samples=False, segment_all=False,
             morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None ):
         """Constructs a 2d matrix (m samples x n pixels) with linearized data
@@ -1077,6 +1077,7 @@ class AnnotatedImage(object):
             annotation_border_ratio: Fraction of samples drawn from 2px border
                                betweem positive and negative samples
             normalize_samples: Scale each individual channel to its maximum
+            segment_all:       Segments all instead of single annotations (T/F)
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -1176,9 +1177,13 @@ class AnnotatedImage(object):
                     samples[count,:] = image2vec( zoom( self.channel,
                         pix_y[p], pix_x[p],
                         zoom_size=zoom_size, normalize=normalize_samples ) )
-                    if return_annotations:
+                    if return_annotations and not segment_all:
                         annotations[count,:] = image2vec( zoom( \
                             return_im_label==nr, pix_y[p], pix_x[p],
+                            zoom_size=zoom_size, normalize=normalize_samples ) )
+                    elif return_annotations and segment_all:
+                        annotations[count,:] = image2vec( zoom( \
+                            return_im_label>0, pix_y[p], pix_x[p],
                             zoom_size=zoom_size, normalize=normalize_samples ) )
                 else:
                     rotation = float(np.random.choice( rotation_list, 1 ))
@@ -1190,9 +1195,15 @@ class AnnotatedImage(object):
                         pix_y[p], pix_x[p], zoom_size,
                         rotation=rotation, scale_xy=scale,
                         normalize=normalize_samples, noise_level=noise_level ) )
-                    if return_annotations:
+                    if return_annotations and not segment_all:
                         annotations[count,:] = image2vec( morphed_zoom( \
                             (return_im_label==nr).astype(np.float),
+                            pix_y[p], pix_x[p], zoom_size,
+                            rotation=rotation, scale_xy=scale,
+                            normalize=normalize_samples, noise_level=0 ) )
+                    elif return_annotations and segment_all:
+                        annotations[count,:] = image2vec( morphed_zoom( \
+                            (return_im_label>0).astype(np.float),
                             pix_y[p], pix_x[p], zoom_size,
                             rotation=rotation, scale_xy=scale,
                             normalize=normalize_samples, noise_level=0 ) )
@@ -1207,8 +1218,12 @@ class AnnotatedImage(object):
                         samples[count,:] = image2vec( zoom( self.channel,
                             brdr_pix_y[p], brdr_pix_x[p],
                             zoom_size=zoom_size, normalize=normalize_samples ) )
-                        if return_annotations:
+                        if return_annotations and not segment_all:
                             annotations[count,:] = image2vec( zoom( return_im_label==nr,
+                                brdr_pix_y[p], brdr_pix_x[p],
+                                zoom_size=zoom_size, normalize=normalize_samples ) )
+                        elif return_annotations and segment_all:
+                            annotations[count,:] = image2vec( zoom( return_im_label>0,
                                 brdr_pix_y[p], brdr_pix_x[p],
                                 zoom_size=zoom_size, normalize=normalize_samples ) )
                     else:
@@ -1221,9 +1236,15 @@ class AnnotatedImage(object):
                             brdr_pix_y[p], brdr_pix_x[p], zoom_size,
                             rotation=rotation, scale_xy=scale,
                             normalize=normalize_samples, noise_level=noise_level ) )
-                        if return_annotations:
+                        if return_annotations and not segment_all:
                             annotations[count,:] = image2vec( morphed_zoom(
                                 (return_im_label==nr).astype(np.float),
+                                brdr_pix_y[p], brdr_pix_x[p], zoom_size,
+                                rotation=rotation, scale_xy=scale,
+                                normalize=normalize_samples, noise_level=0 ) )
+                        elif return_annotations and segment_all:
+                            annotations[count,:] = image2vec( morphed_zoom(
+                                (return_im_label>0).astype(np.float),
                                 brdr_pix_y[p], brdr_pix_x[p], zoom_size,
                                 rotation=rotation, scale_xy=scale,
                                 normalize=normalize_samples, noise_level=0 ) )
@@ -1619,8 +1640,8 @@ class AnnotatedImageSet(object):
     # *****  Produce training/test data set  *****
     def data_sample(self, zoom_size, annotation_type='Bodies',
             m_samples=100, return_annotations=False,
-            sample_ratio=None, normalize_samples=False,
-            annotation_border_ratio=None,
+            sample_ratio=None, annotation_border_ratio=None,
+            normalize_samples=False, segment_all=False,
             morph_annotations=False, rotation_list=None,
             scale_list_x=None, scale_list_y=None, noise_level_list=None ):
         """Constructs a random sample of with linearized annotation data,
@@ -1637,6 +1658,7 @@ class AnnotatedImageSet(object):
             annotation_border_ratio: Fraction of samples drawn from 2px border
                                betweem positive and negative samples
             normalize_samples: Scale each individual channel to its maximum
+            segment_all:       Segments all instead of single annotations (T/F)
             morph_annotations: Randomly morph the annotations
             rotation_list:     List of rotation values to choose from in degrees
             scale_list_x:      List of horizontal scale factors to choose from
@@ -1678,7 +1700,7 @@ class AnnotatedImageSet(object):
                     return_annotations=return_annotations,
                     sample_ratio=sample_ratio,
                     annotation_border_ratio=annotation_border_ratio,
-                    normalize_samples=normalize_samples,
+                    normalize_samples=normalize_samples, segment_all=segment_all,
                     morph_annotations=morph_annotations,
                     rotation_list=rotation_list, scale_list_x=scale_list_x,
                     scale_list_y=scale_list_y, noise_level_list=noise_level_list )
