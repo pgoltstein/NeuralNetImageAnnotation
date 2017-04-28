@@ -369,7 +369,7 @@ class NeuralNetSegmentation(object):
         samples,labels,annotations = annotated_image_set.data_sample(
             zoom_size=(self.y_res,self.x_res),
             annotation_type=selection_type, m_samples=m_samples,
-            return_annotations=annotation_type, 
+            return_annotations=annotation_type,
             annotation_border_ratio=annotation_border_ratio,
             sample_ratio=sample_ratio,
             normalize_samples=normalize_samples, segment_all=segment_all,
