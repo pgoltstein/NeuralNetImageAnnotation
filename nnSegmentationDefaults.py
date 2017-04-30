@@ -22,19 +22,19 @@ downsample_image = None # downsampling of image by factor of #
 # Training arguments
 training_procedure = "batch" # "batch" or "epochs"
 n_epochs = 10
-m_samples = 200
+m_samples = 1000
 number_of_batches = 10
-batch_size = 200
+batch_size = 1000
 report_every = 5
-fc1_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
+fc_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
 alpha = 0.0005 # Learning rate (typically smaller than 0.001)
 
 # Network arguments
-network_type = "c2fc1" # Neural net type "1layer", "2layer", "c2fc1"
-conv_size = 5 # Size of convolutional filters (if applicable)
+network_type = "c1fc2" # Neural net type "c2fc1", "c1fc2"
+conv_size = 7 # Size of convolutional filters (if applicable)
 conv_chan = 16 # Number of convolution channels (if applicable)
-conv_pool = 2 # Number of channels to pool after conv-step  (if applicable)
-fc_size = 2048 # Number of units in first fully connected layer (if applicable)
+conv_pool = 1 # Number of channels to pool after conv-step  (if applicable)
+fc_size = 1024 # Number of units in first fully connected layer (if applicable)
 
 # Other variables
 exclude_border = (40,40,40,40) # (Left, Right, Top, Border) margin, or "Load" from file

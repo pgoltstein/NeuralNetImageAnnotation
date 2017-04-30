@@ -117,9 +117,9 @@ parser.add_argument('-rep', '--reportevery', type=int,
     help='Report every so many training epochs (default={})'.format(
         defaults.report_every))
 parser.add_argument('-d', '--dropout', type=float,
-    default=defaults.fc1_dropout,
+    default=defaults.fc_dropout,
     help='Dropout fraction in fully connected layer (default={})'.format(
-        defaults.fc1_dropout))
+        defaults.fc_dropout))
 parser.add_argument('-a', '--alpha', type=float,
     default=defaults.alpha,
     help="Learning rate 'alpha' (default={})".format(
@@ -194,7 +194,7 @@ m_samples = args.msamples
 number_of_batches = args.numberofbatches
 batch_size = args.batchsize
 report_every = args.reportevery
-fc1_dropout = args.dropout
+fc_dropout = args.dropout
 alpha = args.alpha
 
 # Network arguments
@@ -259,7 +259,16 @@ if network_type.lower() == "c2fc1":
             output_image_size=annotation_size,
             conv1_size=conv_size, conv1_n_chan=conv_chan, conv1_n_pool=conv_pool,
             conv2_size=conv_size, conv2_n_chan=conv_chan*2, conv2_n_pool=conv_pool,
-            fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
+            fc1_n_chan=fc_size, fc_dropout=fc_dropout, alpha=alpha )
+if network_type.lower() == "c1fc2":
+    nn = cn.ConvNetCnv1Fc2Nout( \
+            network_path=os.path.join(network_path,network_name),
+            input_image_size=image_size,
+            n_input_channels=n_input_channels,
+            output_image_size=annotation_size,
+            conv1_size=conv_size, conv1_n_chan=conv_chan, conv1_n_pool=conv_pool,
+            fc1_n_chan=fc_size, fc2_n_chan=fc_size,
+            fc_dropout=fc_dropout, alpha=alpha )
 
 
 ########################################################################
@@ -336,24 +345,30 @@ if args.learningcurve:
 # Generate F1 report for training/cv/test data
 
 if args.F1report is not None:
-    f1_path = args.F1report
     nn.log("\nGenerating F1 report")
-    nn.log("Loading data from {}:".format(f1_path))
-    f1_image_set = ia.AnnotatedImageSet(downsample=downsample_image)
-    f1_image_set.include_annotation_typenrs = include_annotation_typenrs
-    f1_image_set.load_data_dir_tiff_mat( f1_path,
-        normalize=normalize_images, use_channels=use_channels,
-        exclude_border=exclude_border )
-    nn.log(" >> " + f1_image_set.__str__())
-    if annotation_type == 'Centroids' or selection_type == 'Centroids':
-        nn.log("Setting centroid dilation factor of the image " + \
-                                        "to {}".format(centroid_dilation_factor))
-        f1_image_set.centroid_dilation_factor = centroid_dilation_factor
-    elif annotation_type == 'Bodies' or selection_type == 'Bodies':
-        nn.log("Setting body dilation factor of the image " + \
-                                        "to {}".format(body_dilation_factor))
-        f1_image_set.body_dilation_factor = body_dilation_factor
-    nn.log("Testing on annotation class: {}".format(f1_image_set.class_labels))
+    if args.F1report.lower() == "same":
+        nn.log("Using training data for F1 report")
+        f1_path = training_data_path
+        f1_image_set = training_image_set
+        nn.log(" >> " + f1_image_set.__str__())
+    else:
+        f1_path = args.F1report
+        nn.log("Loading data from {}:".format(f1_path))
+        f1_image_set = ia.AnnotatedImageSet(downsample=downsample_image)
+        f1_image_set.include_annotation_typenrs = include_annotation_typenrs
+        f1_image_set.load_data_dir_tiff_mat( f1_path,
+            normalize=normalize_images, use_channels=use_channels,
+            exclude_border=exclude_border )
+        nn.log(" >> " + f1_image_set.__str__())
+        if annotation_type == 'Centroids' or selection_type == 'Centroids':
+            nn.log("Setting centroid dilation factor of the image " + \
+                                            "to {}".format(centroid_dilation_factor))
+            f1_image_set.centroid_dilation_factor = centroid_dilation_factor
+        elif annotation_type == 'Bodies' or selection_type == 'Bodies':
+            nn.log("Setting body dilation factor of the image " + \
+                                            "to {}".format(body_dilation_factor))
+            f1_image_set.body_dilation_factor = body_dilation_factor
+        nn.log("Testing on annotation class: {}".format(f1_image_set.class_labels))
 
     # Test morphed performance
     nn.log("\nPerformance of {}:".format(f1_path))
