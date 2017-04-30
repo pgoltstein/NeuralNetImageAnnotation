@@ -1676,6 +1676,10 @@ class AnnotatedImageSet(object):
             2d numpy matrix and if requested annotations as 2d numpy matrix
             or otherwise an empty list as third item"""
 
+        # Set return_size
+        if return_size is None:
+            return_size = zoom_size
+
         # Get number of classes
         n_classes = len(self.class_labels)
 
@@ -1689,7 +1693,7 @@ class AnnotatedImageSet(object):
         # Predefine output matrices
         samples = np.zeros( (m_samples, n_pix_lin) )
         if return_annotations is not False:
-            annotations = np.zeros( (m_samples, zoom_size[0]*zoom_size[1]) )
+            annotations = np.zeros( (m_samples, return_size[0]*return_size[1]) )
         else:
             annotations = []
         labels = np.zeros( (m_samples, n_classes) )

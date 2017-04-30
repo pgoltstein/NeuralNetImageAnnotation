@@ -24,6 +24,7 @@ matplotlib.rcParams['ps.fonttype'] = 42
 # Overall settings
 data_path = '/data/DataSet_small'
 im_size = (41,41)
+annot_size = (27,27)
 rotation_list = np.arange(0,360,1)
 scale_list_x = np.arange(0.9,1.1,0.01)
 scale_list_y = np.arange(0.9,1.1,0.01)
@@ -107,7 +108,7 @@ print(" ")
 print("Get small training set with morphed annotations from ais1")
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='bodies',
-        return_size=im_size, return_annotations='bodies',
+        return_size=annot_size, return_annotations='bodies',
         m_samples=30,
         # sample_ratio=None,
         sample_ratio=(0.4,0.4,0.2),
@@ -127,7 +128,7 @@ samples_grid,_ = ia.image_grid_RGB( samples,
 samples_grid[:,:,2] = 0
 annotations_grid,_ = ia.image_grid_RGB( annotations,
     n_channels=1, annotation_nrs=annot_show_list,
-    image_size=im_size, n_x=10, n_y=3, channel_order=(0,1,2),
+    image_size=annot_size, n_x=10, n_y=3, channel_order=(0,1,2),
     amplitude_scaling=(1.33,1.33,1), line_color=0.5, auto_scale=True )
 
 # ************************************************************

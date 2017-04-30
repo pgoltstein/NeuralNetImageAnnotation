@@ -167,6 +167,7 @@ class NeuralNetSegmentation(object):
             samples,labels,annotations = annotated_image_set.data_sample(
                 zoom_size=(self.y_res,self.x_res),
                 annotation_type=selection_type, m_samples=m_samples,
+                return_size=(self.y_res_out,self.x_res_out),
                 return_annotations=annotation_type,
                 annotation_border_ratio=annotation_border_ratio,
                 sample_ratio=sample_ratio,
@@ -253,6 +254,7 @@ class NeuralNetSegmentation(object):
             samples,labels,annotations = annotated_image_set.data_sample(
                 zoom_size=(self.y_res,self.x_res),
                 annotation_type=selection_type, m_samples=batch_size,
+                return_size=(self.y_res_out,self.x_res_out),
                 return_annotations=annotation_type,
                 annotation_border_ratio=annotation_border_ratio,
                 sample_ratio=sample_ratio,
@@ -369,6 +371,7 @@ class NeuralNetSegmentation(object):
         samples,labels,annotations = annotated_image_set.data_sample(
             zoom_size=(self.y_res,self.x_res),
             annotation_type=selection_type, m_samples=m_samples,
+            return_size=(self.y_res_out,self.x_res_out),
             return_annotations=annotation_type,
             annotation_border_ratio=annotation_border_ratio,
             sample_ratio=sample_ratio,
@@ -487,12 +490,12 @@ class NeuralNetSegmentation(object):
 
                     grid_annot,_ = ia.image_grid_RGB( annot_mat[cnt],
                         n_channels=1,
-                        image_size=(self.y_res,self.x_res), n_x=n_show, n_y=1,
+                        image_size=(self.y_res_out,self.x_res_out), n_x=n_show, n_y=1,
                         amplitude_scaling=(1.33,1.33,1),
                         line_color=1, auto_scale=True )
                     grid_pred,_ = ia.image_grid_RGB( pred_mat[cnt],
                         n_channels=1,
-                        image_size=(self.y_res,self.x_res), n_x=n_show, n_y=1,
+                        image_size=(self.y_res_out,self.x_res_out), n_x=n_show, n_y=1,
                         amplitude_scaling=(1.33,1.33,1),
                         line_color=1, auto_scale=True )
                     grid_annot[:,:,1] = 0 # Annotations in red, prediction in blue

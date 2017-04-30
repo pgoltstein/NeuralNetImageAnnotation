@@ -40,13 +40,17 @@ parser.add_argument('name', type=str,
 # Annotation arguments
 parser.add_argument('-stp', '--selectiontype', type=str,
     default=defaults.selection_type,
-    help= "Selective positive annotations from ('Centroids' or 'Bodies'; " + \
+    help= "Select positive annotations from ('Centroids' or 'Bodies'; " + \
         "default={})".format(defaults.selection_type))
 parser.add_argument('-all', '--segmentall',  action="store_true",
     default=defaults.segment_all,
     help='Flag enables segmantation of all (instead of single) annotations ' + \
         ' (on/off; default={})'.format("on" if defaults.segment_all else "off"))
-parser.add_argument('-z', '--size', type=int,
+parser.add_argument('-iz', '--imagesize', type=int,
+    default=defaults.image_size,
+    help="Size of the input images (default={})".format(
+        defaults.image_size))
+parser.add_argument('-az', '--annotationsize', type=int,
     default=defaults.annotation_size,
     help="Size of the image annotations (default={})".format(
         defaults.annotation_size))
@@ -171,7 +175,8 @@ annotation_type = args.annotationtype
 # Annotation arguments
 selection_type = args.selectiontype
 segment_all = args.segmentall
-annotation_size = (args.size,args.size)
+image_size = (args.imagesize,args.imagesize)
+annotation_size = (args.annotationsize,args.annotationsize)
 morph_annotations = args.morph
 include_annotation_typenrs = args.includeannotationtypenr
 centroid_dilation_factor = args.centroiddilationfactor
@@ -249,7 +254,7 @@ else:
 if network_type.lower() == "c2fc1":
     nn = cn.ConvNetCnv2Fc1Nout( \
             network_path=os.path.join(network_path,network_name),
-            input_image_size=annotation_size,
+            input_image_size=image_size,
             n_input_channels=n_input_channels,
             output_image_size=annotation_size,
             conv1_size=conv_size, conv1_n_chan=conv_chan, conv1_n_pool=conv_pool,
