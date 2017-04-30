@@ -7,8 +7,8 @@ training_data_path = '/data/Dataset_small'
 # Annotation arguments
 selection_type = "Bodies"
 segment_all = True
-annotation_size = 27 # Size of the images around the annotations
-annotation_size = 17 # Size of the images around the annotations
+image_size = 27 # Size of the images around the annotations
+annotation_size = 17 # Size of the annotations to be made
 morph_annotations = False # Random morphing of annotations
 include_annotation_typenrs = 1 # Include only annotations of certain type_nr
 centroid_dilation_factor = 3 # Dilation/erosion (negative) of annotation centroid

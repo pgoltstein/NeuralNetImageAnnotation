@@ -121,15 +121,19 @@ samples,labels,annotations = ais1.data_sample( \
 print(" ")
 print("Construct RGB grid from first 16 annotations in training set")
 annot_show_list = list(range(30))
-samples_grid,_ = ia.image_grid_RGB( samples,
+samples_grid,_,brdrs = ia.image_grid_RGB( samples,
     n_channels=ais1.n_channels, annotation_nrs=annot_show_list,
     image_size=im_size, n_x=10, n_y=3, channel_order=(0,1,2),
-    amplitude_scaling=(1.33,1.33,1), line_color=0, auto_scale=True )
+    amplitude_scaling=(1.33,1.33,1), line_color=0,
+    return_borders=True, auto_scale=True )
 samples_grid[:,:,2] = 0
-annotations_grid,_ = ia.image_grid_RGB( annotations,
+samples_grid[brdrs==1] = 1
+annotations_grid,_,brdrs = ia.image_grid_RGB( annotations,
     n_channels=1, annotation_nrs=annot_show_list,
     image_size=annot_size, n_x=10, n_y=3, channel_order=(0,1,2),
-    amplitude_scaling=(1.33,1.33,1), line_color=0.5, auto_scale=True )
+    amplitude_scaling=(1.33,1.33,1), line_color=0.5,
+    return_borders=True, auto_scale=True )
+annotations_grid[brdrs==1] = 1
 
 # ************************************************************
 # Show matplotlib images

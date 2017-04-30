@@ -361,7 +361,7 @@ if args.F1report is not None:
             selection_type=selection_type, annotation_type=annotation_type,
             m_samples=200,
             annotation_border_ratio=annotation_border_ratio,
-            sample_ratio=sample_ratio,
+            sample_ratio=[0,1],
             normalize_samples=normalize_samples, segment_all=segment_all,
             morph_annotations=False,
             rotation_list=rotation_list, scale_list_x=scale_list_x,

@@ -211,7 +211,8 @@ def vec2RGB( lin_image, n_channels, image_size,
 
 def image_grid_RGB( lin_images, n_channels, image_size, annotation_nrs=None,
                     n_x=10, n_y=6, channel_order=(0,1,2), auto_scale=False,
-                    amplitude_scaling=(1.33,1.33,1), line_color=0 ):
+                    amplitude_scaling=(1.33,1.33,1),
+                    line_color=0, return_borders=False ):
     """ Constructs a 3d numpy.ndarray tiled with a grid of RGB images. If
         more images are supplied that can be tiled, it chooses and displays
         a random subset.
@@ -223,9 +224,10 @@ def image_grid_RGB( lin_images, n_channels, image_size, annotation_nrs=None,
     n_x:                Number of images to show on x axis of grid
     n_y:                Number of images to show on y axis of grid
     channel_order:      Tuple indicating which channels are R, G and B
-    auto_scale:        Scale each individual image to its maximum (T/F)
+    auto_scale:         Scale each individual image to its maximum (T/F)
     amplitude_scaling:  Intensity scaling of each color channel
     line_color:         Intensity (gray scale) of line between images
+    return_borders:     Returns a matrix of same size marking borders with 1
     Returns numpy.ndarray (x,y,RGB)
     """
 
@@ -259,6 +261,7 @@ def image_grid_RGB( lin_images, n_channels, image_size, annotation_nrs=None,
     im_count = 0
     center_shift = []
     grid = np.zeros((max_y,max_x,3))+line_color
+    borders = np.zeros((max_y,max_x,3)) + 1
     for y in range(n_y):
         for x in range(n_x):
             if im_count < n_images:
@@ -269,13 +272,17 @@ def image_grid_RGB( lin_images, n_channels, image_size, annotation_nrs=None,
                 if auto_scale:
                     rgb_im = rgb_im / rgb_im.max()
                 grid[np.ix_(y_coords[y],x_coords[x],rgb_coords)] = rgb_im
+                borders[np.ix_(y_coords[y],x_coords[x],rgb_coords)] = 0
                 center_shift.append( \
                     ( y_coords[y][0] + (0.5*image_size[0]) -0.5,
                       x_coords[x][0] + (0.5*image_size[0]) -0.5 ) )
             else:
                 break
             im_count += 1
-    return grid, center_shift
+    if return_borders:
+        return grid, center_shift, borders
+    else:
+        return grid, center_shift
 
 def split_samples( m_samples, n_groups, ratios=None ):
     """Splits the total number of samples into n_groups according to the

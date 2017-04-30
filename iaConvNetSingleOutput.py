@@ -432,12 +432,13 @@ class NeuralNetSingleOutput(object):
 
                 plt.figure(figsize=(10,10), facecolor='w', edgecolor='w')
                 for cnt in range(4):
-                    grid,_ = ia.image_grid_RGB( samples_mat[cnt],
+                    grid,_,brdr = ia.image_grid_RGB( samples_mat[cnt],
                         n_channels=annotated_image_set.n_channels,
                         image_size=(self.y_res,self.x_res), n_x=10, n_y=10,
                         channel_order=chan_order, amplitude_scaling=(1.33,1.33,1),
-                        line_color=1, auto_scale=True )
+                        line_color=1, auto_scale=True, return_borders=True )
                     grid[:,:,2] = 0 # only show red and green channel
+                    grid[brdr==1] = 1 # make borders white
                     with sns.axes_style("white"):
                         ax1 = plt.subplot2grid( (2,2), plot_positions[cnt] )
                         ax1.imshow(

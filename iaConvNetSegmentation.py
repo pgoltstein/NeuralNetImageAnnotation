@@ -432,7 +432,9 @@ class NeuralNetSegmentation(object):
 
             for worst_best in range(2):
 
-                n_show = 16
+                n_col = 8
+                n_row = 2
+                n_show = n_row*n_col
                 if worst_best == 0:
                     sort_nr = 1
                     titles = ["worst accuracy","worst precision","worst recall","worst F1"]
@@ -481,31 +483,40 @@ class NeuralNetSegmentation(object):
 
                 plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
                 for cnt in range(4):
-                    grid_im,_ = ia.image_grid_RGB( samples_mat[cnt],
+                    grid_im,_,brdr = ia.image_grid_RGB( samples_mat[cnt],
                         n_channels=annotated_image_set.n_channels,
-                        image_size=(self.y_res,self.x_res), n_x=n_show, n_y=1,
+                        image_size=(self.y_res,self.x_res), n_x=n_col, n_y=n_row,
                         channel_order=chan_order, amplitude_scaling=(1.33,1.33,1),
-                        line_color=1, auto_scale=True )
+                        line_color=1, auto_scale=True, return_borders=True )
                     grid_im[:,:,2] = 0 # only show red and green channel
+                    grid_im[brdr==1] = 1 # Make borders white
 
-                    grid_annot,_ = ia.image_grid_RGB( annot_mat[cnt],
+                    grid_annot,_,brdr = ia.image_grid_RGB( annot_mat[cnt],
                         n_channels=1,
-                        image_size=(self.y_res_out,self.x_res_out), n_x=n_show, n_y=1,
+                        image_size=(self.y_res_out,self.x_res_out), n_x=n_col, n_y=n_row,
                         amplitude_scaling=(1.33,1.33,1),
-                        line_color=1, auto_scale=True )
+                        line_color=1, auto_scale=True, return_borders=True )
                     grid_pred,_ = ia.image_grid_RGB( pred_mat[cnt],
                         n_channels=1,
-                        image_size=(self.y_res_out,self.x_res_out), n_x=n_show, n_y=1,
+                        image_size=(self.y_res_out,self.x_res_out), n_x=n_col, n_y=n_row,
                         amplitude_scaling=(1.33,1.33,1),
                         line_color=1, auto_scale=True )
                     grid_annot[:,:,1] = 0 # Annotations in red, prediction in blue
                     grid_annot[:,:,2] = grid_pred[:,:,0]
+                    grid_annot[brdr==1] = 1 # Make borders white
 
                     with sns.axes_style("white"):
-                        ax = plt.subplot2grid( (4,1), (cnt,0) )
-                        ax.imshow( np.concatenate( [grid_im,grid_annot], axis=0 ),
+                        ax = plt.subplot2grid( (4,2), (cnt,0) )
+                        ax.imshow( grid_im,
                             interpolation='nearest', vmax=grid_im.max()*0.8 )
-                        ax.set_title(titles[cnt])
+                        ax.set_title("Input images: " + titles[cnt])
+                        plt.axis('tight')
+                        plt.axis('off')
+
+                        ax = plt.subplot2grid( (4,2), (cnt,1) )
+                        ax.imshow( grid_annot,
+                            interpolation='nearest', vmax=grid_annot.max() )
+                        ax.set_title("Annotations: " + titles[cnt])
                         plt.axis('tight')
                         plt.axis('off')
                 plt.tight_layout()
