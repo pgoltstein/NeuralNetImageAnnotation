@@ -106,7 +106,8 @@ print(' -- Duration = {:.0f} ms'.format(1000*(t_curr-t_start)) )
 print(" ")
 print("Get small training set with morphed annotations from ais1")
 samples,labels,annotations = ais1.data_sample( \
-        im_size, annotation_type='bodies', return_annotations='bodies',
+        im_size, annotation_type='bodies',
+        return_size=im_size, return_annotations='bodies',
         m_samples=30,
         # sample_ratio=None,
         sample_ratio=(0.4,0.4,0.2),

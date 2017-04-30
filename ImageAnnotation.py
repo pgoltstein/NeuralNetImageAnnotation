@@ -1059,8 +1059,8 @@ class AnnotatedImage(object):
             self._set_centroids()
             self._set_bodies()
 
-    def get_batch( self, zoom_size, annotation_type='Bodies',
-            m_samples=100, return_annotations=False,
+    def get_batch( self, zoom_size, annotation_type='Bodies', m_samples=100,
+            return_size=None, return_annotations=False,
             sample_ratio=None, annotation_border_ratio=None,
             normalize_samples=False, segment_all=False,
             morph_annotations=False, rotation_list=None,
@@ -1070,6 +1070,8 @@ class AnnotatedImage(object):
             zoom_size:         2 dimensional size of the image (y,x)
             annotation_type:   'Bodies' or 'Centroids'
             m_samples:         number of training samples
+            return_size:         Determines size of annotations that are returned
+                                 If None, it defaults to zoom_size
             return_annotations:  Returns annotations in addition to
                                  samples and labels. If False, returns empty
                                  list. Otherwise set to 'Bodies' or 'Centroids'
@@ -1086,6 +1088,10 @@ class AnnotatedImage(object):
             Returns tuple with samples as 2d numpy matrix, labels as
             2d numpy matrix and if requested annotations as 2d numpy matrix
             or otherwise an empty list as third item"""
+
+        # Set return_size
+        if return_size is None:
+            return_size = zoom_size
 
         # Calculate number of samples per class
         class_labels = sorted(self.class_labels)
@@ -1123,7 +1129,7 @@ class AnnotatedImage(object):
         samples = np.zeros( (m_samples,
             self.n_channels*zoom_size[0]*zoom_size[1]) )
         if return_annotations is not False:
-            annotations = np.zeros( (m_samples, zoom_size[0]*zoom_size[1]) )
+            annotations = np.zeros( (m_samples, return_size[0]*return_size[1]) )
         labels = np.zeros( (m_samples, n_classes) )
         count = 0
 
@@ -1180,11 +1186,11 @@ class AnnotatedImage(object):
                     if return_annotations and not segment_all:
                         annotations[count,:] = image2vec( zoom( \
                             return_im_label==nr, pix_y[p], pix_x[p],
-                            zoom_size=zoom_size, normalize=normalize_samples ) )
+                            zoom_size=return_size, normalize=normalize_samples ) )
                     elif return_annotations and segment_all:
                         annotations[count,:] = image2vec( zoom( \
                             return_im_label>0, pix_y[p], pix_x[p],
-                            zoom_size=zoom_size, normalize=normalize_samples ) )
+                            zoom_size=return_size, normalize=normalize_samples ) )
                 else:
                     rotation = float(np.random.choice( rotation_list, 1 ))
                     scale = ( float(np.random.choice( scale_list_y, 1 )), \
@@ -1198,13 +1204,13 @@ class AnnotatedImage(object):
                     if return_annotations and not segment_all:
                         annotations[count,:] = image2vec( morphed_zoom( \
                             (return_im_label==nr).astype(np.float),
-                            pix_y[p], pix_x[p], zoom_size,
+                            pix_y[p], pix_x[p], return_size,
                             rotation=rotation, scale_xy=scale,
                             normalize=normalize_samples, noise_level=0 ) )
                     elif return_annotations and segment_all:
                         annotations[count,:] = image2vec( morphed_zoom( \
                             (return_im_label>0).astype(np.float),
-                            pix_y[p], pix_x[p], zoom_size,
+                            pix_y[p], pix_x[p], return_size,
                             rotation=rotation, scale_xy=scale,
                             normalize=normalize_samples, noise_level=0 ) )
                 labels[count,c] = 1
@@ -1221,11 +1227,11 @@ class AnnotatedImage(object):
                         if return_annotations and not segment_all:
                             annotations[count,:] = image2vec( zoom( return_im_label==nr,
                                 brdr_pix_y[p], brdr_pix_x[p],
-                                zoom_size=zoom_size, normalize=normalize_samples ) )
+                                zoom_size=return_size, normalize=normalize_samples ) )
                         elif return_annotations and segment_all:
                             annotations[count,:] = image2vec( zoom( return_im_label>0,
                                 brdr_pix_y[p], brdr_pix_x[p],
-                                zoom_size=zoom_size, normalize=normalize_samples ) )
+                                zoom_size=return_size, normalize=normalize_samples ) )
                     else:
                         rotation = float(np.random.choice( rotation_list, 1 ))
                         scale = ( float(np.random.choice( scale_list_y, 1 )), \
@@ -1239,13 +1245,13 @@ class AnnotatedImage(object):
                         if return_annotations and not segment_all:
                             annotations[count,:] = image2vec( morphed_zoom(
                                 (return_im_label==nr).astype(np.float),
-                                brdr_pix_y[p], brdr_pix_x[p], zoom_size,
+                                brdr_pix_y[p], brdr_pix_x[p], return_size,
                                 rotation=rotation, scale_xy=scale,
                                 normalize=normalize_samples, noise_level=0 ) )
                         elif return_annotations and segment_all:
                             annotations[count,:] = image2vec( morphed_zoom(
                                 (return_im_label>0).astype(np.float),
-                                brdr_pix_y[p], brdr_pix_x[p], zoom_size,
+                                brdr_pix_y[p], brdr_pix_x[p], return_size,
                                 rotation=rotation, scale_xy=scale,
                                 normalize=normalize_samples, noise_level=0 ) )
                     labels[count,c] = 1
@@ -1638,8 +1644,8 @@ class AnnotatedImageSet(object):
 
     # ********************************************
     # *****  Produce training/test data set  *****
-    def data_sample(self, zoom_size, annotation_type='Bodies',
-            m_samples=100, return_annotations=False,
+    def data_sample(self, zoom_size, annotation_type='Bodies', m_samples=100,
+            return_size=None, return_annotations=False,
             sample_ratio=None, annotation_border_ratio=None,
             normalize_samples=False, segment_all=False,
             morph_annotations=False, rotation_list=None,
@@ -1651,6 +1657,8 @@ class AnnotatedImageSet(object):
             zoom_size:         2 dimensional size of the image (y,x)
             annotation_type:   'Bodies' or 'Centroids'
             m_samples:         number of training samples
+            return_size:         Determines size of annotations that are returned
+                                 If None, it defaults to zoom_size
             return_annotations:  Returns annotations in addition to
                                  samples and labels. If False, returns empty
                                  list. Otherwise set to 'Bodies' or 'Centroids'
@@ -1697,7 +1705,7 @@ class AnnotatedImageSet(object):
                 self.ai_list[s].get_batch(
                     zoom_size, annotation_type=annotation_type,
                     m_samples=m_set_samples,
-                    return_annotations=return_annotations,
+                    return_size=return_size, return_annotations=return_annotations,
                     sample_ratio=sample_ratio,
                     annotation_border_ratio=annotation_border_ratio,
                     normalize_samples=normalize_samples, segment_all=segment_all,
