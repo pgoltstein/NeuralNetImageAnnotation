@@ -412,14 +412,14 @@ class NeuralNetSegmentation(object):
         if show_figure.lower() == 'on':
             plot_positions = [(0,0),(0,1),(1,0),(1,1)]
 
-            n_pixels = np.zeros(m_samples)
+            sample_no = np.zeros(m_samples)
             true_pos = np.zeros(m_samples)
             false_pos = np.zeros(m_samples)
             false_neg = np.zeros(m_samples)
             true_neg = np.zeros(m_samples)
             for s in range(m_samples):
                 s_pred = pred[s,:]
-                n_pixels[s] = annotations.shape[1]
+                sample_no[s] = s
                 true_pos[s] = np.sum( s_pred[annotations[s,:]==1]==1 )
                 false_pos[s] = np.sum( s_pred[annotations[s,:]==0]==1 )
                 false_neg[s] = np.sum( s_pred[annotations[s,:]==1]==0 )
@@ -430,47 +430,61 @@ class NeuralNetSegmentation(object):
             recall = true_pos / (true_pos+false_neg)
             F1 = 2 * ((precision*recall)/(precision+recall))
 
-            for worst_best in range(2):
+            all_values = accuracy+precision+recall+F1
+            sample_no = sample_no[np.isfinite(all_values)].astype(np.int)
+            accuracy = accuracy[np.isfinite(all_values)]
+            precision = precision[np.isfinite(all_values)]
+            recall = recall[np.isfinite(all_values)]
+            F1 = F1[np.isfinite(all_values)]
 
-                n_col = 8
-                n_row = 2
-                n_show = n_row*n_col
+            n_col = 8
+            n_row = 2
+            n_show = n_row*n_col
+            for worst_best in range(2):
                 if worst_best == 0:
                     sort_nr = 1
                     titles = ["worst accuracy","worst precision","worst recall","worst F1"]
                     samples_mat = []
-                    samples_mat.append( samples[ accuracy.argsort()[:n_show][::sort_nr],:] )
-                    samples_mat.append( samples[precision.argsort()[:n_show][::sort_nr],:] )
-                    samples_mat.append( samples[   recall.argsort()[:n_show][::sort_nr],:] )
-                    samples_mat.append( samples[       F1.argsort()[:n_show][::sort_nr],:] )
                     annot_mat = []
-                    annot_mat.append( annotations[ accuracy.argsort()[:n_show][::sort_nr],:] )
-                    annot_mat.append( annotations[precision.argsort()[:n_show][::sort_nr],:] )
-                    annot_mat.append( annotations[   recall.argsort()[:n_show][::sort_nr],:] )
-                    annot_mat.append( annotations[       F1.argsort()[:n_show][::sort_nr],:] )
                     pred_mat = []
-                    pred_mat.append( pred[ accuracy.argsort()[:n_show][::sort_nr],:] )
-                    pred_mat.append( pred[precision.argsort()[:n_show][::sort_nr],:] )
-                    pred_mat.append( pred[   recall.argsort()[:n_show][::sort_nr],:] )
-                    pred_mat.append( pred[       F1.argsort()[:n_show][::sort_nr],:] )
+                    sample_ix = sample_no[ accuracy.argsort()[:n_show][::sort_nr] ]
+                    samples_mat.append( samples[sample_ix,:] )
+                    annot_mat.append( annotations[sample_ix,:] )
+                    pred_mat.append( pred[sample_ix,:] )
+                    sample_ix = sample_no[ precision.argsort()[:n_show][::sort_nr] ]
+                    samples_mat.append( samples[sample_ix,:] )
+                    annot_mat.append( annotations[sample_ix,:] )
+                    pred_mat.append( pred[sample_ix,:] )
+                    sample_ix = sample_no[ recall.argsort()[:n_show][::sort_nr] ]
+                    samples_mat.append( samples[sample_ix,:] )
+                    annot_mat.append( annotations[sample_ix,:] )
+                    pred_mat.append( pred[sample_ix,:] )
+                    sample_ix = sample_no[ F1.argsort()[:n_show][::sort_nr] ]
+                    samples_mat.append( samples[sample_ix,:] )
+                    annot_mat.append( annotations[sample_ix,:] )
+                    pred_mat.append( pred[sample_ix,:] )
                 else:
                     sort_nr = -1
                     titles = ["best accuracy","best precision","best recall","best F1"]
                     samples_mat = []
-                    samples_mat.append( samples[ accuracy.argsort()[(-n_show):][::sort_nr],:] )
-                    samples_mat.append( samples[precision.argsort()[(-n_show):][::sort_nr],:] )
-                    samples_mat.append( samples[   recall.argsort()[(-n_show):][::sort_nr],:] )
-                    samples_mat.append( samples[       F1.argsort()[(-n_show):][::sort_nr],:] )
                     annot_mat = []
-                    annot_mat.append( annotations[ accuracy.argsort()[(-n_show):][::sort_nr],:] )
-                    annot_mat.append( annotations[precision.argsort()[(-n_show):][::sort_nr],:] )
-                    annot_mat.append( annotations[   recall.argsort()[(-n_show):][::sort_nr],:] )
-                    annot_mat.append( annotations[       F1.argsort()[(-n_show):][::sort_nr],:] )
                     pred_mat = []
-                    pred_mat.append( pred[ accuracy.argsort()[(-n_show):][::sort_nr],:] )
-                    pred_mat.append( pred[precision.argsort()[(-n_show):][::sort_nr],:] )
-                    pred_mat.append( pred[   recall.argsort()[(-n_show):][::sort_nr],:] )
-                    pred_mat.append( pred[       F1.argsort()[(-n_show):][::sort_nr],:] )
+                    sample_ix = sample_no[ accuracy.argsort()[(-n_show):][::sort_nr] ]
+                    samples_mat.append( samples[sample_ix,:] )
+                    annot_mat.append( annotations[sample_ix,:] )
+                    pred_mat.append( pred[sample_ix,:] )
+                    sample_ix = sample_no[ precision.argsort()[(-n_show):][::sort_nr] ]
+                    samples_mat.append( samples[sample_ix,:] )
+                    annot_mat.append( annotations[sample_ix,:] )
+                    pred_mat.append( pred[sample_ix,:] )
+                    sample_ix = sample_no[ recall.argsort()[(-n_show):][::sort_nr] ]
+                    samples_mat.append( samples[sample_ix,:] )
+                    annot_mat.append( annotations[sample_ix,:] )
+                    pred_mat.append( pred[sample_ix,:] )
+                    sample_ix = sample_no[ F1.argsort()[(-n_show):][::sort_nr] ]
+                    samples_mat.append( samples[sample_ix,:] )
+                    annot_mat.append( annotations[sample_ix,:] )
+                    pred_mat.append( pred[sample_ix,:] )
 
                 # Handle RGB channel order
                 if channel_order == None:

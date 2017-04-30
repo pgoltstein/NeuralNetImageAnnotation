@@ -346,13 +346,16 @@ if args.learningcurve:
 
 if args.F1report is not None:
     nn.log("\nGenerating F1 report")
-    if args.F1report.lower() == "same":
+    if args.F1report.lower() == "same" and perform_network_training:
         nn.log("Using training data for F1 report")
         f1_path = training_data_path
         f1_image_set = training_image_set
         nn.log(" >> " + f1_image_set.__str__())
     else:
-        f1_path = args.F1report
+        if args.F1report.lower() == "same":
+            f1_path = training_data_path
+        else:
+            f1_path = args.F1report
         nn.log("Loading data from {}:".format(f1_path))
         f1_image_set = ia.AnnotatedImageSet(downsample=downsample_image)
         f1_image_set.include_annotation_typenrs = include_annotation_typenrs
