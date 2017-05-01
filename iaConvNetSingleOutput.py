@@ -1257,10 +1257,12 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
 
         return_im[0,:] = im
         for e in range(n_iterations-1):
-            result = self.sess.run( [gradients], feed_dict={
-                            self.x: im, self.fc1_keep_prob: 1.0 } )
+            grad = self.sess.run( [gradients], feed_dict={
+                            self.x: im, self.fc1_keep_prob: 1.0 } )[0]
             # Gradient ASCENT
-            im += result[0]
+            print(np.min(grad),np.max(grad))
+            grad = grad/np.max(grad)
+            im += grad
             return_im[e+1,:] = im
 
         plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
