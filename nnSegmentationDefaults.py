@@ -1,17 +1,17 @@
 # Default Settings
-network_path = '/nn/'
-training_data_path = '/data/Dataset_small'
+network_path = '/nn'
+training_data_path = '/data/Dataset1'
 # network_path = 'E:/data/NeuralNets'
 # training_data_path = 'E:/data/Dataset1'
 
 # Annotation arguments
 selection_type = "Bodies"
 segment_all = True
-image_size = 27 # Size of the images around the annotations
-annotation_size = 17 # Size of the annotations to be made
+image_size = 31 # Size of the images around the annotations
+annotation_size = 21 # Size of the annotations to be made
 morph_annotations = False # Random morphing of annotations
 include_annotation_typenrs = 1 # Include only annotations of certain type_nr
-centroid_dilation_factor = 3 # Dilation/erosion (negative) of annotation centroid
+centroid_dilation_factor = 2 # Dilation/erosion (negative) of annotation centroid
 body_dilation_factor = 0 # Dilation/erosion (negative) of annotation body
 sample_ratio = None # Fraction samples per class (None=all equal).
 annotation_border_ratio = None # Fraction from border between pos and neg samples
@@ -21,19 +21,19 @@ downsample_image = None # downsampling of image by factor of #
 
 # Training arguments
 training_procedure = "batch" # "batch" or "epochs"
-n_epochs = 10
-m_samples = 1000
-number_of_batches = 10
-batch_size = 1000
+n_epochs = 40
+m_samples = 2000
+number_of_batches = 100
+batch_size = 2000
 report_every = 5
 fc_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
-alpha = 0.0005 # Learning rate (typically smaller than 0.001)
+alpha = 0.0001 # Learning rate (typically smaller than 0.001)
 
 # Network arguments
 network_type = "c1fc2" # Neural net type "c2fc1", "c1fc2"
-conv_size = 7 # Size of convolutional filters (if applicable)
-conv_chan = 16 # Number of convolution channels (if applicable)
-conv_pool = 1 # Number of channels to pool after conv-step  (if applicable)
+conv_size = 5 # Size of convolutional filters (if applicable)
+conv_chan = 32 # Number of convolution channels (if applicable)
+conv_pool = 2 # Number of channels to pool after conv-step  (if applicable)
 fc_size = 1024 # Number of units in first fully connected layer (if applicable)
 
 # Other variables

@@ -1116,3 +1116,53 @@ class ConvNetCnv1Fc2Nout(NeuralNetSegmentation):
 
     def show_filters(self):
         """Plot the convolutional filters"""
+
+        filter_no = 4
+        n_iterations = 40
+
+        # Isolate activation of a single convolutional filter
+        layer_slice_begin = tf.constant( [0,0,0,filter_no], dtype=tf.int32 )
+        layer_slice_size = tf.constant( [-1,-1,-1,1], dtype=tf.int32 )
+        layer_units = tf.slice( self.conv1_relu,
+                                layer_slice_begin, layer_slice_size )
+
+        # Define cost function for filter
+        layer_activation = tf.reduce_mean( layer_units )
+
+        # Optimize input image for maximizing filter output
+        gradients = tf.gradients( ys=layer_activation, xs=[self.x] )[0]
+
+        norm_grad = tf.nn.l2_normalize( gradients, dim=0, epsilon=1e-8)
+
+        # Random staring point
+        im = np.random.random( (1,
+            self.n_input_channels * self.y_res * self.x_res) )
+
+        # Do a gradient ascend
+        return_im = np.zeros( (n_iterations,
+            self.n_input_channels * self.y_res * self.x_res) )
+
+        return_im[0,:] = im
+        for e in range(n_iterations-1):
+            result = self.sess.run( [norm_grad], feed_dict={ self.x: im } )
+            # Gradient ASCENT
+            im += result[0]
+            return_im[e+1,:] = im
+
+        plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
+        for ch in range(self.n_input_channels):
+
+            grid_im,_,brdr = ia.image_grid_RGB( return_im,
+                n_channels=self.n_input_channels,
+                image_size=(self.y_res,self.x_res), n_x=10, n_y=4,
+                channel_order=(ch,ch,ch), amplitude_scaling=(1.33,1.33,1),
+                line_color=1, auto_scale=True, return_borders=True )
+
+            ax = plt.subplot2grid( (self.n_input_channels,1), (ch,0) )
+            with sns.axes_style("white"):
+                ax.imshow( grid_im,
+                    interpolation='nearest', vmax=grid_im.max() )
+                ax.set_title("Filter {}, ch {}".format(filter_no,ch))
+                plt.axis('tight')
+                plt.axis('off')
+        plt.tight_layout()
