@@ -1224,53 +1224,65 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
     def show_filters(self):
         """Plot the convolutional filters"""
 
-        filter_no = 3
-        n_iterations = 40
-
-        # Isolate activation of a single convolutional filter
-        layer_slice_begin = tf.constant( [0,0,0,filter_no], dtype=tf.int32 )
-        layer_slice_size = tf.constant( [-1,-1,-1,1], dtype=tf.int32 )
-        layer_units = tf.slice( self.conv1_relu,
-                                layer_slice_begin, layer_slice_size )
-
-        # # Isolate activation of a single fully connected unit
-        # layer_slice_begin = tf.constant( [0,filter_no], dtype=tf.int32 )
-        # layer_slice_size = tf.constant( [-1,1], dtype=tf.int32 )
-        # layer_units = tf.slice( self.fc_out_lin,
-        #                         layer_slice_begin, layer_slice_size )
-
-        # Define cost function for filter
-        layer_activation = tf.reduce_mean( layer_units )
-
-        # Optimize input image for maximizing filter output
-        gradients = tf.gradients( ys=layer_activation, xs=[self.x] )[0]
-
-        # norm_grad = tf.nn.l2_normalize( gradients, dim=0, epsilon=1e-8)
-
-        # Random staring point
-        im = np.random.random( (1,
-            self.n_input_channels * self.y_res * self.x_res) ) * 0.01
-
-        # Do a gradient ascend
-        return_im = np.zeros( (n_iterations,
+        n_iterations = 20
+        # return_im = np.zeros( (2,
+        #     self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (self.conv2_n_chan,
+        #     self.n_input_channels * self.y_res * self.x_res) )
+        return_im = np.zeros( (self.conv1_n_chan,
             self.n_input_channels * self.y_res * self.x_res) )
 
-        return_im[0,:] = im
-        for e in range(n_iterations-1):
-            grad = self.sess.run( [gradients], feed_dict={
-                            self.x: im, self.fc1_keep_prob: 1.0 } )[0]
-            # Gradient ASCENT
-            print(np.min(grad),np.max(grad))
-            grad = grad/np.max(grad)
-            im += grad
-            return_im[e+1,:] = im
+        for filter_no in range(self.conv1_n_chan):
+        # for filter_no in range(self.conv2_n_chan):
+        # for filter_no in range(2):
+            print(filter_no)
 
-        plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
+            # Isolate activation of a single convolutional filter
+            layer_slice_begin = tf.constant( [0,0,0,filter_no], dtype=tf.int32 )
+            layer_slice_size = tf.constant( [-1,-1,-1,1], dtype=tf.int32 )
+            layer_units = tf.slice( self.conv1_relu,
+                                    layer_slice_begin, layer_slice_size )
+
+            # # Isolate activation of a single fully connected unit
+            # layer_slice_begin = tf.constant( [0,filter_no], dtype=tf.int32 )
+            # layer_slice_size = tf.constant( [-1,1], dtype=tf.int32 )
+            # layer_units = tf.slice( self.fc_out_lin,
+            #                         layer_slice_begin, layer_slice_size )
+
+            # Define cost function for filter
+            layer_activation = tf.reduce_mean( layer_units )
+
+            # Optimize input image for maximizing filter output
+            gradients = tf.gradients( ys=layer_activation, xs=[self.x] )[0]
+
+            norm_grad = tf.nn.l2_normalize( gradients, dim=0, epsilon=1e-5)
+
+            # Random staring point
+            im = np.random.random( (1,
+                self.n_input_channels * self.y_res * self.x_res) ) * 0.1
+
+            # Do a gradient ascend
+            for e in range(n_iterations):
+                grad = self.sess.run( [norm_grad], feed_dict={
+                                self.x: im, self.fc1_keep_prob: 1.0 } )[0]
+                # Gradient ASCENT
+                im += 0.5*grad
+
+            im -= im.mean()
+            im /= (im.std() + 1e-5)
+            im *= 0.2
+
+            # clip to [0, 1]
+            im += 0.5
+            im = np.clip(im, 0, 1)
+            return_im[filter_no,:] = im
+
+        plt.figure(figsize=(16.5,9), facecolor='w', edgecolor='w')
         for ch in range(self.n_input_channels):
 
             grid_im,_,brdr = ia.image_grid_RGB( return_im,
                 n_channels=self.n_input_channels,
-                image_size=(self.y_res,self.x_res), n_x=10, n_y=4,
+                image_size=(self.y_res,self.x_res), n_x=16, n_y=4,
                 channel_order=(ch,ch,ch), amplitude_scaling=(1,1,1),
                 line_color=1, auto_scale=True, return_borders=True )
 
@@ -1278,7 +1290,21 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
             with sns.axes_style("white"):
                 ax.imshow( grid_im,
                     interpolation='nearest', vmax=grid_im.max() )
-                ax.set_title("Filter {}, ch {}".format(filter_no,ch))
+                ax.set_title("Filterss, ch {}".format(ch))
                 plt.axis('tight')
                 plt.axis('off')
+
+        grid_im,_,brdr = ia.image_grid_RGB( return_im,
+            n_channels=self.n_input_channels,
+            image_size=(self.y_res,self.x_res), n_x=8, n_y=8,
+            channel_order=(0,1,2), amplitude_scaling=(1,1,1),
+            line_color=1, auto_scale=True, return_borders=True )
+        fig, ax = plt.subplots(figsize=(9,9), facecolor='w', edgecolor='w')
+        with sns.axes_style("white"):
+            ax.imshow( grid_im,
+                interpolation='nearest', vmax=grid_im.max() )
+            ax.set_title("Filters RGB")
+            plt.axis('tight')
+            plt.axis('off')
+
         plt.tight_layout()
