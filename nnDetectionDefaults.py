@@ -1,11 +1,11 @@
 # Default Settings
 network_path = '/nn'
-training_data_path = '/data/Dataset_small1'
+training_data_path = '/data/EGR/Dataset1'
 # network_path = 'E:/data/NeuralNets'
 # training_data_path = 'E:/data/Dataset1'
 
 # Annotation arguments
-annotation_size = 27 # Size of the images around the annotations
+annotation_size = 43 # Size of the images around the annotations
 morph_annotations = False # Random morphing of annotations
 include_annotation_typenrs = 1 # Include only annotations of certain type_nr
 centroid_dilation_factor = 2 # Dilation/erosion (negative) of annotation centroid
@@ -34,7 +34,7 @@ conv_pool = 2 # Number of channels to pool after conv-step  (if applicable)
 fc_size = 128 # Number of units in first fully connected layer (if applicable)
 
 # Other variables
-exclude_border = "Load" # (Left, Right, Top, Border) margin, or "Load" from file
+exclude_border = (40,40,40,40) # (Left, Right, Top, Border) margin, or "Load" from file
 normalize_images = True # True/False whether to normalize entire images to max
 rotation_list = (0,360,1) # Angle (min,max,interval)
 scale_list_x = (0.9,1.1,0.01) # Scale factor (min,max,interval)

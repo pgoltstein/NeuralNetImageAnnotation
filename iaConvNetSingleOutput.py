@@ -437,8 +437,9 @@ class NeuralNetSingleOutput(object):
                         image_size=(self.y_res,self.x_res), n_x=10, n_y=10,
                         channel_order=chan_order, amplitude_scaling=(1.33,1.33,1),
                         line_color=1, auto_scale=True, return_borders=True )
-                    grid[:,:,2] = 0 # only show red and green channel
-                    grid[brdr==1] = 1 # make borders white
+                    if self.n_input_channels > 2:
+                        grid[:,:,2] = 0 # only show red and green channel
+                        grid[brdr==1] = 1 # make borders white
                     with sns.axes_style("white"):
                         ax1 = plt.subplot2grid( (2,2), plot_positions[cnt] )
                         ax1.imshow(

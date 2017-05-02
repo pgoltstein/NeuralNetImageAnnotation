@@ -502,8 +502,9 @@ class NeuralNetSegmentation(object):
                         image_size=(self.y_res,self.x_res), n_x=n_col, n_y=n_row,
                         channel_order=chan_order, amplitude_scaling=(1.33,1.33,1),
                         line_color=1, auto_scale=True, return_borders=True )
-                    grid_im[:,:,2] = 0 # only show red and green channel
-                    grid_im[brdr==1] = 1 # Make borders white
+                    if self.n_input_channels > 2:
+                        grid_im[:,:,2] = 0 # only show red and green channel
+                        grid_im[brdr==1] = 1 # Make borders white
 
                     grid_annot,_,brdr = ia.image_grid_RGB( annot_mat[cnt],
                         n_channels=1,

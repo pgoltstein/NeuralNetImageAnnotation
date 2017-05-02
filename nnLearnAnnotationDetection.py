@@ -281,12 +281,12 @@ if perform_network_training:
     else:
         nn.log("Using image channels {} (zero-based)".format(use_channels))
 
-    if annotation_type == 'Centroids':
+    if annotation_type.lower() == 'centroids':
         nn.log("Setting centroid dilation factor of the image " + \
                                         "to {}".format(centroid_dilation_factor))
         training_image_set.centroid_dilation_factor = centroid_dilation_factor
 
-    elif annotation_type == 'Bodies':
+    elif annotation_type.lower() == 'bodies':
         nn.log("Setting body dilation factor of the image " + \
                                         "to {}".format(body_dilation_factor))
         training_image_set.body_dilation_factor = body_dilation_factor
@@ -350,11 +350,11 @@ if args.F1report is not None:
         normalize=normalize_images, use_channels=use_channels,
         exclude_border=exclude_border )
     nn.log(" >> " + f1_image_set.__str__())
-    if annotation_type == 'Centroids':
+    if annotation_type.lower() == 'centroids':
         nn.log("Setting centroid dilation factor of the image " + \
                                         "to {}".format(centroid_dilation_factor))
         f1_image_set.centroid_dilation_factor = centroid_dilation_factor
-    elif annotation_type == 'Bodies':
+    elif annotation_type.lower() == 'bodies':
         nn.log("Setting body dilation factor of the image " + \
                                         "to {}".format(body_dilation_factor))
         f1_image_set.body_dilation_factor = body_dilation_factor

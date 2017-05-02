@@ -22,9 +22,10 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 # Overall settings
-data_path = '/data/DataSet_small'
+data_path = '/data/EGR/Dataset1'
+# data_path = '/data/DataSet_small'
 im_size = (41,41)
-annot_size = (27,27)
+annot_size = (41,41)
 rotation_list = np.arange(0,360,1)
 scale_list_x = np.arange(0.9,1.1,0.01)
 scale_list_y = np.arange(0.9,1.1,0.01)
@@ -112,7 +113,7 @@ samples,labels,annotations = ais1.data_sample( \
         m_samples=30,
         # sample_ratio=None,
         sample_ratio=(0.4,0.4,0.2),
-        annotation_border_ratio=0.5,
+        annotation_border_ratio=0.5, normalize_samples=True,
         segment_all=True, morph_annotations=False,
         rotation_list=rotation_list, scale_list_x=scale_list_x,
         scale_list_y=scale_list_y, noise_level_list=noise_level_list )

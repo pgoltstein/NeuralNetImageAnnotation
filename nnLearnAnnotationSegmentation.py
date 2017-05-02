@@ -283,12 +283,12 @@ if perform_network_training:
     else:
         nn.log("Using image channels {} (zero-based)".format(use_channels))
 
-    if annotation_type == 'Centroids' or selection_type == 'Centroids':
+    if annotation_type.lower() == 'centroids' or selection_type.lower() == 'centroids':
         nn.log("Setting centroid dilation factor of the image " + \
                                         "to {}".format(centroid_dilation_factor))
         training_image_set.centroid_dilation_factor = centroid_dilation_factor
 
-    elif annotation_type == 'Bodies' or selection_type == 'Bodies':
+    elif annotation_type.lower() == 'bodies' or selection_type.lower() == 'bodies':
         nn.log("Setting body dilation factor of the image " + \
                                         "to {}".format(body_dilation_factor))
         training_image_set.body_dilation_factor = body_dilation_factor
@@ -363,11 +363,11 @@ if args.F1report is not None:
             normalize=normalize_images, use_channels=use_channels,
             exclude_border=exclude_border )
         nn.log(" >> " + f1_image_set.__str__())
-        if annotation_type == 'Centroids' or selection_type == 'Centroids':
+        if annotation_type.lower() == 'centroids' or selection_type.lower() == 'centroids':
             nn.log("Setting centroid dilation factor of the image " + \
                                             "to {}".format(centroid_dilation_factor))
             f1_image_set.centroid_dilation_factor = centroid_dilation_factor
-        elif annotation_type == 'Bodies' or selection_type == 'Bodies':
+        elif annotation_type.lower() == 'bodies' or selection_type.lower() == 'bodies':
             nn.log("Setting body dilation factor of the image " + \
                                             "to {}".format(body_dilation_factor))
             f1_image_set.body_dilation_factor = body_dilation_factor
@@ -377,7 +377,7 @@ if args.F1report is not None:
     nn.log("\nPerformance of {}:".format(f1_path))
     nn.report_F1( f1_image_set,
             selection_type=selection_type, annotation_type=annotation_type,
-            m_samples=200,
+            m_samples=1000,
             annotation_border_ratio=annotation_border_ratio,
             sample_ratio=[0,1],
             normalize_samples=normalize_samples, segment_all=segment_all,

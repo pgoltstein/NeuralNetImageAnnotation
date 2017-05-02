@@ -101,12 +101,14 @@ def zoom( image, y, x, zoom_size, normalize=False, pad_value=0 ):
             image_temp[0:image.shape[0],0:image.shape[1]] = image
             if normalize:
                 zoom_im = image_temp[ np.ix_(ix_y,ix_x) ]
+                zoom_im = zoom_im - zoom_im.min()
                 return zoom_im / zoom_im.max()
             else:
                 return image_temp[ np.ix_(ix_y,ix_x) ]
         else:
             if normalize:
                 zoom_im = image[ np.ix_(ix_y,ix_x) ]
+                zoom_im = zoom_im - zoom_im.min()
                 return zoom_im / zoom_im.max()
             else:
                 return image[ np.ix_(ix_y,ix_x) ]
@@ -332,7 +334,7 @@ def get_labeled_pixel_coordinates( bin_image, exclude_border=(0,0,0,0) ):
 
     # Get lists with all pixel coordinates
     y_res,x_res = bin_image.shape
-    (pix_x,pix_y) = np.meshgrid(np.arange(y_res),np.arange(x_res))
+    (pix_y,pix_x) = np.meshgrid(np.arange(y_res),np.arange(x_res))
 
     # Get lists with coordinates of all labeled pixels
     lab_pix_x = pix_x.ravel()[bin_image.ravel() == 1]
@@ -715,6 +717,7 @@ class AnnotatedImage(object):
             for ch in use_channels:
                 im_x = np.float64(np.array(mat_data['Images'][0,ch]))
                 if normalize:
+                    im_x = im_x - im_x.min()
                     im_x = im_x / im_x.max()
                 if self.downsamplingfactor is not None:
                     self._channel.append( ndimage.interpolation.zoom( \
@@ -734,6 +737,7 @@ class AnnotatedImage(object):
                 for ch in use_channels:
                     im_x = im[:,:,ch]
                     if normalize:
+                        im_x = im_x - im_x.min()
                         im_x = im_x / im_x.max()
                     if self.downsamplingfactor is not None:
                         self._channel.append( ndimage.interpolation.zoom( \
@@ -742,6 +746,7 @@ class AnnotatedImage(object):
                         self._channel.append(im_x)
             else:
                 if normalize:
+                    im = im - im.min()
                     im = im / im.max()
                 if self.downsamplingfactor is not None:
                     self._channel.append( ndimage.interpolation.zoom( \
