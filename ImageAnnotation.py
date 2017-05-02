@@ -334,7 +334,7 @@ def get_labeled_pixel_coordinates( bin_image, exclude_border=(0,0,0,0) ):
 
     # Get lists with all pixel coordinates
     y_res,x_res = bin_image.shape
-    (pix_y,pix_x) = np.meshgrid(np.arange(y_res),np.arange(x_res))
+    (pix_x,pix_y) = np.meshgrid(np.arange(x_res),np.arange(y_res))
 
     # Get lists with coordinates of all labeled pixels
     lab_pix_x = pix_x.ravel()[bin_image.ravel() == 1]
@@ -831,7 +831,7 @@ class AnnotatedImage(object):
         type_nr_list = []
         for an in annotation_data:
             if self.downsamplingfactor is not None:
-                body_pixels = np.round(an.body / self.downsamplingfactor)
+                body_pixels = np.round( an.body / self.downsamplingfactor )
             else:
                 body_pixels = an.body
             self._annotation.append( Annotation(

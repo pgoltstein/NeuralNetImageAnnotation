@@ -340,25 +340,34 @@ if args.learningcurve:
 # Generate F1 report for training/cv/test data
 
 if args.F1report is not None:
-    f1_path = args.F1report
     nn.log("\nGenerating F1 report")
-    nn.log("Loading data from {}:".format(f1_path))
-    f1_image_set = ia.AnnotatedImageSet(downsample=downsample_image)
-    if include_annotation_typenrs is not None:
-        f1_image_set.include_annotation_typenrs = include_annotation_typenrs
-    f1_image_set.load_data_dir_tiff_mat( f1_path,
-        normalize=normalize_images, use_channels=use_channels,
-        exclude_border=exclude_border )
-    nn.log(" >> " + f1_image_set.__str__())
-    if annotation_type.lower() == 'centroids':
-        nn.log("Setting centroid dilation factor of the image " + \
-                                        "to {}".format(centroid_dilation_factor))
-        f1_image_set.centroid_dilation_factor = centroid_dilation_factor
-    elif annotation_type.lower() == 'bodies':
-        nn.log("Setting body dilation factor of the image " + \
-                                        "to {}".format(body_dilation_factor))
-        f1_image_set.body_dilation_factor = body_dilation_factor
-    nn.log("Testing on annotation classes: {}".format(f1_image_set.class_labels))
+    if args.F1report.lower() == "same" and perform_network_training:
+        nn.log("Using training data for F1 report")
+        f1_path = training_data_path
+        f1_image_set = training_image_set
+        nn.log(" >> " + f1_image_set.__str__())
+    else:
+        if args.F1report.lower() == "same":
+            f1_path = training_data_path
+        else:
+            f1_path = args.F1report
+        nn.log("Loading data from {}:".format(f1_path))
+        f1_image_set = ia.AnnotatedImageSet(downsample=downsample_image)
+        if include_annotation_typenrs is not None:
+            f1_image_set.include_annotation_typenrs = include_annotation_typenrs
+        f1_image_set.load_data_dir_tiff_mat( f1_path,
+            normalize=normalize_images, use_channels=use_channels,
+            exclude_border=exclude_border )
+        nn.log(" >> " + f1_image_set.__str__())
+        if annotation_type.lower() == 'centroids':
+            nn.log("Setting centroid dilation factor of the image " + \
+                                            "to {}".format(centroid_dilation_factor))
+            f1_image_set.centroid_dilation_factor = centroid_dilation_factor
+        elif annotation_type.lower() == 'bodies':
+            nn.log("Setting body dilation factor of the image " + \
+                                            "to {}".format(body_dilation_factor))
+            f1_image_set.body_dilation_factor = body_dilation_factor
+        nn.log("Testing on annotation classes: {}".format(f1_image_set.class_labels))
 
     # Test morphed performance
     nn.log("\nPerformance of {}:".format(f1_path))
