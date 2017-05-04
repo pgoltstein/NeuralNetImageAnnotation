@@ -1226,29 +1226,31 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
         """Plot the convolutional filters"""
 
         n_iterations = 20
-        # return_im = np.zeros( (2,
-        #     self.n_input_channels * self.y_res * self.x_res) )
+        return_im = np.zeros( (2,
+            self.n_input_channels * self.y_res * self.x_res) )
         # return_im = np.zeros( (self.conv2_n_chan,
         #     self.n_input_channels * self.y_res * self.x_res) )
-        return_im = np.zeros( (self.conv1_n_chan,
-            self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (self.conv1_n_chan,
+        #     self.n_input_channels * self.y_res * self.x_res) )
 
-        for filter_no in range(self.conv1_n_chan):
+        # for filter_no in range(self.conv1_n_chan):
         # for filter_no in range(self.conv2_n_chan):
-        # for filter_no in range(2):
+        for filter_no in range(2):
             print(filter_no)
 
             # Isolate activation of a single convolutional filter
-            layer_slice_begin = tf.constant( [0,0,0,filter_no], dtype=tf.int32 )
-            layer_slice_size = tf.constant( [-1,-1,-1,1], dtype=tf.int32 )
-            layer_units = tf.slice( self.conv1_relu,
-                                    layer_slice_begin, layer_slice_size )
-
-            # # Isolate activation of a single fully connected unit
-            # layer_slice_begin = tf.constant( [0,filter_no], dtype=tf.int32 )
-            # layer_slice_size = tf.constant( [-1,1], dtype=tf.int32 )
-            # layer_units = tf.slice( self.fc_out_lin,
+            # layer_slice_begin = tf.constant( [0,0,0,filter_no], dtype=tf.int32 )
+            # layer_slice_size = tf.constant( [-1,-1,-1,1], dtype=tf.int32 )
+            # layer_units = tf.slice( self.conv2_lin,
             #                         layer_slice_begin, layer_slice_size )
+            # layer_units = tf.slice( self.conv1_lin,
+            #                         layer_slice_begin, layer_slice_size )
+
+            # Isolate activation of a single fully connected unit
+            layer_slice_begin = tf.constant( [0,filter_no], dtype=tf.int32 )
+            layer_slice_size = tf.constant( [-1,1], dtype=tf.int32 )
+            layer_units = tf.slice( self.fc_out_lin,
+                                    layer_slice_begin, layer_slice_size )
 
             # Define cost function for filter
             layer_activation = tf.reduce_mean( layer_units )
@@ -1259,8 +1261,8 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
             norm_grad = tf.nn.l2_normalize( gradients, dim=0, epsilon=1e-5)
 
             # Random staring point
-            im = np.random.random( (1,
-                self.n_input_channels * self.y_res * self.x_res) ) * 0.1
+            im = (np.random.uniform( size=(1,
+                self.n_input_channels * self.y_res * self.x_res) ) * 0.1) + 0.5
 
             # Do a gradient ascend
             for e in range(n_iterations):

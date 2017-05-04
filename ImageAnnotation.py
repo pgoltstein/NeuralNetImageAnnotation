@@ -769,9 +769,10 @@ class AnnotatedImage(object):
         amplitude_scaling:  Additional scaling of each channel separately
         returns 3d numpy.ndarray"""
         RGB = np.zeros((self.y_res,self.x_res,3))
-        for ch in range(3):
+        for ch in range(len(channel_order)):
             if channel_order[ch] < self.n_channels:
-                RGB[:,:,ch] = self.channel[channel_order[ch]]
+                RGB[:,:,ch] = self.channel[channel_order[ch]] * amplitude_scaling[ch]
+        RGB[RGB>1] = 1
         return RGB
 
     def crop( self, left, top, width, height ):
@@ -1350,6 +1351,17 @@ class AnnotatedImage(object):
             print("Aborting ...")
             return 0
 
+        # # Split centroids that are too long and thin
+        # if do_centroids:
+        #     # print("Splitting lengthy centroids {:3d}".format(0),
+        #     #         end="", flush=True)
+        #     for nr in range(1,n_centroid_labels+1):
+        #         # print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
+        #         mask = centroid_labels==nr
+        #         props = measure.regionprops(mask)
+        #         print(props.equivalent_diameter)
+        #     # print((3*'\b')+'{:3d}'.format(nr))
+
         # If only bodies, convert labeled bodies annotations
         if not do_centroids:
             print("Converting labeled body image into annotations {:3d}".format(0),
@@ -1478,10 +1490,6 @@ class AnnotatedImage(object):
         if annotation_nrs is None:
             annotation_nrs = list(range(self.n_annotations))
         n_images = len(annotation_nrs)
-        if n_images <= n_x*n_y:
-            im_ix = list(range(n_images))
-        else:
-            im_ix = np.random.choice( n_images, n_x*n_y, replace=False )
 
         # Get coordinates of where images will go
         y_coords = []
@@ -1516,8 +1524,8 @@ class AnnotatedImage(object):
                         if image_type.lower() == 'bodies':
                             im = self.bodies>0.5
                         rgb_im[:,:,ch] = zoom( im,
-                            self.annotation[im_count].y,
-                            self.annotation[im_count].x, image_size,
+                            self.annotation[annotation_nrs[im_count]].y,
+                            self.annotation[annotation_nrs[im_count]].x, image_size,
                             normalize=normalize_samples, pad_value=0 )
                     if auto_scale:
                         rgb_im = rgb_im / rgb_im.max()

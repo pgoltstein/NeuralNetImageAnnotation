@@ -39,4 +39,4 @@ normalize_images = True # True/False whether to normalize entire images to max
 rotation_list = (0,360,1) # Angle (min,max,interval)
 scale_list_x = (0.9,1.1,0.01) # Scale factor (min,max,interval)
 scale_list_y = (0.9,1.1,0.01) # Scale factor (min,max,interval)
-noise_level_list = (0.1,0.3,0.01) # Noise stdev (min,max,interval)
+noise_level_list = (0.0,0.1,0.01) # Noise stdev (min,max,interval)
