@@ -1314,6 +1314,17 @@ class AnnotatedImage(object):
         if self.exclude_border['bottom'] > 0:
             detected_bodies[ -self.exclude_border['bottom']:, : ] = 0
 
+        # # Split centroids that are too long and thin
+        # if do_centroids:
+        #     # print("Splitting lengthy centroids {:3d}".format(0),
+        #     #         end="", flush=True)
+        #     for nr in range(1,n_centroid_labels+1):
+        #         # print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
+        #         mask = centroid_labels==nr
+        #         props = measure.regionprops(mask)
+        #         print(props.equivalent_diameter)
+        #     # print((3*'\b')+'{:3d}'.format(nr))
+
         # Dilate or erode centroids
         if do_centroids:
             if dilation_factor_centroids>0:
@@ -1350,17 +1361,6 @@ class AnnotatedImage(object):
         if n_centroid_labels == 0 or n_body_labels == 0:
             print("Aborting ...")
             return 0
-
-        # # Split centroids that are too long and thin
-        # if do_centroids:
-        #     # print("Splitting lengthy centroids {:3d}".format(0),
-        #     #         end="", flush=True)
-        #     for nr in range(1,n_centroid_labels+1):
-        #         # print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
-        #         mask = centroid_labels==nr
-        #         props = measure.regionprops(mask)
-        #         print(props.equivalent_diameter)
-        #     # print((3*'\b')+'{:3d}'.format(nr))
 
         # If only bodies, convert labeled bodies annotations
         if not do_centroids:
