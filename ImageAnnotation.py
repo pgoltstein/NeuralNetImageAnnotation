@@ -267,7 +267,7 @@ def image_grid_RGB( lin_images, n_channels, image_size, annotation_nrs=None,
     for y in range(n_y):
         for x in range(n_x):
             if im_count < n_images:
-                rgb_im = vec2RGB( lin_images[ im_ix[ im_count ], : ],
+                rgb_im = vec2RGB( lin_images[ im_ix[ annotation_nrs[im_count] ], : ],
                     n_channels=n_channels, image_size=image_size,
                     channel_order=channel_order,
                     amplitude_scaling=amplitude_scaling )

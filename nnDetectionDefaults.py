@@ -1,6 +1,7 @@
 # Default Settings
 network_path = '/nn'
-training_data_path = '/data/EGR/Dataset1'
+training_data_path = '/data/Dataset2'
+# training_data_path = '/data/EGR/Dataset1'
 # network_path = 'E:/data/NeuralNets'
 # training_data_path = 'E:/data/Dataset1'
 

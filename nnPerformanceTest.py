@@ -17,7 +17,8 @@ and outputs statistics and visualization off the performance
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import iaConvNetSingleOutput as ia
+import iaConvNetSingleOutput as cn
+import ImageAnnotation as ia
 import argparse, os, glob
 from scipy import ndimage
 from skimage import measure
@@ -35,7 +36,8 @@ dilation_factor_bodies = 0
 re_dilate_bodies = 0
 # file_stem = "F03-Loc5-V1-20160202"
 # file_stem = "F04-Loc5-V1-20160617"
-file_stem = "/Users/pgoltstein/Dropbox/TEMP/DataSet2/F04-Loc5-V1-20160202"
+# file_stem = "/data/cvimg2/F03-Loc5-V1-20160202"
+file_stem = "/data/cvimg2/F03-Loc4-POR-20160201"
 # file_stem = "/Users/pgoltstein/Dropbox/TEMP/DataSet2/F02-Loc4-P-20160320"
 # file_stem = "/Users/pgoltstein/Dropbox/TEMP/DataSet2/21a-Loc1-V1-20160618"
 # file_stem = "/Users/pgoltstein/Dropbox/TEMP/DataSet2/21b-Loc3-RL-20160406"
@@ -56,28 +58,46 @@ print("Setting border excusion: {}".format(bdr_file_gt))
 anim_gt.exclude_border = bdr_file_gt
 print(" >> " + anim_gt.__str__())
 
-
 ########################################################################
-### Load Neural Net AnnotatedImage
-anim_file_nn = glob.glob(file_stem+"*anim*.npy")[-1]
-bdr_file_nn = glob.glob(file_stem+"*Border*.mat")[0]
-print("\n-------- Neural Net AnnotatedImage --------")
+### Load Other Annotator AnnotatedImage
+im_file_gt = glob.glob(file_stem+"*channels.mat")[0]
+# im_file_gt = glob.glob(file_stem+"*.tiff")[0]
+bdr_file_gt = glob.glob(file_stem+"*Border*.mat")[0]
+roi_file_gt = glob.glob(file_stem+"*ROI*Sandra*.mat")[0]
+print("\n-------- Other Annotator AnnotatedImage --------")
 anim_nn = ia.AnnotatedImage()
-print("Loading: {}".format(anim_file_nn))
-anim_nn.load( anim_file_nn )
-print("Setting border excusion: {}".format(bdr_file_nn))
-anim_nn.exclude_border = bdr_file_nn
-print(" >> " + anim_nn.__str__())
+print("Importing image: {}".format(im_file_gt))
+anim_nn.add_image_from_file(file_name=im_file_gt,file_path='')
+print("Importing ROI's: {}".format(roi_file_gt))
+anim_nn.import_annotations_from_mat(file_name=roi_file_gt,file_path='')
+print("Setting border excusion: {}".format(bdr_file_gt))
+anim_nn.exclude_border = bdr_file_gt
+print(" >> " + anim_gt.__str__())
+anim_nn.detected_bodies = anim_nn.bodies>0
+anim_nn.detected_centroids = anim_nn.centroids>0
 
 
-########################################################################
-### Re-create Neural Net annotations
-print("\n-------- Re-create NN annotations --------")
-anim_nn.generate_cnn_annotations_cb( min_size=min_size, max_size=max_size,
-    dilation_factor_centroids=dilation_factor_centroids,
-    dilation_factor_bodies=dilation_factor_bodies,
-    re_dilate_bodies=re_dilate_bodies )
-print(" >> " + anim_nn.__str__())
+# ########################################################################
+# ### Load Neural Net AnnotatedImage
+# anim_file_nn = glob.glob(file_stem+"*anim*.npy")[-1]
+# bdr_file_nn = glob.glob(file_stem+"*Border*.mat")[0]
+# print("\n-------- Neural Net AnnotatedImage --------")
+# anim_nn = ia.AnnotatedImage()
+# print("Loading: {}".format(anim_file_nn))
+# anim_nn.load( anim_file_nn )
+# print("Setting border excusion: {}".format(bdr_file_nn))
+# anim_nn.exclude_border = bdr_file_nn
+# print(" >> " + anim_nn.__str__())
+#
+#
+# ########################################################################
+# ### Re-create Neural Net annotations
+# print("\n-------- Re-create NN annotations --------")
+# anim_nn.generate_cnn_annotations_cb( min_size=min_size, max_size=max_size,
+#     dilation_factor_centroids=dilation_factor_centroids,
+#     dilation_factor_bodies=dilation_factor_bodies,
+#     re_dilate_bodies=re_dilate_bodies )
+# print(" >> " + anim_nn.__str__())
 
 
 ########################################################################
@@ -277,30 +297,50 @@ with sns.axes_style("white"):
 with sns.axes_style("white"):
     plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
     ax = plt.subplot2grid( (1,2), (0,0) )
-    ax.imshow(RGB_gt)
+    ax.imshow(anim_gt.RGB(channel_order=(0,1,2),amplitude_scaling=(1.5,1.5,0)))
     for nr,an in enumerate(anim_nn.annotation):
-        if nr in body_true_pos_list_nn:
-            ax.plot( an.perimeter[:,1], an.perimeter[:,0],
-                linewidth=1, color="#ff0000" )
-        else:
-            ax.plot( an.perimeter[:,1], an.perimeter[:,0],
-                linewidth=1, color="#ffffff" )
-    ax.set_title("Ground truth + Neural Net annotations (red=body true-pos)")
+        ax.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    ax.set_title("Ground truth + Neural Net annotations (red=centroid true-pos)")
     plt.axis('tight')
     plt.axis('off')
 
     ax = plt.subplot2grid( (1,2), (0,1) )
-    ax.imshow(RGB_nn)
+    ax.imshow(anim_gt.RGB(channel_order=(0,1,2),amplitude_scaling=(1.5,1.5,0)))
     for nr,an in enumerate(anim_gt.annotation):
-        if nr in body_true_pos_list_gt:
-            ax.plot( an.perimeter[:,1], an.perimeter[:,0],
-                linewidth=1, color="#ff0000" )
-        else:
-            ax.plot( an.perimeter[:,1], an.perimeter[:,0],
-                linewidth=1, color="#ffffff" )
-    ax.set_title("Neural Net + Ground Truth annotations (red=body true-pos)")
+        ax.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    ax.set_title("Neural Net + Ground Truth annotations (red=centroid true-pos)")
     plt.axis('tight')
     plt.axis('off')
+
+# with sns.axes_style("white"):
+#     plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
+#     ax = plt.subplot2grid( (1,2), (0,0) )
+#     ax.imshow(RGB_gt)
+#     for nr,an in enumerate(anim_nn.annotation):
+#         if nr in body_true_pos_list_nn:
+#             ax.plot( an.perimeter[:,1], an.perimeter[:,0],
+#                 linewidth=1, color="#ff0000" )
+#         else:
+#             ax.plot( an.perimeter[:,1], an.perimeter[:,0],
+#                 linewidth=1, color="#ffffff" )
+#     ax.set_title("Ground truth + Neural Net annotations (red=body true-pos)")
+#     plt.axis('tight')
+#     plt.axis('off')
+#
+#     ax = plt.subplot2grid( (1,2), (0,1) )
+#     ax.imshow(RGB_nn)
+#     for nr,an in enumerate(anim_gt.annotation):
+#         if nr in body_true_pos_list_gt:
+#             ax.plot( an.perimeter[:,1], an.perimeter[:,0],
+#                 linewidth=1, color="#ff0000" )
+#         else:
+#             ax.plot( an.perimeter[:,1], an.perimeter[:,0],
+#                 linewidth=1, color="#ffffff" )
+#     ax.set_title("Neural Net + Ground Truth annotations (red=body true-pos)")
+#     plt.axis('tight')
+#     plt.axis('off')
 
 print('\nDone!\n')
 plt.show()

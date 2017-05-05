@@ -725,7 +725,31 @@ class NeuralNet1Layer(NeuralNetSingleOutput):
                     ax.set_title("Class {}, Channel {}".format(cl,ch))
                     plt.axis('tight')
                     plt.axis('off')
-        plt.tight_layout()
+                colormax = np.abs(w).max()
+
+        if self.n_output_classes == 2:
+            plt.figure(figsize=(12,5), facecolor='w', edgecolor='w')
+            with sns.axes_style("white"):
+                # Get filters of this output class
+                w_list0 = ia.vec2image( lin_image=weight_mat[:,0],
+                    n_channels=self.n_input_channels,
+                    image_size=(self.y_res,self.x_res) )
+                w_list1 = ia.vec2image( lin_image=weight_mat[:,1],
+                    n_channels=self.n_input_channels,
+                    image_size=(self.y_res,self.x_res) )
+                for ch in range(len(w_list)):
+                    w_both = w_list1[ch]-w_list0[ch]
+
+                    colormax = np.abs(w_both).max()
+                    ax = plt.subplot2grid( (1,
+                            self.n_input_channels), (0,ch) )
+                    ax.imshow( w_both, interpolation='nearest',
+                        cmap=plt.get_cmap('seismic'),
+                        clim=(-1*colormax,colormax) )
+                    ax.set_title("Class {}, Channel {}".format(cl,ch))
+                    plt.axis('tight')
+                    plt.axis('off')
+            plt.tight_layout()
 
 
 
@@ -930,7 +954,7 @@ class NeuralNet2Layer(NeuralNetSingleOutput):
                 n_channels=self.n_input_channels,
                 image_size=(self.y_res,self.x_res), n_x=6, n_y=6,
                 channel_order=(ch,ch,ch), amplitude_scaling=(1,1,1),
-                line_color=1, auto_scale=True )
+                line_color=1, auto_scale=True, return_borders=False )
             colormax = np.abs(grid).max()
             with sns.axes_style("white"):
                 ax = plt.subplot2grid( (2,2), plot_positions[ch] )
@@ -1225,9 +1249,13 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
     def show_filters(self):
         """Plot the convolutional filters"""
 
-        n_iterations = 20
+        n_iterations = 50
         return_im = np.zeros( (2,
             self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (64,
+        #     self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (self.fc1_n_chan,
+        #     self.n_input_channels * self.y_res * self.x_res) )
         # return_im = np.zeros( (self.conv2_n_chan,
         #     self.n_input_channels * self.y_res * self.x_res) )
         # return_im = np.zeros( (self.conv1_n_chan,
@@ -1235,20 +1263,24 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
 
         # for filter_no in range(self.conv1_n_chan):
         # for filter_no in range(self.conv2_n_chan):
+        # for filter_no in range(64):
+        # for filter_no in range(self.fc1_n_chan):
         for filter_no in range(2):
             print(filter_no)
 
-            # Isolate activation of a single convolutional filter
+            # # Isolate activation of a single convolutional filter
             # layer_slice_begin = tf.constant( [0,0,0,filter_no], dtype=tf.int32 )
             # layer_slice_size = tf.constant( [-1,-1,-1,1], dtype=tf.int32 )
-            # layer_units = tf.slice( self.conv2_lin,
+            # layer_units = tf.slice( self.conv2_relu,
             #                         layer_slice_begin, layer_slice_size )
-            # layer_units = tf.slice( self.conv1_lin,
-            #                         layer_slice_begin, layer_slice_size )
+            # # layer_units = tf.slice( self.conv1_relu,
+            # #                         layer_slice_begin, layer_slice_size )
 
             # Isolate activation of a single fully connected unit
             layer_slice_begin = tf.constant( [0,filter_no], dtype=tf.int32 )
             layer_slice_size = tf.constant( [-1,1], dtype=tf.int32 )
+            # layer_units = tf.slice( self.fc1_relu,
+            #                         layer_slice_begin, layer_slice_size )
             layer_units = tf.slice( self.fc_out_lin,
                                     layer_slice_begin, layer_slice_size )
 
