@@ -1,12 +1,11 @@
 # Default Settings
-network_path = '/nn'
-training_data_path = '/data/Dataset2'
-# training_data_path = '/data/EGR/Dataset1'
-# network_path = 'E:/data/NeuralNets'
-# training_data_path = 'E:/data/Dataset1'
+# network_path = '/nn'
+# training_data_path = '/data/Dataset2'
+network_path = 'D:/neuralnets'
+training_data_path = 'D:/data/roi/DataSet1'
 
 # Annotation arguments
-annotation_size = 43 # Size of the images around the annotations
+annotation_size = 33 # Size of the images around the annotations
 morph_annotations = False # Random morphing of annotations
 include_annotation_typenrs = 1 # Include only annotations of certain type_nr
 centroid_dilation_factor = 2 # Dilation/erosion (negative) of annotation centroid
@@ -19,7 +18,7 @@ downsample_image = None # downsampling of image by factor of #
 
 # Training arguments
 training_procedure = "batch" # "batch" or "epochs"
-n_epochs = 40
+n_epochs = 10
 m_samples = 1000
 number_of_batches = 10
 batch_size = 1000
@@ -29,10 +28,10 @@ alpha = 0.0001 # Learning rate (typically smaller than 0.001)
 
 # Network arguments
 network_type = "c2fc1" # Neural net type "1layer", "2layer", "c2fc1"
-conv_size = 9 # Size of convolutional filters (if applicable)
-conv_chan = 16 # Number of convolution channels (if applicable)
+conv_size = 5 # Size of convolutional filters (if applicable)
+conv_chan = 32 # Number of convolution channels (if applicable)
 conv_pool = 2 # Number of channels to pool after conv-step  (if applicable)
-fc_size = 128 # Number of units in first fully connected layer (if applicable)
+fc_size = 256 # Number of units in first fully connected layer (if applicable)
 
 # Other variables
 exclude_border = (40,40,40,40) # (Left, Right, Top, Border) margin, or "Load" from file
