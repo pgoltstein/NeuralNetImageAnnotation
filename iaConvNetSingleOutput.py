@@ -1395,7 +1395,7 @@ class ConvNetCnvNFc1(NeuralNetSingleOutput):
             self.conv_n_chan_L = [ self.n_input_channels ]
             for L in range(self.conv_n_layers):
                 self.conv_n_chan_L.append(
-                    int(self.conv_n_chan * (self.conv_n_pool**(L-1))) )
+                    int(self.conv_n_chan * (self.conv_n_pool**L)) )
                 self.fc1_y_size = np.ceil(self.fc1_y_size/self.conv_n_pool)
                 self.fc1_x_size = np.ceil(self.fc1_x_size/self.conv_n_pool)
             self.fc1_y_size = int(self.fc1_y_size)
@@ -1443,7 +1443,7 @@ class ConvNetCnvNFc1(NeuralNetSingleOutput):
             self.conv_n_chan_L = [ self.n_input_channels ]
             for L in range(self.conv_n_layers):
                 self.conv_n_chan_L.append(
-                    int(self.conv_n_chan * (self.conv_n_pool**(L-1))) )
+                    int(self.conv_n_chan * (self.conv_n_pool**L)) )
                 self.fc1_y_size = np.ceil(self.fc1_y_size/self.conv_n_pool)
                 self.fc1_x_size = np.ceil(self.fc1_x_size/self.conv_n_pool)
             self.fc1_y_size = int(self.fc1_y_size)
@@ -1493,14 +1493,14 @@ class ConvNetCnvNFc1(NeuralNetSingleOutput):
         self.b_conv = []
         self.conv_lin = []
         self.conv_relu = []
-        self.conv1_kernel = []
+        self.conv_kernel = []
         self.conv_pool = []
 
         # Loop layers
         for L in range(self.conv_n_layers):
 
             # W = [im-height x im-width x n-input-channels x n-output-channels])
-            self.conv_shape.append( [self.conv1_size, self.conv1_size,
+            self.conv_shape.append( [self.conv_size, self.conv_size,
                 self.conv_n_chan_L[L], self.conv_n_chan_L[L+1]] )
             self.W_conv.append( tf.Variable( tf.truncated_normal(
                                     shape=self.conv_shape[L], stddev=0.1)) )
@@ -1627,3 +1627,101 @@ class ConvNetCnvNFc1(NeuralNetSingleOutput):
             network_path,'net_architecture.npy'), net_architecture)
         self.log("Network architecture saved to file:\n{}".format(
                             os.path.join(network_path,'net_architecture.npy')))
+
+    def show_filters(self):
+        """Plot the convolutional filters"""
+
+        n_iterations = 50
+        return_im = np.zeros( (2,
+            self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (64,
+        #     self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (self.fc1_n_chan,
+        #     self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (self.conv2_n_chan,
+        #     self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (self.conv1_n_chan,
+        #     self.n_input_channels * self.y_res * self.x_res) )
+
+        # for filter_no in range(self.conv1_n_chan):
+        # for filter_no in range(self.conv2_n_chan):
+        # for filter_no in range(64):
+        # for filter_no in range(self.fc1_n_chan):
+        for filter_no in range(2):
+            print(filter_no)
+
+            # # Isolate activation of a single convolutional filter
+            # layer_slice_begin = tf.constant( [0,0,0,filter_no], dtype=tf.int32 )
+            # layer_slice_size = tf.constant( [-1,-1,-1,1], dtype=tf.int32 )
+            # layer_units = tf.slice( self.conv2_relu,
+            #                         layer_slice_begin, layer_slice_size )
+            # # layer_units = tf.slice( self.conv1_relu,
+            # #                         layer_slice_begin, layer_slice_size )
+
+            # Isolate activation of a single fully connected unit
+            layer_slice_begin = tf.constant( [0,filter_no], dtype=tf.int32 )
+            layer_slice_size = tf.constant( [-1,1], dtype=tf.int32 )
+            # layer_units = tf.slice( self.fc1_relu,
+            #                         layer_slice_begin, layer_slice_size )
+            layer_units = tf.slice( self.fc_out_lin,
+                                    layer_slice_begin, layer_slice_size )
+
+            # Define cost function for filter
+            layer_activation = tf.reduce_mean( layer_units )
+
+            # Optimize input image for maximizing filter output
+            gradients = tf.gradients( ys=layer_activation, xs=[self.x] )[0]
+
+            norm_grad = tf.nn.l2_normalize( gradients, dim=0, epsilon=1e-5)
+
+            # Random staring point
+            im = (np.random.uniform( size=(1,
+                self.n_input_channels * self.y_res * self.x_res) ) * 0.1) + 0.5
+
+            # Do a gradient ascend
+            for e in range(n_iterations):
+                grad = self.sess.run( [norm_grad], feed_dict={
+                                self.x: im, self.fc1_keep_prob: 1.0 } )[0]
+                # Gradient ASCENT
+                im += 0.5*grad
+
+            im -= im.mean()
+            im /= (im.std() + 1e-5)
+            im *= 0.2
+
+            # clip to [0, 1]
+            im += 0.5
+            im = np.clip(im, 0, 1)
+            return_im[filter_no,:] = im
+
+        plt.figure(figsize=(16.5,9), facecolor='w', edgecolor='w')
+        for ch in range(self.n_input_channels):
+
+            grid_im,_,brdr = ia.image_grid_RGB( return_im,
+                n_channels=self.n_input_channels,
+                image_size=(self.y_res,self.x_res), n_x=16, n_y=4,
+                channel_order=(ch,ch,ch), amplitude_scaling=(1,1,1),
+                line_color=1, auto_scale=True, return_borders=True )
+
+            ax = plt.subplot2grid( (self.n_input_channels,1), (ch,0) )
+            with sns.axes_style("white"):
+                ax.imshow( grid_im,
+                    interpolation='nearest', vmax=grid_im.max() )
+                ax.set_title("Filterss, ch {}".format(ch))
+                plt.axis('tight')
+                plt.axis('off')
+
+        grid_im,_,brdr = ia.image_grid_RGB( return_im,
+            n_channels=self.n_input_channels,
+            image_size=(self.y_res,self.x_res), n_x=8, n_y=8,
+            channel_order=(0,1,2), amplitude_scaling=(1,1,1),
+            line_color=1, auto_scale=True, return_borders=True )
+        fig, ax = plt.subplots(figsize=(9,9), facecolor='w', edgecolor='w')
+        with sns.axes_style("white"):
+            ax.imshow( grid_im,
+                interpolation='nearest', vmax=grid_im.max() )
+            ax.set_title("Filters RGB")
+            plt.axis('tight')
+            plt.axis('off')
+
+        plt.tight_layout()
