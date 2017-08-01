@@ -587,15 +587,14 @@ class NeuralNetSegmentation(object):
 ### 2 conv layers, one dense layer, n output units
 ########################################################################
 
-class ConvNetCnv2Fc1Nout(NeuralNetSegmentation):
+class ConvNetCnvNFc1Nout(NeuralNetSegmentation):
     """Holds a deep convolutional neural network for annotating images.
-    2 convolutional layers, 1 fully connected layer, 1 output layer"""
+    N convolutional layers, 1 fully connected layer, 1 output layer"""
 
     def __init__(self, network_path='.', logging=True,
                 input_image_size=None, n_input_channels=None,
                 output_image_size=None,
-                conv1_size=5, conv1_n_chan=32, conv1_n_pool=2,
-                conv2_size=5, conv2_n_chan=64, conv2_n_pool=2,
+                conv_n_layers=3, conv_size=5, conv_n_chan=32, conv_n_pool=2,
                 fc1_n_chan=1024, fc_dropout=0.5, alpha=4e-4 ):
         """Initializes all variables and sets up the network. If network
         already exists, load the variables from there.
@@ -626,16 +625,22 @@ class ConvNetCnv2Fc1Nout(NeuralNetSegmentation):
             self.y_res_out = output_image_size[0]
             self.x_res_out = output_image_size[1]
             self.n_output_pixels = output_image_size[0]*output_image_size[1]
-            self.conv1_size = conv1_size
-            self.conv1_n_chan = conv1_n_chan
-            self.conv1_n_pool = conv1_n_pool
-            self.conv2_size = conv2_size
-            self.conv2_n_chan = conv2_n_chan
-            self.conv2_n_pool = conv2_n_pool
-            self.fc1_y_size = int( np.ceil( np.ceil(
-                self.y_res/self.conv1_n_pool ) / self.conv2_n_pool ) )
-            self.fc1_x_size = int( np.ceil( np.ceil(
-                self.x_res/self.conv1_n_pool ) / self.conv2_n_pool ) )
+            self.conv_n_layers = conv_n_layers
+            self.conv_size = conv_size
+            self.conv_n_chan = conv_n_chan
+            self.conv_n_pool = conv_n_pool
+
+            self.fc1_y_size = self.y_res
+            self.fc1_x_size = self.x_res
+            self.conv_n_chan_L = [ self.n_input_channels ]
+            for L in range(self.conv_n_layers):
+                self.conv_n_chan_L.append(
+                    int(self.conv_n_chan * (self.conv_n_pool**L)) )
+                self.fc1_y_size = np.ceil(self.fc1_y_size/self.conv_n_pool)
+                self.fc1_x_size = np.ceil(self.fc1_x_size/self.conv_n_pool)
+            self.fc1_y_size = int(self.fc1_y_size)
+            self.fc1_x_size = int(self.fc1_x_size)
+
             self.fc1_n_chan = fc1_n_chan
             self.fc_dropout = fc_dropout
             self.alpha = alpha
@@ -668,16 +673,23 @@ class ConvNetCnv2Fc1Nout(NeuralNetSegmentation):
             self.y_res_out = net_architecture['y_res_out']
             self.x_res_out = net_architecture['x_res_out']
             self.n_output_pixels = net_architecture['n_output_pixels']
-            self.conv1_size = net_architecture['conv1_size']
-            self.conv1_n_chan = net_architecture['conv1_n_chan']
-            self.conv1_n_pool = net_architecture['conv1_n_pool']
-            self.conv2_size = net_architecture['conv2_size']
-            self.conv2_n_chan = net_architecture['conv2_n_chan']
-            self.conv2_n_pool = net_architecture['conv2_n_pool']
-            self.fc1_y_size = int( np.ceil( np.ceil(
-                self.y_res/self.conv1_n_pool ) / self.conv2_n_pool ) )
-            self.fc1_x_size = int( np.ceil( np.ceil(
-                self.x_res/self.conv1_n_pool ) / self.conv2_n_pool ) )
+
+            self.conv_n_layers = conv_n_layers
+            self.conv_size = conv_size
+            self.conv_n_chan = conv_n_chan
+            self.conv_n_pool = conv_n_pool
+
+            self.fc1_y_size = self.y_res
+            self.fc1_x_size = self.x_res
+            self.conv_n_chan_L = [ self.n_input_channels ]
+            for L in range(self.conv_n_layers):
+                self.conv_n_chan_L.append(
+                    int(self.conv_n_chan * (self.conv_n_pool**L)) )
+                self.fc1_y_size = np.ceil(self.fc1_y_size/self.conv_n_pool)
+                self.fc1_x_size = np.ceil(self.fc1_x_size/self.conv_n_pool)
+            self.fc1_y_size = int(self.fc1_y_size)
+            self.fc1_x_size = int(self.fc1_x_size)
+
             self.fc1_n_chan = net_architecture['fc1_n_chan']
             self.fc_dropout = net_architecture['fc_dropout']
             self.alpha = net_architecture['alpha']
@@ -714,69 +726,64 @@ class ConvNetCnv2Fc1Nout(NeuralNetSegmentation):
         x_image = tf.transpose(x_image_temp, [0,2,3,1])
 
         #########################################################
-        # Set up convolutional layer 1
-        # W = [im-height x im-width x n-input-channels x n-output-channels])
-        self.conv1_shape = [self.conv1_size, self.conv1_size,
-                       self.n_input_channels, self.conv1_n_chan]
-        self.W_conv1 = tf.Variable( tf.truncated_normal(
-                               shape=self.conv1_shape, stddev=0.1))
-        self.b_conv1 = tf.Variable( tf.constant(0.1,
-                                                shape=[self.conv1_n_chan] ))
+        # Set up convolutional layers
+        self.conv_shape = []
+        self.W_conv = []
+        self.b_conv = []
+        self.conv_lin = []
+        self.conv_relu = []
+        self.conv_kernel = []
+        self.conv_pool = []
 
-        # Convolve x_image with the weight tensor
-        self.conv1_lin = tf.nn.conv2d( x_image, self.W_conv1,
-                                  strides=[1, 1, 1, 1], padding='SAME' )
+        # Loop layers
+        for L in range(self.conv_n_layers):
 
-        # Add bias and apply transfer function
-        self.conv1_relu = tf.nn.relu( self.conv1_lin + self.b_conv1 )
+            # W = [im-height x im-width x n-input-channels x n-output-channels])
+            self.conv_shape.append( [self.conv_size, self.conv_size,
+                self.conv_n_chan_L[L], self.conv_n_chan_L[L+1]] )
+            self.W_conv.append( tf.Variable( tf.truncated_normal(
+                                    shape=self.conv_shape[L], stddev=0.1)) )
+            self.b_conv.append( tf.Variable( tf.constant(0.1,
+                                    shape=[self.conv_n_chan_L[L+1]] )) )
 
-        # Max pooling
-        self.conv1_kernel = [1, self.conv1_n_pool, self.conv1_n_pool, 1]
-        self.conv1_pool = tf.nn.max_pool( self.conv1_relu,
-            ksize=self.conv1_kernel, strides=self.conv1_kernel, padding='SAME')
+            # Convolve x_image with the weight tensor
+            if L == 0:
+                self.conv_lin.append( tf.nn.conv2d( x_image,
+                    self.W_conv[L], strides=[1, 1, 1, 1], padding='SAME' ) )
+            else:
+                self.conv_lin.append( tf.nn.conv2d( self.conv_pool[L-1],
+                    self.W_conv[L], strides=[1, 1, 1, 1], padding='SAME' ) )
 
-        #########################################################
-        # Convolutional layer 2
-        self.conv2_shape = [self.conv2_size, self.conv2_size,
-                       self.conv1_n_chan, self.conv2_n_chan]
-        self.W_conv2 = tf.Variable( tf.truncated_normal(
-                               shape=self.conv2_shape, stddev=0.1 ) )
-        self.b_conv2 = tf.Variable( tf.constant(0.1,
-                                                shape=[self.conv2_n_chan] ))
+            # Add bias and apply transfer function
+            self.conv_relu.append(
+                tf.nn.relu( self.conv_lin[L] + self.b_conv[L] ) )
 
-        # Convolve x_image with the weight tensor
-        self.conv2_lin = tf.nn.conv2d( self.conv1_pool, self.W_conv2,
-                                  strides=[1, 1, 1, 1], padding='SAME' )
-
-        # Add bias and apply transfer function
-        self.conv2_relu = tf.nn.relu( self.conv2_lin + self.b_conv2 )
-
-        # Max pooling
-        self.conv2_kernel = [1, self.conv2_n_pool, self.conv2_n_pool, 1]
-        self.conv2_pool = tf.nn.max_pool( self.conv2_relu,
-            ksize=self.conv2_kernel, strides=self.conv2_kernel, padding='SAME')
-
+            # Max pooling
+            self.conv_kernel.append([1, self.conv_n_pool, self.conv_n_pool, 1])
+            self.conv_pool.append( tf.nn.max_pool(
+                self.conv_relu[L], ksize=self.conv_kernel[L],
+                strides=self.conv_kernel[L], padding='SAME') )
 
         #########################################################
         # Densely Connected Layer
         # Weights and bias
-        self.fc1_shape = [self.fc1_y_size * self.fc1_x_size * self.conv2_n_chan,
+        self.fc1_shape = [self.fc1_y_size * self.fc1_x_size * self.conv_n_chan_L[-1],
                           self.fc1_n_chan]
         self.W_fc1 = tf.Variable( tf.truncated_normal(
                                shape=self.fc1_shape, stddev=0.1 ) )
         self.b_fc1 = tf.Variable( tf.constant(0.1, shape=[self.fc1_n_chan] ))
 
         # Flatten output from conv2
-        self.conv2_pool_flat = tf.reshape(
-            self.conv2_pool, [-1, self.fc1_shape[0]] )
+        self.conv_last_pool_flat = tf.reshape(
+            self.conv_pool[-1], [-1, self.fc1_shape[0]] )
 
         # Calculate network step
-        self.fc1_relu = tf.nn.relu( tf.matmul( self.conv2_pool_flat,
+        self.fc1_relu = tf.nn.relu( tf.matmul( self.conv_last_pool_flat,
             self.W_fc1) + self.b_fc1 )
 
         # Set up dropout option for fc1
-        self.fc_keep_prob = tf.placeholder(tf.float32)
-        self.fc1_relu_drop = tf.nn.dropout(self.fc1_relu, self.fc_keep_prob)
+        self.fc1_keep_prob = tf.placeholder(tf.float32)
+        self.fc1_relu_drop = tf.nn.dropout(self.fc1_relu, self.fc1_keep_prob)
 
         #########################################################
         # Readout layer
@@ -818,12 +825,12 @@ class ConvNetCnv2Fc1Nout(NeuralNetSegmentation):
         self.log("y_res_out: {}".format(self.y_res_out))
         self.log("x_res_out: {}".format(self.x_res_out))
         self.log("n_output_pixels: {}".format(self.n_output_pixels))
-        self.log("conv1_size: {}".format(self.conv1_size))
-        self.log("conv1_n_chan: {}".format(self.conv1_n_chan))
-        self.log("conv1_n_pool: {}".format(self.conv1_n_pool))
-        self.log("conv2_size: {}".format(self.conv2_size))
-        self.log("conv2_n_chan: {}".format(self.conv2_n_chan))
-        self.log("conv2_n_pool: {}".format(self.conv2_n_pool))
+        self.log("conv_n_layers: {}".format(self.conv_n_layers))
+        for L in range(self.conv_n_layers):
+            self.log("conv{}_size: {}".format(L+1,self.conv_size))
+            self.log("conv{}_n_input_chan: {}".format(L+1,self.conv_n_chan_L[L]))
+            self.log("conv{}_n_output_chan: {}".format(L+1,self.conv_n_chan_L[L+1]))
+            self.log("conv{}_n_pool: {}".format(L+1,self.conv_n_pool))
         self.log("fc1_n_chan: {}".format(self.fc1_n_chan))
         self.log("fc_dropout: {}".format(self.fc_dropout))
         self.log("alpha: {}".format(self.alpha))
@@ -838,12 +845,10 @@ class ConvNetCnv2Fc1Nout(NeuralNetSegmentation):
         net_architecture['y_res_out'] = self.y_res_out
         net_architecture['x_res_out'] = self.x_res_out
         net_architecture['n_output_pixels'] = self.n_output_pixels
-        net_architecture['conv1_size'] = self.conv1_size
-        net_architecture['conv1_n_chan'] = self.conv1_n_chan
-        net_architecture['conv1_n_pool'] = self.conv1_n_pool
-        net_architecture['conv2_size'] = self.conv2_size
-        net_architecture['conv2_n_chan'] = self.conv2_n_chan
-        net_architecture['conv2_n_pool'] = self.conv2_n_pool
+        net_architecture['conv_n_layers'] = self.conv_n_layers
+        net_architecture['conv_size'] = self.conv_size
+        net_architecture['conv_n_chan'] = self.conv_n_chan
+        net_architecture['conv_n_pool'] = self.conv_n_pool
         net_architecture['fc1_n_chan'] = self.fc1_n_chan
         net_architecture['fc_dropout'] = self.fc_dropout
         net_architecture['alpha'] = self.alpha
