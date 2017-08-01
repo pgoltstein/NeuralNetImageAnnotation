@@ -11,7 +11,7 @@ include_annotation_typenrs = 1 # Include only annotations of certain type_nr
 centroid_dilation_factor = 2 # Dilation/erosion (negative) of annotation centroid
 body_dilation_factor = 0 # Dilation/erosion (negative) of annotation body
 sample_ratio = None # Fraction samples per class (None=all equal).
-annotation_border_ratio = 0.2 # Fraction from border between pos and neg samples
+annotation_border_ratio = None # Fraction from border between pos and neg samples
 use_channels = [1,2,4] # List of channels that are to be used, 1 based e.g. [1,2]
 normalize_samples = False # True/False
 downsample_image = None # downsampling of image by factor of #
@@ -19,9 +19,9 @@ downsample_image = None # downsampling of image by factor of #
 # Training arguments
 training_procedure = "batch" # "batch" or "epochs"
 n_epochs = 10
-m_samples = 500
+m_samples = 1000
 number_of_batches = 10
-batch_size = 500
+batch_size = 1500
 report_every = 10
 fc1_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
 alpha = 0.0001 # Learning rate (typically smaller than 0.001)
