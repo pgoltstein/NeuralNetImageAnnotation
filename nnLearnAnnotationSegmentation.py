@@ -262,7 +262,7 @@ else:
 ########################################################################
 # Set up network
 if network_type.lower() == "cnfcn":
-    nn = cn.ConvNetCnvNFc1Nout( \
+    nn = cn.ConvNet_CnvN_FcN_Nout( \
             network_path=os.path.join(network_path,network_name),
             input_image_size=image_size,
             n_input_channels=n_input_channels,

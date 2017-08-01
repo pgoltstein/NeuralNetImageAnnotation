@@ -35,8 +35,8 @@ conv_n_layers = 4 # Number of convolutional layers
 conv_size = 3 # Size of convolutional filters
 conv_chan = 32 # Number of convolution channels
 conv_pool = 2 # Number of channels to pool after conv-step
-fc_n_layers = 4 # Number of fully connected layers
-fc_size = 4024 # Number of units in each fully connected layer
+fc_n_layers = 1 # Number of fully connected layers
+fc_size = 2048 # Number of units in each fully connected layer
 
 # Other variables
 exclude_border = (40,40,40,40) # (Left, Right, Top, Border) margin, or "Load" from file

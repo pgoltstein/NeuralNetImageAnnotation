@@ -584,7 +584,7 @@ class NeuralNetSegmentation(object):
 
 ########################################################################
 ### Deep convolutional neural network
-### 2 conv layers, one dense layer, n output units
+### N conv layer(s), N dense layer(s), n output units
 ########################################################################
 
 class ConvNet_CnvN_FcN_Nout(NeuralNetSegmentation):
@@ -773,6 +773,7 @@ class ConvNet_CnvN_FcN_Nout(NeuralNetSegmentation):
         self.W_fc = []
         self.b_fc = []
         self.flattened_input = []
+        self.fc_relu = []
 
         # Loop layers
         for L in range(self.fc_n_layers):
@@ -784,14 +785,14 @@ class ConvNet_CnvN_FcN_Nout(NeuralNetSegmentation):
             else:
                 self.fc_shape.append( [self.fc_n_chan, self.fc_n_chan] )
             self.W_fc.append( tf.Variable( tf.truncated_normal(
-                                   shape=self.fc_shape, stddev=0.1 ) ) )
+                                   shape=self.fc_shape[L], stddev=0.1 ) ) )
             self.b_fc.append(
                 tf.Variable( tf.constant(0.1, shape=[self.fc_n_chan] )) )
 
             # Flatten output from conv2
             if L == 0:
                 self.flattened_input.append( tf.reshape(
-                    self.conv_pool[-1], [-1, self.fc1_shape[L][0]] ) )
+                    self.conv_pool[-1], [-1, self.fc_shape[L][0]] ) )
             else:
                 self.flattened_input.append( self.fc_relu[L-1] )
 
@@ -799,10 +800,10 @@ class ConvNet_CnvN_FcN_Nout(NeuralNetSegmentation):
             self.fc_relu.append( tf.nn.relu( tf.matmul( self.flattened_input[L],
                 self.W_fc[L]) + self.b_fc[L] ) )
 
-            # Set up dropout option for last relu layer
-            self.fc_keep_prob = tf.placeholder(tf.float32)
-            self.fc_relu_drop = \
-                tf.nn.dropout( self.fc_relu[-1], self.fc_keep_prob ) )
+        # Set up dropout option, only for last relu layer
+        self.fc_keep_prob = tf.placeholder(tf.float32)
+        self.fc_relu_drop = \
+            tf.nn.dropout( self.fc_relu[-1], self.fc_keep_prob )
 
         #########################################################
         # Readout layer
