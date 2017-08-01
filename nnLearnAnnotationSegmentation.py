@@ -128,7 +128,7 @@ parser.add_argument('-a', '--alpha', type=float,
 # Network arguments
 parser.add_argument('-net', '--nettype', type=str,
     default=defaults.network_type,
-    help= "Type of network (1layer, 2layer, c2fc1, cNfc1; default={})".format(
+    help= "Type of network (cNfcN is only option; default={})".format(
         defaults.network_type))
 parser.add_argument('-clay', '--convnlayers', type=int,
     default=defaults.conv_n_layers,
@@ -146,6 +146,10 @@ parser.add_argument('-cp', '--convpool', type=int,
     default=defaults.conv_pool,
     help="Max pooling of convolutional filters (default={})".format(
         defaults.conv_pool))
+parser.add_argument('-flay', '--fcnlayers', type=int,
+    default=defaults.fc_n_layers,
+    help="Number of fully connected layers (default={})".format(
+        defaults.fc_n_layers))
 parser.add_argument('-fz', '--fcsize', type=int,
     default=defaults.fc_size,
     help="Number of fully connected units (default={})".format(
@@ -207,6 +211,7 @@ conv_n_layers = args.convnlayers
 conv_size = args.convsize
 conv_chan = args.convchan
 conv_pool = args.convpool
+fc_n_layers = args.fcnlayers
 fc_size = args.fcsize
 
 # Path arguments
@@ -256,25 +261,18 @@ else:
 
 ########################################################################
 # Set up network
-if network_type.lower() == "cnfc1":
-    nn = cn.ConvNetCnv2Fc1Nout( \
+if network_type.lower() == "cnfcn":
+    nn = cn.ConvNetCnvNFc1Nout( \
             network_path=os.path.join(network_path,network_name),
             input_image_size=image_size,
             n_input_channels=n_input_channels,
             output_image_size=annotation_size,
             conv_n_layers = conv_n_layers,
             conv_size=conv_size, conv_n_chan=conv_chan, conv_n_pool=conv_pool,
-            fc1_n_chan=fc_size, fc_dropout=fc_dropout, alpha=alpha )
-if network_type.lower() == "c1fc2":
-    nn = cn.ConvNetCnv1Fc2Nout( \
-            network_path=os.path.join(network_path,network_name),
-            input_image_size=image_size,
-            n_input_channels=n_input_channels,
-            output_image_size=annotation_size,
-            conv1_size=conv_size, conv1_n_chan=conv_chan, conv1_n_pool=conv_pool,
-            fc1_n_chan=fc_size, fc2_n_chan=fc_size,
-            fc_dropout=fc_dropout, alpha=alpha )
-
+            fc_n_layers=fc_n_layers, fc_n_chan=fc_size, fc_dropout=fc_dropout,
+            alpha=alpha )
+else:
+    print("Network could not be initialized because unknow type was selected")
 
 ########################################################################
 # Set training data

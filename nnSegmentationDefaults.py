@@ -1,6 +1,6 @@
 # Default Settings
 network_path = '/nn'
-training_data_path = '/data/Dataset1'
+training_data_path = '/data/Dataset_small'
 # network_path = 'E:/data/NeuralNets'
 # training_data_path = 'E:/data/Dataset1'
 
@@ -30,12 +30,13 @@ fc_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
 alpha = 0.0005 # Learning rate (typically smaller than 0.001)
 
 # Network arguments
-network_type = "cNfc1" # Neural net type "c2fc1", "c1fc2", "cNfc1"
-conv_n_layers = 4 # Size of convolutional filters (if applicable)
-conv_size = 3 # Size of convolutional filters (if applicable)
-conv_chan = 32 # Number of convolution channels (if applicable)
-conv_pool = 2 # Number of channels to pool after conv-step  (if applicable)
-fc_size = 4024 # Number of units in first fully connected layer (if applicable)
+network_type = "cNfcN" # Neural net type "cNfcN" is the only option for now
+conv_n_layers = 4 # Number of convolutional layers
+conv_size = 3 # Size of convolutional filters
+conv_chan = 32 # Number of convolution channels
+conv_pool = 2 # Number of channels to pool after conv-step
+fc_n_layers = 4 # Number of fully connected layers
+fc_size = 4024 # Number of units in each fully connected layer
 
 # Other variables
 exclude_border = (40,40,40,40) # (Left, Right, Top, Border) margin, or "Load" from file
