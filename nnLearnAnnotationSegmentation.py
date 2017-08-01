@@ -128,8 +128,12 @@ parser.add_argument('-a', '--alpha', type=float,
 # Network arguments
 parser.add_argument('-net', '--nettype', type=str,
     default=defaults.network_type,
-    help= "Type of network (1layer, 2layer, c2fc1; default={})".format(
+    help= "Type of network (1layer, 2layer, c2fc1, cNfc1; default={})".format(
         defaults.network_type))
+parser.add_argument('-clay', '--convnlayers', type=int,
+    default=defaults.conv_n_layers,
+    help="Number of convolutional layers (default={})".format(
+        defaults.conv_n_layers))
 parser.add_argument('-cz', '--convsize', type=int,
     default=defaults.conv_size,
     help="Size of convolutional filters (default={})".format(
@@ -199,6 +203,7 @@ alpha = args.alpha
 
 # Network arguments
 network_type = args.nettype
+conv_n_layers = args.convnlayers
 conv_size = args.convsize
 conv_chan = args.convchan
 conv_pool = args.convpool
@@ -251,14 +256,14 @@ else:
 
 ########################################################################
 # Set up network
-if network_type.lower() == "c2fc1":
+if network_type.lower() == "cnfc1":
     nn = cn.ConvNetCnv2Fc1Nout( \
             network_path=os.path.join(network_path,network_name),
             input_image_size=image_size,
             n_input_channels=n_input_channels,
             output_image_size=annotation_size,
-            conv1_size=conv_size, conv1_n_chan=conv_chan, conv1_n_pool=conv_pool,
-            conv2_size=conv_size, conv2_n_chan=conv_chan*2, conv2_n_pool=conv_pool,
+            conv_n_layers = conv_n_layers,
+            conv_size=conv_size, conv_n_chan=conv_chan, conv_n_pool=conv_pool,
             fc1_n_chan=fc_size, fc_dropout=fc_dropout, alpha=alpha )
 if network_type.lower() == "c1fc2":
     nn = cn.ConvNetCnv1Fc2Nout( \
