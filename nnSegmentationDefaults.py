@@ -1,14 +1,14 @@
 # Default Settings
-network_path = '/nn'
-training_data_path = '/data/Dataset_small'
-# network_path = 'E:/data/NeuralNets'
-# training_data_path = 'E:/data/Dataset1'
+# network_path = '/nn'
+# training_data_path = '/data/Dataset_small'
+network_path = 'D:/neuralnets'
+training_data_path = 'D:/data/roi/DataSet1'
 
 # Annotation arguments
 selection_type = "Bodies"
 segment_all = True
-image_size = 31 # Size of the images around the annotations
-annotation_size = 21 # Size of the annotations to be made
+image_size = 35 # Size of the images around the annotations
+annotation_size = 25 # Size of the annotations to be made
 morph_annotations = False # Random morphing of annotations
 include_annotation_typenrs = 1 # Include only annotations of certain type_nr
 centroid_dilation_factor = 2 # Dilation/erosion (negative) of annotation centroid
