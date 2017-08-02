@@ -27,7 +27,7 @@ number_of_batches = 10
 batch_size = 1500
 report_every = 5
 fc_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
-alpha = 0.0005 # Learning rate (typically smaller than 0.001)
+alpha = 0.001 # Learning rate (typically smaller than 0.001)
 
 # Network arguments
 network_type = "cNfcN" # Neural net type "cNfcN" is the only option for now
