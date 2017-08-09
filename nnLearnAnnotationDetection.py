@@ -348,7 +348,7 @@ if perform_network_training:
 if args.learningcurve:
     nn.log("\nDisplay learning curve and filters:")
     nn.show_learning_curve()
-    nn.show_filters()
+    nn.show_conv_filters()
 
 ########################################################################
 # Generate F1 report for training/cv/test data

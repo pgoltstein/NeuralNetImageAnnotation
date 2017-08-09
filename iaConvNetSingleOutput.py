@@ -1628,6 +1628,64 @@ class ConvNetCnvNFc1(NeuralNetSingleOutput):
         self.log("Network architecture saved to file:\n{}".format(
                             os.path.join(network_path,'net_architecture.npy')))
 
+    def show_conv_filters(self):
+        """Plot the convolutional filters"""
+
+        # Define which filters to optimize
+        filter_layer = self.conv_n_layers-1
+        n_filters = int(np.min((self.conv_n_chan_L[filter_layer+1],96)))
+        n_iterations = 25
+        filter_ims = np.zeros( (n_filters,
+            self.n_input_channels * self.y_res * self.x_res) )
+
+        # Loop all filters
+        print("Maximizing output of {} filters: {:3d}".format(n_filters,0),
+                end="", flush=True)
+        for filter_no in range(n_filters):
+            print((3*'\b')+'{:3d}'.format(filter_no), end='', flush=True)
+
+            # Isolate activation of a single convolutional filter
+            layer_slice_begin = tf.constant( [0,0,0,filter_no], dtype=tf.int32 )
+            layer_slice_size = tf.constant( [-1,-1,-1,1], dtype=tf.int32 )
+            layer_units = tf.slice( self.conv_relu[filter_layer],
+                                    layer_slice_begin, layer_slice_size )
+
+            # Define cost function for filter
+            layer_activation = tf.reduce_mean( layer_units )
+
+            # Optimize input image for maximizing filter output
+            gradients = tf.gradients( ys=layer_activation, xs=[self.x] )[0]
+            norm_grad = tf.nn.l2_normalize( gradients, dim=0, epsilon=1e-8)
+
+            # Random staring point
+            im = np.random.random( (1,
+                self.n_input_channels * self.y_res * self.x_res) )
+
+            # Do a gradient ascend
+            for e in range(n_iterations-1):
+                result = self.sess.run( [norm_grad], feed_dict={ self.x: im } )
+                im += result[0]
+            filter_ims[filter_no,:] = im
+
+        print((3*'\b')+'{:3d}'.format(filter_no))
+
+        # Create grid with filters
+        grid_im,_,brdr = ia.image_grid_RGB( filter_ims,
+            n_channels=self.n_input_channels,
+            image_size=(self.y_res,self.x_res), n_x=12, n_y=8,
+            channel_order=(0,1,2), amplitude_scaling=(1,1,1),
+            line_color=1, auto_scale=True, return_borders=True )
+
+        # Plot
+        with sns.axes_style("white"):
+            fig,ax = plt.subplots(figsize=(12,8), facecolor='w', edgecolor='w')
+            ax.imshow( grid_im,
+                interpolation='nearest', vmax=grid_im.max() )
+            ax.set_title("Filters, conv layer {}".format(filter_layer+1))
+            plt.axis('tight')
+            plt.axis('off')
+        plt.tight_layout()
+
     def show_filters(self):
         """Plot the convolutional filters"""
 
