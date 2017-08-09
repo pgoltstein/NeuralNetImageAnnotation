@@ -2,13 +2,13 @@
 # network_path = '/nn'
 # training_data_path = '/data/Dataset_small'
 network_path = 'D:/neuralnets'
-training_data_path = 'D:/data/roi/DataSet1'
+training_data_path = 'D:/data/roi/DataSet_small1'
 
 # Annotation arguments
 selection_type = "Bodies"
 segment_all = True
-image_size = 35 # Size of the images around the annotations
-annotation_size = 25 # Size of the annotations to be made
+image_size = 31 # Size of the images around the annotations
+annotation_size = 21 # Size of the annotations to be made
 morph_annotations = False # Random morphing of annotations
 include_annotation_typenrs = 1 # Include only annotations of certain type_nr
 centroid_dilation_factor = 2 # Dilation/erosion (negative) of annotation centroid
@@ -21,10 +21,10 @@ downsample_image = None # downsampling of image by factor of #
 
 # Training arguments
 training_procedure = "batch" # "batch" or "epochs"
-n_epochs = 10
-m_samples = 1000
+n_epochs = 25
+m_samples = 2000
 number_of_batches = 10
-batch_size = 1500
+batch_size = 5000
 report_every = 5
 fc_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
 alpha = 0.001 # Learning rate (typically smaller than 0.001)
@@ -33,10 +33,10 @@ alpha = 0.001 # Learning rate (typically smaller than 0.001)
 network_type = "cNfcN" # Neural net type "cNfcN" is the only option for now
 conv_n_layers = 4 # Number of convolutional layers
 conv_size = 3 # Size of convolutional filters
-conv_chan = 32 # Number of convolution channels
+conv_chan = 64 # Number of convolution channels
 conv_pool = 2 # Number of channels to pool after conv-step
-fc_n_layers = 1 # Number of fully connected layers
-fc_size = 2048 # Number of units in each fully connected layer
+fc_n_layers = 2 # Number of fully connected layers
+fc_size = 4096# Number of units in each fully connected layer
 
 # Other variables
 exclude_border = (40,40,40,40) # (Left, Right, Top, Border) margin, or "Load" from file

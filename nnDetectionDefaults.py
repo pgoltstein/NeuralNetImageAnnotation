@@ -1,8 +1,8 @@
 # Default Settings
-network_path = '/nn'
-training_data_path = '/data/Dataset_small'
-# network_path = 'D:/neuralnets'
-# training_data_path = 'D:/data/roi/DataSet1'
+# network_path = '/nn'
+# training_data_path = '/data/Dataset_small'
+network_path = 'D:/neuralnets'
+training_data_path = 'D:/data/roi/DataSet1'
 
 # Annotation arguments
 annotation_size = 33 # Size of the images around the annotations
@@ -18,10 +18,10 @@ downsample_image = None # downsampling of image by factor of #
 
 # Training arguments
 training_procedure = "batch" # "batch" or "epochs"
-n_epochs = 10
-m_samples = 1000
+n_epochs = 25
+m_samples = 2000
 number_of_batches = 10
-batch_size = 1500
+batch_size = 5000
 report_every = 10
 fc1_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
 alpha = 0.001 # Learning rate (typically smaller than 0.001)
@@ -32,7 +32,7 @@ conv_n_layers = 4 # Size of convolutional filters (if applicable)
 conv_size = 3 # Size of convolutional filters (if applicable)
 conv_chan = 16 # Number of convolution channels (if applicable)
 conv_pool = 2 # Number of channels to pool after conv-step  (if applicable)
-fc_size = 256 # Number of units in first fully connected layer (if applicable)
+fc_size = 512 # Number of units in first fully connected layer (if applicable)
 
 # Other variables
 exclude_border = (40,40,40,40) # (Left, Right, Top, Border) margin, or "Load" from file

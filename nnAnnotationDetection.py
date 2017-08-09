@@ -87,7 +87,7 @@ re_dilate_bodies = args.bodyannotationdilation
 if args.networkpath:
     network_path = args.networkpath
 else:
-    network_path = '/Users/pgoltstein/Dropbox/NeuralNets'
+    network_path = 'D:/neuralnets'
 
 ########################################################################
 # Other variables
@@ -114,7 +114,7 @@ print(" >> " + anim.__str__())
 ########################################################################
 # If requested, set up network for detecting centroids
 if use_centroidnet:
-    nn_ctr = cn.ConvNetCnv2Fc1( logging=False, \
+    nn_ctr = cn.ConvNetCnvNFc1( logging=False, \
             network_path=os.path.join(network_path,use_centroidnet) )
     if nn_ctr.n_input_channels != anim.n_channels:
         print("\n\nExisting network has been set up with {} input channels,\n \
@@ -141,7 +141,7 @@ if use_centroidnet:
 
 ########################################################################
 # Set up network for detecting bodies
-nn = cn.ConvNetCnv2Fc1( logging=False, \
+nn = cn.ConvNetCnvNFc1( logging=False, \
         network_path=os.path.join(network_path,network_name) )
 if nn.n_input_channels != anim.n_channels:
     print("\n\nExisting network has been set up with {} input channels,\n \
