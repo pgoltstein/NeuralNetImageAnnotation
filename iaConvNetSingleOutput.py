@@ -1471,11 +1471,11 @@ class ConvNetCnvNFc1(NeuralNetSingleOutput):
         # Update values of alpha and dropout if supplied
         if self.alpha != alpha:
             self.alpha = alpha
-            if ~reduced_output:
+            if reduced_output is not True:
                 self.log("Updated learning rate 'alpha' to {}".format(self.alpha))
         if self.fc1_dropout != fc1_dropout:
             self.fc1_dropout = fc1_dropout
-            if ~reduced_output:
+            if reduced_output is not True:
                 self.log("Updated dropout fraction to {}".format(self.fc1_dropout))
 
         # Clear previous graphs
