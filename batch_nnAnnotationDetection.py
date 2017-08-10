@@ -119,7 +119,7 @@ for (dirpath, dirnames, filenames) in os.walk(data_path):
             bdr_files = glob.glob( os.path.join( dirpath,
                 "*Borders{}.mat".format(layer_no) ) )
 
-            if len(im_files) > 1 and len(bdr_files) == 1:
+            if len(im_files) == 1 and len(bdr_files) == 1:
 
                 print("\n-------- Commencing nn-annotation --------")
                 print(dirpath)
