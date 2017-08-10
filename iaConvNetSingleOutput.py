@@ -21,6 +21,8 @@ import time, datetime
 import os
 import ImageAnnotation as ia
 
+tf.logging.set_verbosity(tf.logging.ERROR)
+
 
 ########################################################################
 ### Single output neural network class
