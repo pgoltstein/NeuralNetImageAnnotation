@@ -111,7 +111,7 @@ for (dirpath, dirnames, filenames) in os.walk(data_path):
     if "Exp" in dirpath:
 
         # Loop multilevel layers
-        for layer_no in range(n_multilevel_layers):
+        for layer_no in range(1,n_multilevel_layers+1):
 
             # Check if image and border exclusion files are present
             im_files = glob.glob( os.path.join( dirpath,
