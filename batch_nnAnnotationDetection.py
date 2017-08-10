@@ -62,24 +62,24 @@ def nn_annotate_anim( anim, body_net, centroid_net ):
     """
 
     # Load centroid net
-    nn_ctr = cn.ConvNetCnvNFc1( logging=False, network_path=centroid_net )
+    nn_ctr = cn.ConvNetCnvNFc1( logging=False,
+        network_path=centroid_net, reduced_output=True )
     nn_ctr.start()
     nn_ctr.restore()
-    nn_ctr.display_network_architecture()
 
     # Annotate centroids
-    print("Running centroid detection:")
+    print("Running centroid detection")
     anim.detected_centroids = nn_ctr.annotate_image( anim )
     nn_ctr.close()
 
     # Load body net
-    nn_bdy = cn.ConvNetCnvNFc1( logging=False, network_path=body_net )
+    nn_bdy = cn.ConvNetCnvNFc1( logging=False,
+        network_path=body_net, reduced_output=True )
     nn_bdy.start()
     nn_bdy.restore()
-    nn_bdy.display_network_architecture()
 
     # Annotate image
-    print("Running body detection:")
+    print("Running body detection")
     anim.detected_bodies = nn_bdy.annotate_image( anim )
     nn_bdy.close()
 
@@ -110,18 +110,19 @@ for (dirpath, dirnames, filenames) in os.walk(data_path):
     # Check if experiment folders
     if "Exp" in dirpath:
 
-        # Check if image and border exclusion files are present
-        im_files = glob.glob( os.path.join(dirpath,"*L*-channels.mat") )
-        bdr_files = glob.glob( os.path.join(dirpath,"*Borders*.mat") )
-        print(im_files)
-        if len(im_files) == n_multilevel_layers \
-            and len(bdr_files) == n_multilevel_layers:
+        # Loop multilevel layers
+        for layer_no in range(n_multilevel_layers):
 
-            print("\n-------- Commencing nn-annotation --------")
-            print(dirpath)
+            # Check if image and border exclusion files are present
+            im_files = glob.glob( os.path.join( dirpath,
+                "*L{}-channels.mat".format(layer_no) ) )
+            bdr_files = glob.glob( os.path.join( dirpath,
+                "*Borders{}.mat".format(layer_no) ) )
 
-            # Loop multilevel layers
-            for layer_no in range(n_multilevel_layers):
+            if len(im_files) > 1 and len(bdr_files) == 1
+
+                print("\n-------- Commencing nn-annotation --------")
+                print(dirpath)
 
                 # Load annotated image
                 print(" - Layer no: {}".format(layer_no))
