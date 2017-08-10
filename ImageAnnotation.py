@@ -1386,9 +1386,17 @@ class AnnotatedImage(object):
                 an_centr = Annotation( body_pixels_yx=mask)
                 ann_centr_list.append(an_centr)
 
+                # Get body mask for this centroid
                 body_nr = body_labels[int(an_centr.y),int(an_centr.x)]
                 ann_body_nr_list.append(body_nr)
                 body_mask = body_labels==body_nr
+
+                # Fill holes and remove 'loose' pixels / smooth ragged edges
+                body_mask = ndimage.morphology.binary_fill_holes(body_mask)
+                body_mask = ndimage.binary_dilation(body_mask)
+                body_mask = ndimage.binary_erosion(body_mask)
+
+                # Store as single annotation
                 an_body = Annotation( body_pixels_yx=body_mask)
                 ann_body_list.append(an_body)
             print((3*'\b')+'{:3d}'.format(nr))
@@ -1425,17 +1433,6 @@ class AnnotatedImage(object):
                         ann_body_nr_list[c] = 0
                         ann_body_list[c] = new_ann
             print((3*'\b')+'{:3d}'.format(nr1))
-
-        # Filling holes in bodies
-        print("Filling holes in annotated bodies: {:3d}".format(0),
-            end="", flush=True)
-        for nr in range(len(ann_body_list)):
-            print((3*'\b')+'{:3d}'.format(nr+1), end='', flush=True)
-            masked_image = np.zeros(self.detected_bodies.shape)
-            ann_body_list[nr].mask_body( image=masked_image )
-            masked_image = ndimage.morphology.binary_fill_holes(masked_image)
-            ann_body_list[nr] = Annotation( body_pixels_yx=masked_image)
-        print((3*'\b')+'{:3d}'.format(nr+1))
 
         # Remove too small annotations
         if min_size is not None:
