@@ -21,8 +21,8 @@ import time, datetime
 import os
 import ImageAnnotation as ia
 
-tf.logging.set_verbosity(tf.logging.WARN)
-
+# tf.logging.set_verbosity(tf.logging.WARN)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 ########################################################################
 ### Single output neural network class
