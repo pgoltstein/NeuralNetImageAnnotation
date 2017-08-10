@@ -22,13 +22,13 @@ from scipy import ndimage
 from skimage import measure
 
 # Settings
-data_path = "I:/Pieter Goltstein/CatLive/K01"
+data_path = "I:/Pieter Goltstein/CatLive/K01/Loc1"
 # data_path = "/data/test_batch"
 n_multilevel_layers = 2
 body_net = "D:/neuralnets/bnet002"
 centroid_net = "D:/neuralnets/cnet002"
 use_channels = [0,1,3] # zero based
-min_size = 100
+min_size = 150
 max_size = 1000
 dilation_factor_centroids = -1
 dilation_factor_bodies = 0
@@ -100,7 +100,6 @@ def save_annotations(anim, filepath, layer_no):
     # Save annotated image
     anim.save(file_name=anim_name, file_path='')
     anim.export_annotations_to_mat( file_name=ROIbase, file_path='')
-    print("Exported annotations to: " + ROIbase)
 
 
 ########################################################################
