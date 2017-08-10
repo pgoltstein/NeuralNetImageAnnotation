@@ -1422,8 +1422,8 @@ class ConvNetCnvNFc1(NeuralNetSingleOutput):
         else:
             now = datetime.datetime.now()
             if reduced_output:
-                self.log( " {} @ {}".format( now.strftime( \
-                    self.network_path, "%Y-%m-%d %H:%M" ) ) )
+                self.log( " {} @ {}".format( \
+                    self.network_path, now.strftime( "%Y-%m-%d %H:%M" ) ) )
             else:
                 self.log("\n\n++++++++++++++++++++++++++++++++++++++++++++++++++++")
                 self.log(    "Re-initialization of existing network: ")
