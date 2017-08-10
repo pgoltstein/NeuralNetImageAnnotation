@@ -1444,8 +1444,6 @@ class AnnotatedImage(object):
             ann_body_list[nr].mask_body( image=masked_image )
             labeled_image = measure.label(masked_image,background=0,connectivity=1)
             n_labels = labeled_image.max()
-            if n_labels > 1:
-                print("\n more than 1 labels found for this annotation")
             lab_size = []
             for lab_no in range(1,n_labels+1):
                 lab_im = labeled_image==lab_no
