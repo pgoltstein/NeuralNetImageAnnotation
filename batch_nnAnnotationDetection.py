@@ -126,7 +126,7 @@ for (dirpath, dirnames, filenames) in os.walk(data_path):
 
                 # Load annotated image
                 print(" - Layer no: {}".format(layer_no))
-                anim = load_anim( im_files[layer_no], bdr_files[layer_no] )
+                anim = load_anim( im_files[0], bdr_files[0] )
 
                 # Segment annotated image
                 nn_annotate_anim( anim, body_net, centroid_net )
