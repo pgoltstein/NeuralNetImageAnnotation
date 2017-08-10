@@ -43,16 +43,16 @@ def load_anim( im_file, bdr_file ):
     anim = ia.AnnotatedImage()
 
     # Find and load image file
-    print(" Load image: {}".format(im_file))
+    print("Loading image: {}".format(im_file))
     anim.add_image_from_file(file_name=im_file,file_path='',
                     normalize=normalize_images, use_channels=use_channels)
 
     # Find and load border exclusion file
-    print(" Load border exclusion: {}".format(bdr_file))
+    print("Loading border exclusion: {}".format(bdr_file))
     anim.exclude_border = bdr_file
 
     # Display and return
-    print("  >> " + anim.__str__())
+    print(" >> " + anim.__str__())
     return anim
 
 
