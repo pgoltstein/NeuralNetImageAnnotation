@@ -33,6 +33,8 @@ parser = argparse.ArgumentParser( \
 
 parser.add_argument('datapath', type=str,
     help= 'Path with subfolders that contain Exp# (blabla) directories')
+parser.add_argument('-l', '--loadfromanim', action="store_true",
+    help='Loads annotations of already saved anim.npy files (on/off default=off)')
 args = parser.parse_args()
 
 # Settings
@@ -125,31 +127,43 @@ for (dirpath, dirnames, filenames) in os.walk(data_path):
         # Loop multilevel layers
         for layer_no in range(1,n_multilevel_layers+1):
 
-            # Check if image and border exclusion files are present
-            im_files = glob.glob( os.path.join( dirpath,
-                "*L{}-channels.mat".format(layer_no) ) )
-            bdr_files = glob.glob( os.path.join( dirpath,
-                "*Borders{}.mat".format(layer_no) ) )
+            if args.detectfromanim:
+                anim_files = glob.glob( os.path.join( dirpath,
+                    "nnAnim-L{}*.npy".format(layer_no) ) )
 
-            if len(im_files) == 1 and len(bdr_files) == 1:
+                if len(anim_files) > 0:
+                    anim = ia.AnnotatedImage()
+                    anim.load( file_name=anim_files[-1], file_path='' )
+                    print("Loading anim: {}".format(anim_files[-1]))
+                    print(" >> " + anim.__str__())
+                    
 
-                print("\n-------- Commencing nn-annotation --------")
-                print(dirpath)
+            else:
+                # Check if image and border exclusion files are present
+                im_files = glob.glob( os.path.join( dirpath,
+                    "*L{}-channels.mat".format(layer_no) ) )
+                bdr_files = glob.glob( os.path.join( dirpath,
+                    "*Borders{}.mat".format(layer_no) ) )
 
-                # Load annotated image
-                print(" - Layer no: {}".format(layer_no))
-                anim = load_anim( im_files[0], bdr_files[0] )
+                if len(im_files) == 1 and len(bdr_files) == 1:
 
-                # Segment annotated image
-                nn_annotate_anim( anim, body_net, centroid_net )
+                    print("\n-------- Commencing nn-annotation --------")
+                    print(dirpath)
 
-                # Convert segmented image to annotations
-                print("Creating annotations:")
-                anim.generate_cnn_annotations_cb(
-                    min_size=min_size, max_size=max_size,
-                    dilation_factor_centroids=dilation_factor_centroids,
-                    dilation_factor_bodies=dilation_factor_bodies,
-                    re_dilate_bodies=re_dilate_bodies )
+                    # Load annotated image
+                    print(" - Layer no: {}".format(layer_no))
+                    anim = load_anim( im_files[0], bdr_files[0] )
 
-                # Save classified image
-                save_annotations(anim, dirpath, layer_no)
+                    # Segment annotated image
+                    nn_annotate_anim( anim, body_net, centroid_net )
+
+                    # Convert segmented image to annotations
+                    print("Creating annotations:")
+                    anim.generate_cnn_annotations_cb(
+                        min_size=min_size, max_size=max_size,
+                        dilation_factor_centroids=dilation_factor_centroids,
+                        dilation_factor_bodies=dilation_factor_bodies,
+                        re_dilate_bodies=re_dilate_bodies )
+
+                    # Save classified image
+                    save_annotations(anim, dirpath, layer_no)

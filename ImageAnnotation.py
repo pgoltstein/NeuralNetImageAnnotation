@@ -1426,6 +1426,17 @@ class AnnotatedImage(object):
                         ann_body_list[c] = new_ann
             print((3*'\b')+'{:3d}'.format(nr1))
 
+        # Filling holes in bodies
+        print("Filling holes in annotated bodies: {:3d}".format(0),
+            end="", flush=True)
+        for nr in range(len(ann_body_list)):
+            print((3*'\b')+'{:3d}'.format(nr+1), end='', flush=True)
+            masked_image = np.zeros(self.detected_bodies.shape)
+            ann_body_list[nr].mask_body( image=masked_image )
+            masked_image = ndimage.morphology.binary_fill_holes(masked_image)
+            ann_body_list[nr] = Annotation( body_pixels_yx=masked_image)
+        print((3*'\b')+'{:3d}'.format(nr+1))
+
         # Remove too small annotations
         if min_size is not None:
             remove_ix = []
