@@ -80,7 +80,7 @@ def nn_annotate_anim( anim, body_net, centroid_net ):
 
     # Annotate image
     print("Running body detection:")
-    anim.detected_bodies = nn.annotate_image( anim )
+    anim.detected_bodies = nn_bdy.annotate_image( anim )
     nn_bdy.close()
 
 def save_annotations(anim, filepath, layer_no):
