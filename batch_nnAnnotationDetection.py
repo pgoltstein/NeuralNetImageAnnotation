@@ -142,7 +142,7 @@ for (dirpath, dirnames, filenames) in os.walk(data_path):
                         dilation_factor_centroids=dilation_factor_centroids,
                         dilation_factor_bodies=dilation_factor_bodies,
                         re_dilate_bodies=re_dilate_bodies )
-                    ROIbase = os.path.join( filepath, "nnROI{}".format(layer_no) )
+                    ROIbase = os.path.join( dirpath, "nnROI{}".format(layer_no) )
                     anim.export_annotations_to_mat( file_name=ROIbase, file_path='')
 
             else:
