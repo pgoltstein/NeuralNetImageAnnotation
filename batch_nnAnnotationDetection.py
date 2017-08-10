@@ -21,7 +21,6 @@ import glob
 from scipy import ndimage
 from skimage import measure
 
-#########################################################
 # Arguments
 parser = argparse.ArgumentParser( \
     description = \
@@ -34,6 +33,7 @@ parser = argparse.ArgumentParser( \
 
 parser.add_argument('datapath', type=str,
     help= 'Path with subfolders that contain Exp# (blabla) directories')
+args = parser.parse_args()
 
 # Settings
 data_path = str(args.datapath)
