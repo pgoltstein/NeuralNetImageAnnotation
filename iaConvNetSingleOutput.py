@@ -21,8 +21,8 @@ import time, datetime
 import os
 import ImageAnnotation as ia
 
-tf.logging.set_verbosity(tf.logging.ERROR)
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+# tf.logging.set_verbosity(tf.logging.ERROR)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 ########################################################################
 ### Single output neural network class
@@ -1422,7 +1422,7 @@ class ConvNetCnvNFc1(NeuralNetSingleOutput):
         else:
             now = datetime.datetime.now()
             if reduced_output:
-                self.log( " {} @ {}".format( \
+                self.log( "Initializing {} @ {}".format( \
                     self.network_path, now.strftime( "%Y-%m-%d %H:%M" ) ) )
             else:
                 self.log("\n\n++++++++++++++++++++++++++++++++++++++++++++++++++++")
