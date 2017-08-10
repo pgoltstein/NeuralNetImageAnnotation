@@ -33,7 +33,7 @@ parser = argparse.ArgumentParser( \
 
 parser.add_argument('datapath', type=str,
     help= 'Path with subfolders that contain Exp# (blabla) directories')
-parser.add_argument('-l', '--loadfromanim', action="store_true",
+parser.add_argument('-a', '--detectfromanim', action="store_true",
     help='Loads annotations of already saved anim.npy files (on/off default=off)')
 args = parser.parse_args()
 
@@ -136,7 +136,14 @@ for (dirpath, dirnames, filenames) in os.walk(data_path):
                     anim.load( file_name=anim_files[-1], file_path='' )
                     print("Loading anim: {}".format(anim_files[-1]))
                     print(" >> " + anim.__str__())
-                    
+                    print("Creating annotations:")
+                    anim.generate_cnn_annotations_cb(
+                        min_size=min_size, max_size=max_size,
+                        dilation_factor_centroids=dilation_factor_centroids,
+                        dilation_factor_bodies=dilation_factor_bodies,
+                        re_dilate_bodies=re_dilate_bodies )
+                    ROIbase = os.path.join( filepath, "nnROI{}".format(layer_no) )
+                    anim.export_annotations_to_mat( file_name=ROIbase, file_path='')
 
             else:
                 # Check if image and border exclusion files are present
