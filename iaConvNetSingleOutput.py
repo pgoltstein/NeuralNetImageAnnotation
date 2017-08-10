@@ -21,7 +21,7 @@ import time, datetime
 import os
 import ImageAnnotation as ia
 
-tf.logging.set_verbosity(tf.logging.ERROR)
+tf.logging.set_verbosity(tf.logging.WARN)
 
 
 ########################################################################
