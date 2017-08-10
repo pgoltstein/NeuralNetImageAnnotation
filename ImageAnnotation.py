@@ -1350,10 +1350,12 @@ class AnnotatedImage(object):
 
         # Get labeled centroids and bodies
         if do_centroids:
-            centroid_labels = measure.label(detected_centroids, background=0)
+            centroid_labels = measure.label(detected_centroids,
+                background=0, connectivity=1)
             n_centroid_labels = centroid_labels.max()
             print("Found {} putative centroids".format(n_centroid_labels))
-        body_labels = measure.label(detected_bodies, background=0)
+        body_labels = measure.label(detected_bodies,
+            background=0, connectivity=1)
         n_body_labels = body_labels.max()
         print("Found {} putative bodies".format(n_body_labels))
 
