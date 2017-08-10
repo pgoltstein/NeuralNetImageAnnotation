@@ -21,9 +21,22 @@ import glob
 from scipy import ndimage
 from skimage import measure
 
+#########################################################
+# Arguments
+parser = argparse.ArgumentParser( \
+    description = \
+        "Batch-detects annotations by classifying pixels as being part of " + \
+        "full cell bodies (and optional centroids), using a trained " + \
+        " deep convolutional neural network with N convolutional " + \
+        "layers and 1 fully connected layer. Saves as annotated image." + \
+        "Runs on tensorflow framework. " + \
+        "(written by Pieter Goltstein - August 2017)")
+
+parser.add_argument('datapath', type=str,
+    help= 'Path with subfolders that contain Exp# (blabla) directories')
+
 # Settings
-data_path = "I:/Pieter Goltstein/CatLive/K01/Loc1"
-# data_path = "/data/test_batch"
+data_path = str(args.datapath)
 n_multilevel_layers = 2
 body_net = "D:/neuralnets/bnet002"
 centroid_net = "D:/neuralnets/cnet002"
