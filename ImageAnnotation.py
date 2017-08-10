@@ -1436,6 +1436,26 @@ class AnnotatedImage(object):
                         ann_body_list[c] = new_ann
             print((3*'\b')+'{:3d}'.format(nr1))
 
+        print("Re-segmenting annotated bodies to reject orphan patches: {:3d}".format(0),
+            end="", flush=True)
+        for nr in range(len(ann_body_list)):
+            print((3*'\b')+'{:3d}'.format(nr+1), end='', flush=True)
+            masked_image = np.zeros(self.detected_bodies.shape)
+            ann_body_list[nr].mask_body( image=masked_image )
+            labeled_image = measure.label(masked_image,background=0,connectivity=1)
+            n_labels = labeled_image.max()
+            if n_labels > 1:
+                print("\n more than 1 labels found for this annotation")
+            lab_size = []
+            for lab_no in range(1,n_labels+1):
+                lab_im = labeled_image==lab_no
+                lab_size.append( lab_im.sum() )
+            largest_lab = np.argmax(np.array(lab_size))+1
+            masked_image = labeled_image==largest_lab
+            ann_body_list[nr] = Annotation( \
+                body_pixels_yx=labeled_image==largest_lab )
+        print((3*'\b')+'{:3d}'.format(nr+1))
+
         # Remove too small annotations
         if min_size is not None:
             remove_ix = []
