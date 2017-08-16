@@ -63,22 +63,25 @@ if len(anim_files) > 0:
 
 # ************************************************************
 # Show matplotlib images
-RGB = np.zeros((anim.detected_bodies.shape[0],anim.detected_bodies.shape[1],3))
-RGB[:,:,1] = anim.detected_centroids
-RGB[:,:,2] = anim.detected_bodies
+anRGB = np.zeros((anim.detected_bodies.shape[0],anim.detected_bodies.shape[1],3))
+anRGB[:,:,1] = anim.detected_centroids
+anRGB[:,:,2] = anim.detected_bodies
+
+imRGB = anim.RGB()
+for ch in range(3):
+    imRGB[:,:,ch] = imRGB[:,:,ch] / imRGB[:,:,ch].max()
 
 # Show image and classification result
 with sns.axes_style("white"):
     plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
     axr = plt.subplot2grid( (1,2), (0,0) )
-    axr.imshow( anim.RGB(),
-        interpolation='nearest', vmax=anim.RGB().max()*0.7)
+    axr.imshow( imRGB, interpolation='nearest')
     axr.set_title("Image")
     plt.axis('tight')
     plt.axis('off')
 
     axb = plt.subplot2grid( (1,2), (0,1) )
-    axb.imshow(RGB)
+    axb.imshow(anRGB)
     axb.set_title("Annotated bodies and centroids")
     plt.axis('tight')
     plt.axis('off')
@@ -86,8 +89,7 @@ with sns.axes_style("white"):
 with sns.axes_style("white"):
     plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
     axr = plt.subplot2grid( (1,2), (0,0) )
-    axr.imshow( anim.RGB(),
-        interpolation='nearest', vmax=anim.RGB().max()*0.7)
+    axr.imshow( imRGB, interpolation='nearest')
     for an in anim.annotation:
         axr.plot( an.perimeter[:,1], an.perimeter[:,0],
             linewidth=1, color="#ffffff" )
@@ -96,7 +98,7 @@ with sns.axes_style("white"):
     plt.axis('off')
 
     axr = plt.subplot2grid( (1,2), (0,1) )
-    axr.imshow(RGB)
+    axr.imshow(anRGB)
     for an in anim.annotation:
         axr.plot( an.perimeter[:,1], an.perimeter[:,0],
             linewidth=1, color="#ffffff" )
