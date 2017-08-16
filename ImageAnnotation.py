@@ -61,6 +61,10 @@ DEFAULT_ZOOM=(33,33)
 
 import numpy as np
 from skimage import measure
+from skimage import segmentation
+from skimage import morphology
+from skimage.morphology import watershed
+from skimage.feature import peak_local_max
 from skimage.io import imread
 from scipy import ndimage
 from scipy.io import loadmat,savemat
@@ -1314,16 +1318,17 @@ class AnnotatedImage(object):
         if self.exclude_border['bottom'] > 0:
             detected_bodies[ -self.exclude_border['bottom']:, : ] = 0
 
-        # # Split centroids that are too long and thin
-        # if do_centroids:
-        #     # print("Splitting lengthy centroids {:3d}".format(0),
-        #     #         end="", flush=True)
-        #     for nr in range(1,n_centroid_labels+1):
-        #         # print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
-        #         mask = centroid_labels==nr
-        #         props = measure.regionprops(mask)
-        #         print(props.equivalent_diameter)
-        #     # print((3*'\b')+'{:3d}'.format(nr))
+        # Attempt to remove holes in annotated centroids and smooth edges
+        if do_centroids:
+            detected_centroids = \
+                ndimage.morphology.binary_fill_holes(detected_centroids)
+            detected_centroids = ndimage.binary_erosion(detected_centroids)
+            detected_centroids = ndimage.binary_dilation(detected_centroids)
+
+        # Attempt to remove holes in annotated bodies and smooth edges
+        detected_bodies = ndimage.morphology.binary_fill_holes(detected_bodies)
+        detected_bodies = ndimage.binary_dilation(detected_bodies)
+        detected_bodies = ndimage.binary_erosion(detected_bodies)
 
         # Dilate or erode centroids
         if do_centroids:
@@ -1344,7 +1349,7 @@ class AnnotatedImage(object):
             for _ in range(-1*dilation_factor_bodies):
                 detected_bodies = ndimage.binary_erosion(detected_bodies)
 
-        # Get rid of centroids that have no bodies associated with them
+        # Get rid of centroid pixels that have no bodies associated with them
         if do_centroids:
             detected_centroids[detected_bodies==0] = 0
 
@@ -1363,6 +1368,30 @@ class AnnotatedImage(object):
         if n_centroid_labels == 0 or n_body_labels == 0:
             print("Aborting ...")
             return 0
+
+        # Split centroids that are too long and thin
+        if do_centroids:
+            print("Splitting lengthy centroids {:3d}".format(0),
+                    end="", flush=True)
+            for nr in range(1,n_centroid_labels+1):
+                print((3*'\b')+'{:3d}'.format(nr), end='', flush=True)
+                mask = np.zeros_like(centroid_labels)
+                mask[centroid_labels==nr] = 1
+                props = measure.regionprops( mask )
+                if props[0].major_axis_length > 3*props[0].minor_axis_length:
+                    distance = ndimage.distance_transform_edt(mask==1)
+                    local_maxi = peak_local_max(distance, min_distance=5,
+                        indices=False, labels=mask==1)
+                    markers = morphology.label(local_maxi)
+                    new_label = watershed( -distance, markers, mask=mask==1)
+                    if new_label.max() > 1:
+                        centroid_labels[new_label==1] = nr
+                        for lab_nr in range(2,new_label.max()+1):
+                            centroid_labels[new_label==lab_nr] = \
+                                centroid_labels.max()+1
+            n_centroid_labels = centroid_labels.max()
+            print((3*'\b')+'{:3d}'.format(nr))
+            print("Now: {} putative centroids".format(n_centroid_labels))
 
         # If only bodies, convert labeled bodies annotations
         if not do_centroids:

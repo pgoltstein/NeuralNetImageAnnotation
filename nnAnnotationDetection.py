@@ -52,15 +52,15 @@ parser.add_argument('-bx', '--borderexclude', type=str,
 parser.add_argument('-n', '--networkpath', type=str,
                     help= 'Path to neural network folder')
 
-parser.add_argument('-min', '--minsize', type=int, default=100,
-                    help= 'Minimum size of annotation bodies (default=100)')
-parser.add_argument('-max', '--maxsize', type=int, default=1000,
-                    help= 'Maximum size of annotation bodies (default=1000)')
-parser.add_argument('-cld', '--centroidlabeldilation', type=int, default=-1,
+parser.add_argument('-min', '--minsize', type=int, default=120,
+                    help= 'Minimum size of annotation bodies (default=120)')
+parser.add_argument('-max', '--maxsize', type=int, default=750,
+                    help= 'Maximum size of annotation bodies (default=750)')
+parser.add_argument('-cld', '--centroidlabeldilation', type=int, default=0,
                     help= 'Dilation factor to apply to labeled centroids ' + \
                             'image before detection. If -1, it removes'+ \
                             'centroids that have only a single pixel' + \
-                            '(default=-1)')
+                            '(default=0)')
 parser.add_argument('-bld', '--bodylabeldilation', type=int, default=0,
                     help= 'Dilation factor to apply to labeled bodies ' + \
                             ' image before detection (default=0)')
