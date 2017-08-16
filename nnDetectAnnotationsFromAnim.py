@@ -28,13 +28,13 @@ parser = argparse.ArgumentParser( \
 
 parser.add_argument('datapath', type=str,
     help= 'Path to folder that contains AnnotatedImage class files')
-parser.add_argument('-n', '--n_multilevel_layers', type=int, default=2,
-                    help= 'Number of multilevel layers in folder (default=2)')
+parser.add_argument('-l', '--multilevel_layer_no', type=int, default=1,
+                    help= 'Number of the multilevel layer to load (default=1)')
 args = parser.parse_args()
 
 # Settings
 annotated_image = str(args.annotated_image)
-n_multilevel_layers = args.n_multilevel_layers
+layer_no = args.multilevel_layer_no
 min_size = 150
 max_size = 1000
 dilation_factor_centroids = -1
@@ -42,22 +42,21 @@ dilation_factor_bodies = 0
 re_dilate_bodies = 0
 normalize_images = True
 
-# Loop multilevel layers
-for layer_no in range(1,n_multilevel_layers+1):
-    anim_files = glob.glob( os.path.join( dirpath,
-        "nnAnim-L{}*.npy".format(layer_no) ) )
-    if len(anim_files) > 0:
+# Find nnAnIm file
+anim_files = glob.glob( os.path.join( dirpath,
+    "nnAnim-L{}*.npy".format(layer_no) ) )
+if len(anim_files) > 0:
 
-        # Detect annotations
-        anim = ia.AnnotatedImage()
-        anim.load( file_name=anim_files[-1], file_path='' )
-        print("Loading anim: {}".format(anim_files[-1]))
-        print(" >> " + anim.__str__())
-        print("Creating annotations:")
-        anim.generate_cnn_annotations_cb(
-            min_size=min_size, max_size=max_size,
-            dilation_factor_centroids=dilation_factor_centroids,
-            dilation_factor_bodies=dilation_factor_bodies,
-            re_dilate_bodies=re_dilate_bodies )
-        ROIbase = os.path.join( dirpath, "nnROI{}".format(layer_no) )
-        anim.export_annotations_to_mat( file_name=ROIbase, file_path='')
+    # Detect annotations
+    anim = ia.AnnotatedImage()
+    anim.load( file_name=anim_files[-1], file_path='' )
+    print("Loading anim: {}".format(anim_files[-1]))
+    print(" >> " + anim.__str__())
+    print("Creating annotations:")
+    anim.generate_cnn_annotations_cb(
+        min_size=min_size, max_size=max_size,
+        dilation_factor_centroids=dilation_factor_centroids,
+        dilation_factor_bodies=dilation_factor_bodies,
+        re_dilate_bodies=re_dilate_bodies )
+    ROIbase = os.path.join( dirpath, "nnROI{}".format(layer_no) )
+    anim.export_annotations_to_mat( file_name=ROIbase, file_path='')
