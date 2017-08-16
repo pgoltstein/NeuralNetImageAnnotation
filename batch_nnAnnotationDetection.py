@@ -134,8 +134,8 @@ for exp_path in get_exp_folders(data_path):
         for layer_no in range(1,n_multilevel_layers+1):
 
             if args.detectfromanim:
-                anim_files = glob.glob( os.path.join( exp_path,
-                    "nnAnim-L{}*.npy".format(layer_no) ) )
+                anim_files = sorted(glob.glob( os.path.join( exp_path,
+                    "nnAnim-L{}*.npy".format(layer_no) ) ))
 
                 if len(anim_files) > 0:
                     anim = ia.AnnotatedImage()
