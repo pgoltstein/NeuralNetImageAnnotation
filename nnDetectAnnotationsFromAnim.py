@@ -42,12 +42,11 @@ dilation_factor_bodies = 0
 re_dilate_bodies = 0
 normalize_images = True
 
-# Find nnAnIm file
+# ************************************************************
+# Find nnAnIm file and detect annotations
 anim_files = sorted(glob.glob( os.path.join( datapath,
     "nnAnim-L{}*.npy".format(layer_no) ) ))
 if len(anim_files) > 0:
-
-    # Detect annotations
     anim = ia.AnnotatedImage()
     anim.load( file_name=anim_files[-1], file_path='' )
     print("Loading anim: {}".format(anim_files[-1]))
@@ -60,3 +59,50 @@ if len(anim_files) > 0:
         re_dilate_bodies=re_dilate_bodies )
     ROIbase = os.path.join( datapath, "nnROI{}".format(layer_no) )
     anim.export_annotations_to_mat( file_name=ROIbase, file_path='')
+
+
+# ************************************************************
+# Show matplotlib images
+RGB = np.zeros((anim.detected_bodies.shape[0],anim.detected_bodies.shape[1],3))
+RGB[:,:,1] = anim.detected_centroids
+RGB[:,:,2] = anim.detected_bodies
+
+# Show image and classification result
+with sns.axes_style("white"):
+    plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
+    axr = plt.subplot2grid( (1,2), (0,0) )
+    axr.imshow( anim.RGB(),
+        interpolation='nearest', vmax=anim.RGB().max()*0.7)
+    axr.set_title("Image")
+    plt.axis('tight')
+    plt.axis('off')
+
+    axb = plt.subplot2grid( (1,2), (0,1) )
+    axb.imshow(RGB)
+    axb.set_title("Annotated bodies and centroids")
+    plt.axis('tight')
+    plt.axis('off')
+
+with sns.axes_style("white"):
+    plt.figure(figsize=(12,8), facecolor='w', edgecolor='w')
+    axr = plt.subplot2grid( (1,2), (0,0) )
+    axr.imshow( anim.RGB(),
+        interpolation='nearest', vmax=anim.RGB().max()*0.7)
+    for an in anim.annotation:
+        axr.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    axr.set_title("Annotated image")
+    plt.axis('tight')
+    plt.axis('off')
+
+    axr = plt.subplot2grid( (1,2), (0,1) )
+    axr.imshow(RGB)
+    for an in anim.annotation:
+        axr.plot( an.perimeter[:,1], an.perimeter[:,0],
+            linewidth=1, color="#ffffff" )
+    axr.set_title("Annotated image")
+    plt.axis('tight')
+    plt.axis('off')
+
+print('Done!\n')
+# plt.show()
