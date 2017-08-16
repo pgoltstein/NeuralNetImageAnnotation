@@ -33,7 +33,7 @@ parser.add_argument('-l', '--multilevel_layer_no', type=int, default=1,
 args = parser.parse_args()
 
 # Settings
-annotated_image = str(args.annotated_image)
+datapath = str(args.datapath)
 layer_no = args.multilevel_layer_no
 min_size = 150
 max_size = 1000
@@ -43,7 +43,7 @@ re_dilate_bodies = 0
 normalize_images = True
 
 # Find nnAnIm file
-anim_files = glob.glob( os.path.join( dirpath,
+anim_files = glob.glob( os.path.join( datapath,
     "nnAnim-L{}*.npy".format(layer_no) ) )
 if len(anim_files) > 0:
 
@@ -58,5 +58,5 @@ if len(anim_files) > 0:
         dilation_factor_centroids=dilation_factor_centroids,
         dilation_factor_bodies=dilation_factor_bodies,
         re_dilate_bodies=re_dilate_bodies )
-    ROIbase = os.path.join( dirpath, "nnROI{}".format(layer_no) )
+    ROIbase = os.path.join( datapath, "nnROI{}".format(layer_no) )
     anim.export_annotations_to_mat( file_name=ROIbase, file_path='')
