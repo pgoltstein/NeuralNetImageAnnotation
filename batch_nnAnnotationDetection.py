@@ -140,7 +140,7 @@ for exp_path in get_exp_folders(data_path):
                 if len(anim_files) > 0:
                     anim = ia.AnnotatedImage()
                     anim.load( file_name=anim_files[-1], file_path='' )
-                    print("Loading anim: {}".format(anim_files[-1]))
+                    print("\nLoading anim: {}".format(anim_files[-1]))
                     print(" >> " + anim.__str__())
                     print("Creating annotations:")
                     anim.generate_cnn_annotations_cb(
