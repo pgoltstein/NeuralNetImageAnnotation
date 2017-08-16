@@ -116,19 +116,25 @@ def save_annotations(anim, filepath, layer_no):
     anim.save(file_name=anim_name, file_path='')
     anim.export_annotations_to_mat( file_name=ROIbase, file_path='')
 
+def get_exp_folders(data_path):
+    """ Detects all folders with Exp in the name, and returns sorted list
+    """
+    exp_folders = []
+    for (dirpath, dirnames, filenames) in os.walk(data_path):
+        if "Exp" in dirpath:
+            exp_folders.append(dirpath)
+    return sorted(exp_folders)
+
 
 ########################################################################
 # Main loop across all folders; locations, dates, experiments
-for (dirpath, dirnames, filenames) in os.walk(data_path):
-
-    # Check if experiment folders
-    if "Exp" in dirpath:
+for exp_path in get_exp_folders(data_path):
 
         # Loop multilevel layers
         for layer_no in range(1,n_multilevel_layers+1):
 
             if args.detectfromanim:
-                anim_files = glob.glob( os.path.join( dirpath,
+                anim_files = glob.glob( os.path.join( exp_path,
                     "nnAnim-L{}*.npy".format(layer_no) ) )
 
                 if len(anim_files) > 0:
@@ -142,20 +148,20 @@ for (dirpath, dirnames, filenames) in os.walk(data_path):
                         dilation_factor_centroids=dilation_factor_centroids,
                         dilation_factor_bodies=dilation_factor_bodies,
                         re_dilate_bodies=re_dilate_bodies )
-                    ROIbase = os.path.join( dirpath, "nnROI{}".format(layer_no) )
+                    ROIbase = os.path.join( exp_path, "nnROI{}".format(layer_no) )
                     anim.export_annotations_to_mat( file_name=ROIbase, file_path='')
 
             else:
                 # Check if image and border exclusion files are present
-                im_files = glob.glob( os.path.join( dirpath,
+                im_files = glob.glob( os.path.join( exp_path,
                     "*L{}-channels.mat".format(layer_no) ) )
-                bdr_files = glob.glob( os.path.join( dirpath,
+                bdr_files = glob.glob( os.path.join( exp_path,
                     "*Borders{}.mat".format(layer_no) ) )
 
                 if len(im_files) == 1 and len(bdr_files) == 1:
 
                     print("\n-------- Commencing nn-annotation --------")
-                    print(dirpath)
+                    print(exp_path)
 
                     # Load annotated image
                     print(" - Layer no: {}".format(layer_no))
@@ -173,4 +179,4 @@ for (dirpath, dirnames, filenames) in os.walk(data_path):
                         re_dilate_bodies=re_dilate_bodies )
 
                     # Save classified image
-                    save_annotations(anim, dirpath, layer_no)
+                    save_annotations(anim, exp_path, layer_no)
