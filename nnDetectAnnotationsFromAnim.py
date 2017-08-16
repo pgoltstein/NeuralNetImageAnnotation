@@ -43,8 +43,8 @@ re_dilate_bodies = 0
 normalize_images = True
 
 # Find nnAnIm file
-anim_files = glob.glob( os.path.join( datapath,
-    "nnAnim-L{}*.npy".format(layer_no) ) )
+anim_files = sorted(glob.glob( os.path.join( datapath,
+    "nnAnim-L{}*.npy".format(layer_no) ) ))
 if len(anim_files) > 0:
 
     # Detect annotations
