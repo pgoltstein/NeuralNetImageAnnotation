@@ -1643,7 +1643,7 @@ class ConvNetCnvNFc1(NeuralNetSingleOutput):
         # Define which filters to optimize
         filter_layer = self.conv_n_layers-1
         n_filters = int(np.min((self.conv_n_chan_L[filter_layer+1],96)))
-        n_iterations = 25
+        n_iterations = 50
         filter_ims = np.zeros( (n_filters,
             self.n_input_channels * self.y_res * self.x_res) )
 
