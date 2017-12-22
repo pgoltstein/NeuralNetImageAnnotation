@@ -1,12 +1,12 @@
 # Default Settings
-# network_path = '/nn'
-# training_data_path = '/data/Dataset_small'
-network_path = 'D:/neuralnets'
-training_data_path = 'D:/data/roi/DataSet_small1'
+network_path = '/data/nn'
+training_data_path = '/data/roi/Dataset_small'
+# network_path = 'D:/neuralnets'
+# training_data_path = 'D:/data/roi/DataSet_small1'
 
 # Annotation arguments
 selection_type = "Bodies"
-segment_all = True
+segment_all = False
 image_size = 31 # Size of the images around the annotations
 annotation_size = 21 # Size of the annotations to be made
 morph_annotations = False # Random morphing of annotations
@@ -15,23 +15,23 @@ centroid_dilation_factor = 2 # Dilation/erosion (negative) of annotation centroi
 body_dilation_factor = 0 # Dilation/erosion (negative) of annotation body
 sample_ratio = None # Fraction samples per class (None=all equal).
 annotation_border_ratio = None # Fraction from border between pos and neg samples
-use_channels = [1,2,4] # List of channels that are to be used, 1 based e.g. [1,2]
+use_channels = [1,2] # List of channels that are to be used, 1 based e.g. [1,2]
 normalize_samples = False # True/False
 downsample_image = None # downsampling of image by factor of #
 
 # Training arguments
-training_procedure = "batch" # "batch" or "epochs"
-n_epochs = 25
-m_samples = 2000
+training_procedure = "epochs" # "batch" or "epochs"
+n_epochs = 10
+m_samples = 1000
 number_of_batches = 10
-batch_size = 5000
-report_every = 5
+batch_size = 1000
+report_every = 1
 fc_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
-alpha = 0.001 # Learning rate (typically smaller than 0.001)
+alpha = 0.01 # Learning rate (typically smaller than 0.001)
 
 # Network arguments
 network_type = "cNfcN" # Neural net type "cNfcN" is the only option for now
-conv_n_layers = 4 # Number of convolutional layers
+conv_n_layers = 2 # Number of convolutional layers
 conv_size = 3 # Size of convolutional filters
 conv_chan = 64 # Number of convolution channels
 conv_pool = 2 # Number of channels to pool after conv-step

@@ -1,8 +1,8 @@
 # Default Settings
-# network_path = '/nn'
-# training_data_path = '/data/Dataset_small'
-network_path = 'D:/neuralnets'
-training_data_path = 'D:/data/roi/DataSet1'
+network_path = '/nn'
+training_data_path = '/data/Dataset_small'
+# network_path = 'D:/neuralnets'
+# training_data_path = 'D:/data/roi/DataSet1'
 
 # Annotation arguments
 annotation_size = 33 # Size of the images around the annotations
