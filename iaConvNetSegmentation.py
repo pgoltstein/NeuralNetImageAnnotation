@@ -942,11 +942,6 @@ class ConvNet_CnvN_FcN_Nout(NeuralNetSegmentation):
             channel_order=channel_selector, amplitude_scaling=chan_ampl,
             line_color=1, auto_scale=True, return_borders=True )
 
-        print("\n\n---- min, max")
-        print(grid_im.min())
-        print(grid_im.max())
-        print("\n")
-
         # Plot
         with sns.axes_style("white"):
             fig,ax = plt.subplots(figsize=(12,8), facecolor='w', edgecolor='w')
