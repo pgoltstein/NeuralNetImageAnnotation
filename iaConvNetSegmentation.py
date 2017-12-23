@@ -894,6 +894,15 @@ class ConvNet_CnvN_FcN_Nout(NeuralNetSegmentation):
         n_iterations = 25
         filter_ims = np.zeros( (n_filters,
             self.n_input_channels * self.y_res * self.x_res) )
+        if self.n_input_channels == 3:
+            channel_selector = (0,1,2)
+            chan_ampl = (1,1,1)
+        elif self.n_input_channels == 2:
+            channel_selector = (0,1,1)
+            chan_ampl = (1,1,0)
+        elif self.n_input_channels == 1:
+            channel_selector = (0,0,0)
+            chan_ampl = (1,1,1)
 
         # Loop all filters
         print("Maximizing output of {} filters: {:3d}".format(n_filters,0),
@@ -930,8 +939,13 @@ class ConvNet_CnvN_FcN_Nout(NeuralNetSegmentation):
         grid_im,_,brdr = ia.image_grid_RGB( filter_ims,
             n_channels=self.n_input_channels,
             image_size=(self.y_res,self.x_res), n_x=12, n_y=8,
-            channel_order=(0,1,2), amplitude_scaling=(1,1,1),
+            channel_order=channel_selector, amplitude_scaling=chan_ampl,
             line_color=1, auto_scale=True, return_borders=True )
+
+        print("\n\n---- min, max")
+        print(grid_im.min())
+        print(grid_im.max())
+        print("\n")
 
         # Plot
         with sns.axes_style("white"):
