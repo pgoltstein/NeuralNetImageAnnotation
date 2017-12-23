@@ -276,7 +276,7 @@ def image_grid_RGB( lin_images, n_channels, image_size, annotation_nrs=None,
                     channel_order=channel_order,
                     amplitude_scaling=amplitude_scaling )
                 if auto_scale:
-                    rgb_im = rgb_im / rgb_im.max()
+                    rgb_im = (rgb_im-rgb_im.min()) / (rgb_im.max()-rgb_im.min())
                 grid[np.ix_(y_coords[y],x_coords[x],rgb_coords)] = rgb_im
                 borders[np.ix_(y_coords[y],x_coords[x],rgb_coords)] = 0
                 center_shift.append( \
@@ -1585,7 +1585,7 @@ class AnnotatedImage(object):
                             self.annotation[annotation_nrs[im_count]].x, image_size,
                             normalize=normalize_samples, pad_value=0 )
                     if auto_scale:
-                        rgb_im = rgb_im / rgb_im.max()
+                        rgb_im = (rgb_im-rgb_im.min()) / (rgb_im.max()-rgb_im.min())
                     grid[np.ix_(y_coords[y],x_coords[x],rgb_coords)] = rgb_im
                     center_shift.append( \
                         ( y_coords[y][0] + (0.5*image_size[0]) -0.5,
