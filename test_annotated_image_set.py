@@ -112,9 +112,9 @@ samples,labels,annotations = ais1.data_sample( \
         return_size=annot_size, return_annotations='bodies',
         m_samples=30,
         # sample_ratio=None,
-        sample_ratio=(0,1,0),
+        sample_ratio=(0.5,0.5,0),
         annotation_border_ratio=0.5, normalize_samples=True,
-        segment_all=True, morph_annotations=False,
+        segment_all=False, morph_annotations=False,
         rotation_list=rotation_list, scale_list_x=scale_list_x,
         scale_list_y=scale_list_y, noise_level_list=noise_level_list )
 # print(labels)
