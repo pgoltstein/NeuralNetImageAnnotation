@@ -1817,10 +1817,10 @@ class AnnotatedImageSet(object):
         exclude_border: Load border exclude region from file
         """
         # Get list of all .tiff file and .mat files
-        image_files = glob.glob(path.join(data_directory,'*channels.mat'))
+        image_files = sorted(glob.glob(path.join(data_directory,'*channels.mat')))
         if len(image_files) == 0:
-            image_files = glob.glob(path.join(data_directory,'*.tiff'))
-        mat_files = glob.glob(path.join(data_directory,'*ROI*.mat'))
+            image_files = sorted(glob.glob(path.join(data_directory,'*.tiff')))
+        mat_files = sorted(glob.glob(path.join(data_directory,'*ROI*.mat')))
 
         # Exclude border files
         if isinstance(exclude_border,str):

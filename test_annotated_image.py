@@ -20,8 +20,8 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 # Overall settings
-filepath = '/data/EGR/DataSet1'
-# filepath = '/data/DataSet_small1'
+# filepath = '/data/EGR/DataSet1'
+filepath = '/data/roi/DataSet_small'
 im_size = (51,51)
 rotation_list = np.arange(0,360,1)
 scale_list_x = np.arange(0.9,1.1,0.01)
@@ -36,8 +36,8 @@ print("String output of anim1:")
 print(" >> " + anim1.__str__())
 
 # Import annotations from ROI file (matlab)
-roifile = 'EE1_Depth100_161128ROI.mat'
-# roifile = 'F03-Loc5-V1-20160202-ovlSplitROI1.mat'
+# roifile = 'EE1_Depth100_161128ROI.mat'
+roifile = 'F03-Loc5-V1-20160202-ovlSplitROI1.mat'
 print(" ")
 print("Importing annotations from ROI file (matlab) to anim1:")
 print(os.path.join(filepath,roifile))
@@ -45,8 +45,8 @@ anim1.import_annotations_from_mat(file_name=roifile,file_path=filepath)
 print(" >> " + anim1.__str__())
 
 # Add an image to anim
-imfile = 'EE1_Depth100_161128.tiff'
-# imfile = 'F03-Loc5-V1-20160202-L1-channels.mat'
+# imfile = 'EE1_Depth100_161128.tiff'
+imfile = 'F03-Loc5-V1-20160202-L1-channels.mat'
 print(" ")
 print("Importing image from .mat file to anim1:")
 print(os.path.join(filepath,roifile))
