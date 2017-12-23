@@ -1201,7 +1201,8 @@ class AnnotatedImage(object):
                         pix_y[p], pix_x[p],
                         zoom_size=zoom_size, normalize=normalize_samples ) )
                     if return_annotations and not segment_all:
-                        annotations[count,:] = image2vec( zoom( \
+                        annotations[count,:] = 0 if nr == 0 else \
+                            image2vec( zoom( \
                             return_im_label==nr, pix_y[p], pix_x[p],
                             zoom_size=return_size, normalize=normalize_samples ) )
                     elif return_annotations and segment_all:
@@ -1219,7 +1220,8 @@ class AnnotatedImage(object):
                         rotation=rotation, scale_xy=scale,
                         normalize=normalize_samples, noise_level=noise_level ) )
                     if return_annotations and not segment_all:
-                        annotations[count,:] = image2vec( morphed_zoom( \
+                        annotations[count,:] = 0 if nr == 0 else \
+                            image2vec( morphed_zoom( \
                             (return_im_label==nr).astype(np.float),
                             pix_y[p], pix_x[p], return_size,
                             rotation=rotation, scale_xy=scale,
@@ -1242,7 +1244,8 @@ class AnnotatedImage(object):
                             brdr_pix_y[p], brdr_pix_x[p],
                             zoom_size=zoom_size, normalize=normalize_samples ) )
                         if return_annotations and not segment_all:
-                            annotations[count,:] = image2vec( zoom( return_im_label==nr,
+                            annotations[count,:] = 0 if nr == 0 else \
+                                image2vec( zoom( return_im_label==nr,
                                 brdr_pix_y[p], brdr_pix_x[p],
                                 zoom_size=return_size, normalize=normalize_samples ) )
                         elif return_annotations and segment_all:
@@ -1260,7 +1263,8 @@ class AnnotatedImage(object):
                             rotation=rotation, scale_xy=scale,
                             normalize=normalize_samples, noise_level=noise_level ) )
                         if return_annotations and not segment_all:
-                            annotations[count,:] = image2vec( morphed_zoom(
+                            annotations[count,:] = 0 if nr == 0 else \
+                                image2vec( morphed_zoom(
                                 (return_im_label==nr).astype(np.float),
                                 brdr_pix_y[p], brdr_pix_x[p], return_size,
                                 rotation=rotation, scale_xy=scale,
