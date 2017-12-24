@@ -1331,10 +1331,20 @@ class ConvNetCnv2Fc1(NeuralNetSingleOutput):
                 plt.axis('tight')
                 plt.axis('off')
 
+        if self.n_input_channels == 3:
+            channel_selector = (0,1,2)
+            chan_ampl = (1,1,1)
+        elif self.n_input_channels == 2:
+            channel_selector = (0,1,1)
+            chan_ampl = (1,1,0)
+        elif self.n_input_channels == 1:
+            channel_selector = (0,0,0)
+            chan_ampl = (1,1,1)
+
         grid_im,_,brdr = ia.image_grid_RGB( return_im,
             n_channels=self.n_input_channels,
             image_size=(self.y_res,self.x_res), n_x=8, n_y=8,
-            channel_order=(0,1,2), amplitude_scaling=(1,1,1),
+            channel_order=channel_selector, amplitude_scaling=chan_ampl,
             line_color=1, auto_scale=True, return_borders=True )
         fig, ax = plt.subplots(figsize=(9,9), facecolor='w', edgecolor='w')
         with sns.axes_style("white"):
