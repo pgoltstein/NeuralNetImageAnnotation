@@ -1,6 +1,6 @@
 # Default Settings
-network_path = '/nn'
-training_data_path = '/data/Dataset_small'
+network_path = '/data/nn'
+training_data_path = '/data/roi/Dataset_small1'
 # network_path = 'D:/neuralnets'
 # training_data_path = 'D:/data/roi/DataSet1'
 
@@ -12,7 +12,7 @@ centroid_dilation_factor = 2 # Dilation/erosion (negative) of annotation centroi
 body_dilation_factor = 0 # Dilation/erosion (negative) of annotation body
 sample_ratio = None # Fraction samples per class (None=all equal).
 annotation_border_ratio = None # Fraction from border between pos and neg samples
-use_channels = [1,2,4] # List of channels that are to be used, 1 based e.g. [1,2]
+use_channels = [1,2] # List of channels that are to be used, 1 based e.g. [1,2]
 normalize_samples = False # True/False
 downsample_image = None # downsampling of image by factor of #
 
@@ -28,7 +28,7 @@ alpha = 0.001 # Learning rate (typically smaller than 0.001)
 
 # Network arguments
 network_type = "cNfc1" # Neural net type "1layer", "2layer", "c2fc1"
-conv_n_layers = 4 # Size of convolutional filters (if applicable)
+conv_n_layers = 2 # Size of convolutional filters (if applicable)
 conv_size = 3 # Size of convolutional filters (if applicable)
 conv_chan = 16 # Number of convolution channels (if applicable)
 conv_pool = 2 # Number of channels to pool after conv-step  (if applicable)
