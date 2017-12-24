@@ -109,7 +109,7 @@ print(" ")
 print("Get small training set with morphed annotations from ais1")
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='bodies',
-        return_size=annot_size, return_annotations='bodies',
+        return_size=annot_size, return_annotations='outline',
         m_samples=30,
         # sample_ratio=None,
         sample_ratio=(0.5,0.5,0),

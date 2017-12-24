@@ -500,6 +500,31 @@ class Annotation(object):
             if keep_centroid:
                 image[self._y.astype(int),self._x.astype(int)] = mask_value
 
+    def mask_outline(self, image, dilation_factor=0,
+                        mask_value=1, keep_centroid=True):
+        """Draws mask of all outline pixels in image
+        image:            Single 2d numpy.ndarray
+        dilation_factor:  >0 for dilation, <0 for erosion
+        mask_value:       Value to place in image
+        keep_centroid:    Prevents mask from disappearing altogether with
+                          negative dilation factors
+        returns masked image"""
+
+        # Draw mask on temp image, dilate, get pixels, then draw in image
+        temp_mask = np.zeros_like(image,dtype=bool)
+        temp_mask[ self._body[:,0],self._body[:,1] ] = True
+        if dilation_factor>0:
+            for _ in range(dilation_factor):
+                temp_mask = ndimage.binary_dilation(temp_mask)
+        elif dilation_factor<0:
+            for _ in range(-1*dilation_factor):
+                temp_mask = ndimage.binary_erosion(temp_mask)
+        temp_mask = temp_mask - ndimage.binary_erosion(temp_mask)
+        temp_body = np.array(np.where(temp_mask == True)).transpose()
+        image[ temp_body[:,0], temp_body[:,1] ] = mask_value
+        if keep_centroid:
+            image[self._y.astype(int),self._x.astype(int)] = mask_value
+
     def mask_centroid(self, image, dilation_factor=0, mask_value=1):
         """Draws mask of centroid pixel in image
         image:            Single 2d numpy.ndarray
@@ -548,8 +573,12 @@ class AnnotatedImage(object):
             """
         self._downsample = downsample
         self._bodies = None
+        self._bodies_type_nr = None
         self._body_dilation_factor = 0
+        self._outlines = None
+        self._outlines_type_nr = None
         self._centroids = None
+        self._centroids_type_nr = None
         self._centroid_dilation_factor = 0
         self._include_annotation_typenrs = None
         self._y_res = 0
@@ -630,6 +659,7 @@ class AnnotatedImage(object):
         a numpy.ndarray"""
         self._channel = []
         self._bodies = None
+        self._outlines = None
         self._centroids = None
         y_res_old,x_res_old = self.y_res,self.x_res
         if isinstance( image_data, list):
@@ -651,6 +681,7 @@ class AnnotatedImage(object):
         if self.n_annotations > 0 and ( (y_res_old != self.y_res)
                                     or (x_res_old != self.x_res) ):
             self._set_bodies()
+            self._set_outlines()
             self._set_centroids()
 
     @property
@@ -765,6 +796,7 @@ class AnnotatedImage(object):
         if self.n_annotations > 0 and ( (y_res_old != self.y_res)
                                     or (x_res_old != self.x_res) ):
             self._set_bodies()
+            self._set_outlines()
             self._set_centroids()
 
     def RGB( self, channel_order=(0,1,2), amplitude_scaling=(1,1,1) ):
@@ -850,6 +882,7 @@ class AnnotatedImage(object):
             self.include_annotation_typenrs = type_nr_list
         if self.n_channels > 0:
             self._set_bodies()
+            self._set_outlines()
             self._set_centroids()
 
     def import_annotations_from_mat(self, file_name, file_path='.'):
@@ -972,6 +1005,32 @@ class AnnotatedImage(object):
         """Updates the internal body annotation mask with dilation_factor"""
         self._body_dilation_factor = dilation_factor
         self._set_bodies()
+        self._set_outlines()
+
+
+    # ******************************************
+    # *****  Handling the annotated outlines *****
+    @property
+    def outlines(self):
+        """Returns an image with annotation outlines masked"""
+        return self._outlines
+
+    @property
+    def outlines_typenr(self):
+        """Returns an image with annotation outlines masked by type_nr"""
+        return self._outlines_type_nr
+
+    def _set_outlines(self):
+        """Sets the internal outline annotation mask with specified parameters"""
+        self._outlines = np.zeros_like(self._channel[0])
+        self._outlines_type_nr = np.zeros_like(self._channel[0])
+        for nr in range(self.n_annotations):
+            if self._annotation[nr].type_nr in self.include_annotation_typenrs:
+                self._annotation[nr].mask_outline(self._outlines,
+                    dilation_factor=self._body_dilation_factor,
+                    mask_value=nr+1, keep_centroid=True)
+                self._outlines_type_nr[self._outlines==nr+1] = \
+                                        self._annotation[nr].type_nr
 
 
     # *********************************************
@@ -1075,6 +1134,7 @@ class AnnotatedImage(object):
         if self.n_channels > 0:
             self._set_centroids()
             self._set_bodies()
+            self._set_outlines()
 
     def get_batch( self, zoom_size, annotation_type='Bodies', m_samples=100,
             return_size=None, return_annotations=False,
@@ -1134,6 +1194,9 @@ class AnnotatedImage(object):
         elif annotation_type.lower() == 'bodies':
             im_label = self.bodies
             im_label_class = self.bodies_typenr
+        elif annotation_type.lower() == 'outline':
+            im_label = self.outlines
+            im_label_class = self.outlines_typenr
 
         # Get labeled image for return annotations
         if return_annotations is not False:
@@ -1141,6 +1204,8 @@ class AnnotatedImage(object):
                 return_im_label = self.centroids
             elif return_annotations.lower() == 'bodies':
                 return_im_label = self.bodies
+            elif return_annotations.lower() == 'outline':
+                return_im_label = self.outlines
 
         # Predefine output matrices
         samples = np.zeros( (m_samples,
