@@ -1194,7 +1194,7 @@ class AnnotatedImage(object):
         elif annotation_type.lower() == 'bodies':
             im_label = self.bodies
             im_label_class = self.bodies_typenr
-        elif annotation_type.lower() == 'outline':
+        elif annotation_type.lower() == 'outlines':
             im_label = self.outlines
             im_label_class = self.outlines_typenr
 
@@ -1204,7 +1204,7 @@ class AnnotatedImage(object):
                 return_im_label = self.centroids
             elif return_annotations.lower() == 'bodies':
                 return_im_label = self.bodies
-            elif return_annotations.lower() == 'outline':
+            elif return_annotations.lower() == 'outlines':
                 return_im_label = self.outlines
 
         # Predefine output matrices
