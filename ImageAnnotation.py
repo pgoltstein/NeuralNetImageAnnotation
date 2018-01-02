@@ -500,11 +500,12 @@ class Annotation(object):
             if keep_centroid:
                 image[self._y.astype(int),self._x.astype(int)] = mask_value
 
-    def mask_outline(self, image, dilation_factor=0,
+    def mask_outline(self, image, dilation_factor=0, thickness=1,
                         mask_value=1, keep_centroid=True):
         """Draws mask of all outline pixels in image
         image:            Single 2d numpy.ndarray
         dilation_factor:  >0 for dilation, <0 for erosion
+        thickness:        1 or larger
         mask_value:       Value to place in image
         keep_centroid:    Prevents mask from disappearing altogether with
                           negative dilation factors
@@ -519,7 +520,10 @@ class Annotation(object):
         elif dilation_factor<0:
             for _ in range(-1*dilation_factor):
                 temp_mask = ndimage.binary_erosion(temp_mask)
-        temp_mask = temp_mask - ndimage.binary_erosion(temp_mask)
+        temp_mask_inset = np.array(temp_mask)
+        for _ in range(thickness):
+            temp_mask_inset = ndimage.binary_erosion(temp_mask_inset)
+        temp_mask = temp_mask - temp_mask_inset
         temp_body = np.array(np.where(temp_mask == True)).transpose()
         image[ temp_body[:,0], temp_body[:,1] ] = mask_value
         if keep_centroid:
@@ -577,6 +581,7 @@ class AnnotatedImage(object):
         self._body_dilation_factor = 0
         self._outlines = None
         self._outlines_type_nr = None
+        self._outline_thickness = 1
         self._centroids = None
         self._centroids_type_nr = None
         self._centroid_dilation_factor = 0
@@ -998,7 +1003,7 @@ class AnnotatedImage(object):
     @property
     def body_dilation_factor(self):
         """Returns the body dilation factor"""
-        return(self._body_dilation_factor)
+        return self._body_dilation_factor
 
     @body_dilation_factor.setter
     def body_dilation_factor(self, dilation_factor):
@@ -1028,9 +1033,21 @@ class AnnotatedImage(object):
             if self._annotation[nr].type_nr in self.include_annotation_typenrs:
                 self._annotation[nr].mask_outline(self._outlines,
                     dilation_factor=self._body_dilation_factor,
+                    thickness=self._outline_thickness,
                     mask_value=nr+1, keep_centroid=True)
                 self._outlines_type_nr[self._outlines==nr+1] = \
                                         self._annotation[nr].type_nr
+
+    @property
+    def outline_thickness(self):
+        """Returns the outline thickness"""
+        return self._outline_thickness
+
+    @outline_thickness.setter
+    def outline_thickness(self, thickness):
+        """Updates the internal outline annotation mask with outline_thickness"""
+        self._outline_thickness = thickness
+        self._set_outlines()
 
 
     # *********************************************
@@ -1681,6 +1698,7 @@ class AnnotatedImageSet(object):
         self._downsample = downsample
         self.ai_list = []
         self._body_dilation_factor = 0
+        self._outline_thickness = 1
         self._centroid_dilation_factor = 0
         self._include_annotation_typenrs = None
         self._n_channels = 0
@@ -1772,6 +1790,21 @@ class AnnotatedImageSet(object):
             for nr in range(self.n_annot_images):
                 self.ai_list[nr].body_dilation_factor = dilation_factor
             self._body_dilation_factor = dilation_factor
+
+    # *******************************************
+    # *****  Handling the annotated outlines  *****
+    @property
+    def outline_thickness(self):
+        """Returns the outline thickness"""
+        return(self._outline_thickness)
+
+    @outline_thickness.setter
+    def outline_thickness(self, thickness):
+        """Updates the internal outline annotation mask with outline_thickness"""
+        if thickness != self._outline_thickness:
+            for nr in range(self.n_annot_images):
+                self.ai_list[nr].outline_thickness = thickness
+            self._outline_thickness = thickness
 
     # **********************************************
     # *****  Handling the annotated centroids  *****
