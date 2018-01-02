@@ -58,6 +58,10 @@ parser.add_argument('-dlb', '--bodydilationfactor', type=int,
     default=defaults.body_dilation_factor,
     help="Dilation factor of annotation bodies (default={})".format(
         defaults.body_dilation_factor))
+parser.add_argument('-dlb', '--outlinethickness', type=int,
+    default=defaults.outline_thickness,
+    help="Thickness of the to be annotated outlines (default={})".format(
+        defaults.outline_thickness))
 parser.add_argument('-r', '--positivesampleratio', type=float,
     default=defaults.sample_ratio,
     help='Ratio of positive vs negative samples (default={})'.format(
@@ -170,6 +174,7 @@ morph_annotations = args.morph
 include_annotation_typenrs = args.includeannotationtypenrs
 centroid_dilation_factor = args.centroiddilationfactor
 body_dilation_factor = args.bodydilationfactor
+outline_thickness = args.outlinethickness
 sample_ratio = args.positivesampleratio
 annotation_border_ratio = args.annotationborderratio
 use_channels = args.imagechannels
@@ -305,6 +310,14 @@ if perform_network_training:
                                         "to {}".format(body_dilation_factor))
         training_image_set.body_dilation_factor = body_dilation_factor
 
+    elif annotation_type.lower() == 'outlines' or selection_type.lower() == 'outlines':
+        nn.log("Setting body dilation factor of the image " + \
+                                        "to {}".format(body_dilation_factor))
+        training_image_set.body_dilation_factor = body_dilation_factor
+        nn.log("Setting outline thickness of the image " + \
+                                        "to {}".format(outline_thickness))
+        training_image_set.outline_thickness = outline_thickness
+
     nn.log("Included annotation typenrs: {}".format( \
         training_image_set.include_annotation_typenrs))
 
@@ -381,6 +394,13 @@ if args.F1report is not None:
             nn.log("Setting body dilation factor of the image " + \
                                             "to {}".format(body_dilation_factor))
             f1_image_set.body_dilation_factor = body_dilation_factor
+        elif annotation_type.lower() == 'outlines' or selection_type.lower() == 'outlines':
+            nn.log("Setting body dilation factor of the image " + \
+                                            "to {}".format(body_dilation_factor))
+            f1_image_set.body_dilation_factor = body_dilation_factor
+            nn.log("Setting outline thickness of the image " + \
+                                            "to {}".format(outline_thickness))
+            f1_image_set.outline_thickness = outline_thickness
         nn.log("Testing on annotation classes: {}".format(f1_image_set.class_labels))
 
     # Test morphed performance

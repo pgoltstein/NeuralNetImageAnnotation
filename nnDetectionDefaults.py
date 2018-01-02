@@ -10,6 +10,7 @@ morph_annotations = False # Random morphing of annotations
 include_annotation_typenrs = 1 # Include only annotations of certain type_nr
 centroid_dilation_factor = 2 # Dilation/erosion (negative) of annotation centroid
 body_dilation_factor = 0 # Dilation/erosion (negative) of annotation body
+outline_thickness = 1 # Thickness of annotation outline
 sample_ratio = None # Fraction samples per class (None=all equal).
 annotation_border_ratio = None # Fraction from border between pos and neg samples
 use_channels = [1,2] # List of channels that are to be used, 1 based e.g. [1,2]
