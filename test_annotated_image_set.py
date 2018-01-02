@@ -50,6 +50,11 @@ print(" ")
 print("Changing dilation factor of ais1 centroids to 0")
 ais1.centroid_dilation_factor = 0
 
+# Change outline thickness
+print(" ")
+print("Changing outline thickness of ais1 bodies to 2")
+ais1.outline_thickness = 2
+
 print("ais1.include_annotation_typenrs = [1,4]")
 ais1.include_annotation_typenrs = [1,4]
 print("Class labels that are set for training: {}".format(ais1.class_labels))
@@ -109,7 +114,7 @@ print(" ")
 print("Get small training set with morphed annotations from ais1")
 samples,labels,annotations = ais1.data_sample( \
         im_size, annotation_type='bodies',
-        return_size=annot_size, return_annotations='outline',
+        return_size=annot_size, return_annotations='outlines',
         m_samples=30,
         # sample_ratio=None,
         sample_ratio=(0.5,0.5,0),

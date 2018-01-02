@@ -526,7 +526,7 @@ class Annotation(object):
         temp_mask = temp_mask - temp_mask_inset
         temp_body = np.array(np.where(temp_mask == True)).transpose()
         image[ temp_body[:,0], temp_body[:,1] ] = mask_value
-        if keep_centroid:
+        if keep_centroid and len(temp_body) == 0:
             image[self._y.astype(int),self._x.astype(int)] = mask_value
 
     def mask_centroid(self, image, dilation_factor=0, mask_value=1):
