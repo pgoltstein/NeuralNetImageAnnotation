@@ -68,7 +68,7 @@ parser.add_argument('-dlb', '--bodydilationfactor', type=int,
     default=defaults.body_dilation_factor,
     help="Dilation factor of the to be annotated bodies (default={})".format(
         defaults.body_dilation_factor))
-parser.add_argument('-dlb', '--outlinethickness', type=int,
+parser.add_argument('-olt', '--outlinethickness', type=int,
     default=defaults.outline_thickness,
     help="Thickness of the to be annotated outlines (default={})".format(
         defaults.outline_thickness))
