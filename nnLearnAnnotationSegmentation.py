@@ -296,15 +296,12 @@ if perform_network_training:
                                         "to {}".format(centroid_dilation_factor))
         training_image_set.centroid_dilation_factor = centroid_dilation_factor
 
-    elif annotation_type.lower() == 'bodies' or selection_type.lower() == 'bodies':
+    if annotation_type.lower() == 'bodies' or selection_type.lower() == 'bodies':
         nn.log("Setting body dilation factor of the image " + \
                                         "to {}".format(body_dilation_factor))
         training_image_set.body_dilation_factor = body_dilation_factor
 
-    elif annotation_type.lower() == 'outlines' or selection_type.lower() == 'outlines':
-        nn.log("Setting body dilation factor of the image " + \
-                                        "to {}".format(body_dilation_factor))
-        training_image_set.body_dilation_factor = body_dilation_factor
+    if annotation_type.lower() == 'outlines' or selection_type.lower() == 'outlines':
         nn.log("Setting outline thickness of the image " + \
                                         "to {}".format(outline_thickness))
         training_image_set.outline_thickness = outline_thickness
@@ -383,14 +380,11 @@ if args.F1report is not None:
             nn.log("Setting centroid dilation factor of the image " + \
                                             "to {}".format(centroid_dilation_factor))
             f1_image_set.centroid_dilation_factor = centroid_dilation_factor
-        elif annotation_type.lower() == 'bodies' or selection_type.lower() == 'bodies':
+        if annotation_type.lower() == 'bodies' or selection_type.lower() == 'bodies':
             nn.log("Setting body dilation factor of the image " + \
                                             "to {}".format(body_dilation_factor))
             f1_image_set.body_dilation_factor = body_dilation_factor
-        elif annotation_type.lower() == 'outlines' or selection_type.lower() == 'outlines':
-            nn.log("Setting body dilation factor of the image " + \
-                                            "to {}".format(body_dilation_factor))
-            f1_image_set.body_dilation_factor = body_dilation_factor
+        if annotation_type.lower() == 'outlines' or selection_type.lower() == 'outlines':
             nn.log("Setting outline thickness of the image " + \
                                             "to {}".format(outline_thickness))
             f1_image_set.outline_thickness = outline_thickness
