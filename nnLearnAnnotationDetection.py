@@ -279,6 +279,15 @@ elif network_type.lower() == "cnfc1":
             conv_n_layers = conv_n_layers,
             conv_size=conv_size, conv_n_chan=conv_chan, conv_n_pool=conv_pool,
             fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
+elif network_type.lower() == "cnfc2":
+    nn = cn.ConvNetCnvNFc2( \
+            network_path=os.path.join(network_path,network_name),
+            input_image_size=annotation_size,
+            n_input_channels=n_input_channels,
+            n_output_classes=n_output_channels,
+            conv_n_layers = conv_n_layers,
+            conv_size=conv_size, conv_n_chan=conv_chan, conv_n_pool=conv_pool,
+            fc1_n_chan=fc_size, fc1_dropout=fc1_dropout, alpha=alpha )
 
 if perform_network_training:
     if nn.n_input_channels != training_image_set.n_channels:

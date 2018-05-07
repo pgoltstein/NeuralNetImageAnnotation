@@ -28,7 +28,7 @@ fc1_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
 alpha = 0.001 # Learning rate (typically smaller than 0.001)
 
 # Network arguments
-network_type = "cNfc1" # Neural net type "1layer", "2layer", "c2fc1"
+network_type = "cNfc2" # Neural net type "1layer", "2layer", "c2fc1"
 conv_n_layers = 3 # Size of convolutional filters (if applicable)
 conv_size = 3 # Size of convolutional filters (if applicable)
 conv_chan = 16 # Number of convolution channels (if applicable)

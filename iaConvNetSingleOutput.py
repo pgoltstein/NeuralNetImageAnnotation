@@ -754,7 +754,6 @@ class NeuralNet1Layer(NeuralNetSingleOutput):
             plt.tight_layout()
 
 
-
 ########################################################################
 ### Two layer neural network
 ########################################################################
@@ -1614,6 +1613,484 @@ class ConvNetCnvNFc1(NeuralNetSingleOutput):
             self.log("conv{}_n_pool: {}".format(L+1,self.conv_n_pool))
         self.log("fc1_n_chan: {}".format(self.fc1_n_chan))
         self.log("fc1_dropout: {}".format(self.fc1_dropout))
+        self.log("alpha: {}".format(self.alpha))
+        self.log("n_samples_trained: {}".format(self.n_samples_trained))
+        for c in range(self.n_output_classes):
+            self.log( " * Class {}, m = {}".format( \
+                c, self.n_class_samples_trained[c] ) )
+
+    def save_network_architecture(self,network_path):
+        """Saves the network architecture into the network path"""
+        net_architecture = {}
+        net_architecture['y_res'] = self.y_res
+        net_architecture['x_res'] = self.x_res
+        net_architecture['n_input_channels'] = self.n_input_channels
+        net_architecture['n_output_classes'] = self.n_output_classes
+        net_architecture['conv_n_layers'] = self.conv_n_layers
+        net_architecture['conv_size'] = self.conv_size
+        net_architecture['conv_n_chan'] = self.conv_n_chan
+        net_architecture['conv_n_pool'] = self.conv_n_pool
+        net_architecture['fc1_n_chan'] = self.fc1_n_chan
+        net_architecture['fc1_dropout'] = self.fc1_dropout
+        net_architecture['alpha'] = self.alpha
+        net_architecture['n_samples_trained'] = self.n_samples_trained
+        net_architecture['n_class_samples_trained'] = self.n_class_samples_trained
+        net_architecture['n_samples_list'] = self.n_samples_list
+        net_architecture['n_class_samples_list'] = self.n_class_samples_list
+        net_architecture['accuracy_list'] = self.accuracy_list
+        net_architecture['precision_list'] = self.precision_list
+        net_architecture['recall_list'] = self.recall_list
+        net_architecture['F1_list'] = self.F1_list
+        np.save(os.path.join( \
+            network_path,'net_architecture.npy'), net_architecture)
+        self.log("Network architecture saved to file:\n{}".format(
+                            os.path.join(network_path,'net_architecture.npy')))
+
+    def show_conv_filters(self):
+        """Plot the convolutional filters"""
+
+        # Define which filters to optimize
+        filter_layer = self.conv_n_layers-1
+        n_filters = int(np.min((self.conv_n_chan_L[filter_layer+1],96)))
+        n_iterations = 50
+        filter_ims = np.zeros( (n_filters,
+            self.n_input_channels * self.y_res * self.x_res) )
+
+        if self.n_input_channels == 3:
+            channel_selector = (0,1,2)
+            chan_ampl = (1,1,1)
+        elif self.n_input_channels == 2:
+            channel_selector = (0,1,1)
+            chan_ampl = (1,1,0)
+        elif self.n_input_channels == 1:
+            channel_selector = (0,0,0)
+            chan_ampl = (1,1,1)
+
+        # Loop all filters
+        print("Maximizing output of {} filters: {:3d}".format(n_filters,0),
+                end="", flush=True)
+        for filter_no in range(n_filters):
+            print((3*'\b')+'{:3d}'.format(filter_no), end='', flush=True)
+
+            # Isolate activation of a single convolutional filter
+            layer_slice_begin = tf.constant( [0,0,0,filter_no], dtype=tf.int32 )
+            layer_slice_size = tf.constant( [-1,-1,-1,1], dtype=tf.int32 )
+            layer_units = tf.slice( self.conv_relu[filter_layer],
+                                    layer_slice_begin, layer_slice_size )
+
+            # Define cost function for filter
+            layer_activation = tf.reduce_mean( layer_units )
+
+            # Optimize input image for maximizing filter output
+            gradients = tf.gradients( ys=layer_activation, xs=[self.x] )[0]
+            norm_grad = tf.nn.l2_normalize( gradients, dim=0, epsilon=1e-8)
+
+            # Random staring point
+            im = np.random.random( (1,
+                self.n_input_channels * self.y_res * self.x_res) )
+
+            # Do a gradient ascend
+            for e in range(n_iterations-1):
+                result = self.sess.run( [norm_grad], feed_dict={ self.x: im } )
+                im += result[0]
+            filter_ims[filter_no,:] = im
+
+        print((3*'\b')+'{:3d}'.format(filter_no))
+
+        # Create grid with filters
+        grid_im,_,brdr = ia.image_grid_RGB( filter_ims,
+            n_channels=self.n_input_channels,
+            image_size=(self.y_res,self.x_res), n_x=12, n_y=8,
+            channel_order=channel_selector, amplitude_scaling=chan_ampl,
+            line_color=1, auto_scale=True, return_borders=True )
+
+        # Plot
+        with sns.axes_style("white"):
+            fig,ax = plt.subplots(figsize=(12,8), facecolor='w', edgecolor='w')
+            ax.imshow( grid_im,
+                interpolation='nearest', vmax=grid_im.max() )
+            ax.set_title("Filters, conv layer {}".format(filter_layer+1))
+            plt.axis('tight')
+            plt.axis('off')
+        plt.tight_layout()
+
+    def show_filters(self):
+        """Plot the convolutional filters"""
+
+        n_iterations = 50
+        return_im = np.zeros( (2,
+            self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (64,
+        #     self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (self.fc1_n_chan,
+        #     self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (self.conv2_n_chan,
+        #     self.n_input_channels * self.y_res * self.x_res) )
+        # return_im = np.zeros( (self.conv1_n_chan,
+        #     self.n_input_channels * self.y_res * self.x_res) )
+        if self.n_input_channels == 3:
+            channel_selector = (0,1,2)
+            chan_ampl = (1,1,1)
+        elif self.n_input_channels == 2:
+            channel_selector = (0,1,1)
+            chan_ampl = (1,1,0)
+        elif self.n_input_channels == 1:
+            channel_selector = (0,0,0)
+            chan_ampl = (1,1,1)
+
+        # for filter_no in range(self.conv1_n_chan):
+        # for filter_no in range(self.conv2_n_chan):
+        # for filter_no in range(64):
+        # for filter_no in range(self.fc1_n_chan):
+        for filter_no in range(2):
+            print(filter_no)
+
+            # # Isolate activation of a single convolutional filter
+            # layer_slice_begin = tf.constant( [0,0,0,filter_no], dtype=tf.int32 )
+            # layer_slice_size = tf.constant( [-1,-1,-1,1], dtype=tf.int32 )
+            # layer_units = tf.slice( self.conv2_relu,
+            #                         layer_slice_begin, layer_slice_size )
+            # # layer_units = tf.slice( self.conv1_relu,
+            # #                         layer_slice_begin, layer_slice_size )
+
+            # Isolate activation of a single fully connected unit
+            layer_slice_begin = tf.constant( [0,filter_no], dtype=tf.int32 )
+            layer_slice_size = tf.constant( [-1,1], dtype=tf.int32 )
+            # layer_units = tf.slice( self.fc1_relu,
+            #                         layer_slice_begin, layer_slice_size )
+            layer_units = tf.slice( self.fc_out_lin,
+                                    layer_slice_begin, layer_slice_size )
+
+            # Define cost function for filter
+            layer_activation = tf.reduce_mean( layer_units )
+
+            # Optimize input image for maximizing filter output
+            gradients = tf.gradients( ys=layer_activation, xs=[self.x] )[0]
+
+            norm_grad = tf.nn.l2_normalize( gradients, dim=0, epsilon=1e-5)
+
+            # Random staring point
+            im = (np.random.uniform( size=(1,
+                self.n_input_channels * self.y_res * self.x_res) ) * 0.1) + 0.5
+
+            # Do a gradient ascend
+            for e in range(n_iterations):
+                grad = self.sess.run( [norm_grad], feed_dict={
+                                self.x: im, self.fc1_keep_prob: 1.0 } )[0]
+                # Gradient ASCENT
+                im += 0.5*grad
+
+            im -= im.mean()
+            im /= (im.std() + 1e-5)
+            im *= 0.2
+
+            # clip to [0, 1]
+            im += 0.5
+            im = np.clip(im, 0, 1)
+            return_im[filter_no,:] = im
+
+        plt.figure(figsize=(16.5,9), facecolor='w', edgecolor='w')
+        for ch in range(self.n_input_channels):
+
+            grid_im,_,brdr = ia.image_grid_RGB( return_im,
+                n_channels=self.n_input_channels,
+                image_size=(self.y_res,self.x_res), n_x=16, n_y=4,
+                channel_order=(ch,ch,ch), amplitude_scaling=(1,1,1),
+                line_color=1, auto_scale=True, return_borders=True )
+
+            ax = plt.subplot2grid( (self.n_input_channels,1), (ch,0) )
+            with sns.axes_style("white"):
+                ax.imshow( grid_im,
+                    interpolation='nearest', vmax=grid_im.max() )
+                ax.set_title("Filterss, ch {}".format(ch))
+                plt.axis('tight')
+                plt.axis('off')
+
+        grid_im,_,brdr = ia.image_grid_RGB( return_im,
+            n_channels=self.n_input_channels,
+            image_size=(self.y_res,self.x_res), n_x=8, n_y=8,
+            channel_order=channel_selector, amplitude_scaling=chan_ampl,
+            line_color=1, auto_scale=True, return_borders=True )
+        fig, ax = plt.subplots(figsize=(9,9), facecolor='w', edgecolor='w')
+        with sns.axes_style("white"):
+            ax.imshow( grid_im,
+                interpolation='nearest', vmax=grid_im.max() )
+            ax.set_title("Filters RGB")
+            plt.axis('tight')
+            plt.axis('off')
+
+        plt.tight_layout()
+
+
+########################################################################
+### Deep convolutional neural network
+### N conv layers, N_ dense layers, 1 output layer
+########################################################################
+
+class ConvNetCnvNFc2(NeuralNetSingleOutput):
+    """Holds a deep convolutional neural network for annotating images. N convolutional layers, 2 identical fully connected layers, 1 output layer """
+
+    def __init__(self, network_path='.', logging=True,
+                input_image_size=None, n_input_channels=None,
+                n_output_classes=None,
+                conv_n_layers=3, conv_size=5, conv_n_chan=32, conv_n_pool=2,
+                fc1_n_chan=1024, fc1_dropout=0.5, alpha=4e-4,
+                reduced_output=False ):
+        """Initializes all variables and sets up the network. If network
+        already exists, load the variables from there.
+        network_path:      Directory where to store network and architecture
+        input_image_size:  Tuple containing (y,x) size of input image
+        output_image_size: Tuple containing dimensions of network output"""
+        self.logging = logging
+
+        # If network path does not yet exists
+        self.network_path = network_path
+        if not os.path.isdir(self.network_path):
+            # Make network directory
+            os.mkdir(self.network_path)
+            now = datetime.datetime.now()
+            self.log("\n\n++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            self.log(    "Creation of new network: ")
+            self.log(    "  {}".format(self.network_path) )
+            self.log(    "  @ {}".format(now.strftime("%Y-%m-%d %H:%M")) )
+            self.log(    "++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            self.log("\nNetwork did not exist ... ")
+            self.log("Created new network with supplied (or default) architecture")
+
+            # Set up new network
+            self.y_res = input_image_size[0]
+            self.x_res = input_image_size[1]
+            self.n_input_channels = n_input_channels
+            self.n_output_classes = n_output_classes
+            self.conv_n_layers = conv_n_layers
+            self.conv_size = conv_size
+            self.conv_n_chan = conv_n_chan
+            self.conv_n_pool = conv_n_pool
+
+            self.fc1_y_size = self.y_res
+            self.fc1_x_size = self.x_res
+            self.conv_n_chan_L = [ self.n_input_channels ]
+            for L in range(self.conv_n_layers):
+                self.conv_n_chan_L.append(
+                    int(self.conv_n_chan * (self.conv_n_pool**L)) )
+                self.fc1_y_size = np.ceil(self.fc1_y_size/self.conv_n_pool)
+                self.fc1_x_size = np.ceil(self.fc1_x_size/self.conv_n_pool)
+            self.fc1_y_size = int(self.fc1_y_size)
+            self.fc1_x_size = int(self.fc1_x_size)
+
+            self.fc1_n_chan = fc1_n_chan
+            self.fc1_dropout = fc1_dropout
+            self.alpha = alpha
+            self.n_samples_trained = 0
+            self.n_class_samples_trained = self.n_output_classes*[0]
+            self.n_samples_list = []
+            self.n_class_samples_list = [[] for _ in range(self.n_output_classes)]
+            self.accuracy_list = [[] for _ in range(self.n_output_classes)]
+            self.precision_list = [[] for _ in range(self.n_output_classes)]
+            self.recall_list = [[] for _ in range(self.n_output_classes)]
+            self.F1_list = [[] for _ in range(self.n_output_classes)]
+
+            # Save network architecture
+            self.save_network_architecture( network_path=self.network_path )
+
+        else:
+            now = datetime.datetime.now()
+            if reduced_output:
+                self.log( "Initializing {} @ {}".format( \
+                    self.network_path, now.strftime( "%Y-%m-%d %H:%M" ) ) )
+            else:
+                self.log("\n\n++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                self.log(    "Re-initialization of existing network: ")
+                self.log(    "  {}".format(self.network_path) )
+                self.log(    "  @ {}".format(now.strftime("%Y-%m-%d %H:%M")) )
+                self.log(    "++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                self.log(    " ")
+
+            # Load network architecture from directory
+            net_architecture = self.load_network_architecture(self.network_path)
+
+            # Set up network variables from loaded architecture
+            self.y_res = net_architecture['y_res']
+            self.x_res = net_architecture['x_res']
+            self.n_input_channels = net_architecture['n_input_channels']
+            self.n_output_classes = net_architecture['n_output_classes']
+            self.conv_n_layers = net_architecture['conv_n_layers']
+            self.conv_size = net_architecture['conv_size']
+            self.conv_n_chan = net_architecture['conv_n_chan']
+            self.conv_n_pool = net_architecture['conv_n_pool']
+
+            self.fc1_y_size = self.y_res
+            self.fc1_x_size = self.x_res
+            self.conv_n_chan_L = [ self.n_input_channels ]
+            for L in range(self.conv_n_layers):
+                self.conv_n_chan_L.append(
+                    int(self.conv_n_chan * (self.conv_n_pool**L)) )
+                self.fc1_y_size = np.ceil(self.fc1_y_size/self.conv_n_pool)
+                self.fc1_x_size = np.ceil(self.fc1_x_size/self.conv_n_pool)
+            self.fc1_y_size = int(self.fc1_y_size)
+            self.fc1_x_size = int(self.fc1_x_size)
+
+            self.fc1_n_chan = net_architecture['fc1_n_chan']
+            self.fc1_dropout = net_architecture['fc1_dropout']
+            self.alpha = net_architecture['alpha']
+            self.n_samples_trained = net_architecture['n_samples_trained']
+            self.n_class_samples_trained = net_architecture['n_class_samples_trained']
+            self.n_samples_list = net_architecture['n_samples_list']
+            self.n_class_samples_list = net_architecture['n_class_samples_list']
+            self.accuracy_list = net_architecture['accuracy_list']
+            self.precision_list = net_architecture['precision_list']
+            self.recall_list = net_architecture['recall_list']
+            self.F1_list = net_architecture['F1_list']
+
+        # Update values of alpha and dropout if supplied
+        if self.alpha != alpha:
+            self.alpha = alpha
+            if reduced_output is not True:
+                self.log("Updated learning rate 'alpha' to {}".format(self.alpha))
+        if self.fc1_dropout != fc1_dropout:
+            self.fc1_dropout = fc1_dropout
+            if reduced_output is not True:
+                self.log("Updated dropout fraction to {}".format(self.fc1_dropout))
+
+        # Clear previous graphs
+        tf.reset_default_graph()
+
+        #########################################################
+        # Input and target variable placeholders
+        # x = [ m_samples x [channel_1_data, channel_2_data, etc.] ]
+        self.x = tf.placeholder( tf.float32, shape = [None,
+            self.n_input_channels * self.y_res * self.x_res] )
+        self.y_trgt = tf.placeholder( tf.float32, \
+                                        shape = [None, self.n_output_classes] )
+
+        # Convert input image to tensor with channel as last dimension
+        # x_image = [-1 x im-height x im-width x n-input-channels]
+        x_image_temp = tf.reshape(self.x, [-1,
+            self.n_input_channels,self.y_res,self.x_res])
+        x_image = tf.transpose(x_image_temp, [0,2,3,1])
+
+        #########################################################
+        # Set up convolutional layers
+        self.conv_shape = []
+        self.W_conv = []
+        self.b_conv = []
+        self.conv_lin = []
+        self.conv_relu = []
+        self.conv_kernel = []
+        self.conv_pool = []
+
+        # Loop layers
+        for L in range(self.conv_n_layers):
+
+            # W = [im-height x im-width x n-input-channels x n-output-channels])
+            self.conv_shape.append( [self.conv_size, self.conv_size,
+                self.conv_n_chan_L[L], self.conv_n_chan_L[L+1]] )
+            self.W_conv.append( tf.Variable( tf.truncated_normal(
+                                    shape=self.conv_shape[L], stddev=0.1)) )
+            self.b_conv.append( tf.Variable( tf.constant(0.1,
+                                    shape=[self.conv_n_chan_L[L+1]] )) )
+
+            # Convolve x_image with the weight tensor
+            if L == 0:
+                self.conv_lin.append( tf.nn.conv2d( x_image,
+                    self.W_conv[L], strides=[1, 1, 1, 1], padding='SAME' ) )
+            else:
+                self.conv_lin.append( tf.nn.conv2d( self.conv_pool[L-1],
+                    self.W_conv[L], strides=[1, 1, 1, 1], padding='SAME' ) )
+
+            # Add bias and apply transfer function
+            self.conv_relu.append(
+                tf.nn.relu( self.conv_lin[L] + self.b_conv[L] ) )
+
+            # Max pooling
+            self.conv_kernel.append([1, self.conv_n_pool, self.conv_n_pool, 1])
+            self.conv_pool.append( tf.nn.max_pool(
+                self.conv_relu[L], ksize=self.conv_kernel[L],
+                strides=self.conv_kernel[L], padding='SAME') )
+
+        #########################################################
+        # Densely Connected Layer 1
+        # Weights and bias
+        self.fc1_shape = [self.fc1_y_size * self.fc1_x_size * self.conv_n_chan_L[-1], self.fc1_n_chan]
+        self.W_fc1 = tf.Variable( tf.truncated_normal(
+                               shape=self.fc1_shape, stddev=0.1 ) )
+        self.b_fc1 = tf.Variable( tf.constant(0.1, shape=[self.fc1_n_chan] ))
+
+        # Flatten output from convN
+        self.conv_last_pool_flat = tf.reshape(
+            self.conv_pool[-1], [-1, self.fc1_shape[0]] )
+
+        # Calculate network step
+        self.fc1_relu = tf.nn.relu( tf.matmul( self.conv_last_pool_flat,
+            self.W_fc1) + self.b_fc1 )
+
+        #########################################################
+        # Densely Connected Layer 2
+        # Weights and bias
+        self.fc2_shape = [self.fc1_n_chan, self.fc1_n_chan]
+
+        self.W_fc2 = tf.Variable( tf.truncated_normal(
+                               shape=self.fc2_shape, stddev=0.1 ) )
+        self.b_fc2 = tf.Variable( tf.constant(0.1, shape=[self.fc1_n_chan] ))
+
+        # Calculate network step
+        self.fc2_relu = tf.nn.relu( tf.matmul( self.fc1_relu,
+            self.W_fc2) + self.b_fc2 )
+
+        # Set up dropout option for fc1
+        self.fc1_keep_prob = tf.placeholder(tf.float32)
+        self.fc2_relu_drop = tf.nn.dropout(self.fc2_relu, self.fc1_keep_prob)
+
+        #########################################################
+        # Readout layer
+        # Weights and bias
+        self.fc_out_shape = [self.fc1_n_chan, self.n_output_classes]
+        self.W_fc_out = tf.Variable( tf.truncated_normal(
+                                shape=self.fc_out_shape, stddev=0.1 ) )
+        self.b_fc_out = tf.Variable( tf.constant(0.1,
+                                shape=[self.fc_out_shape[1]] ))
+
+        # Calculate network step
+        self.fc_out_lin = tf.matmul( self.fc2_relu_drop,
+                                     self.W_fc_out ) + self.b_fc_out
+
+        #########################################################
+        # Define cost function and optimizer algorithm
+        self.cross_entropy = tf.reduce_mean(
+                    tf.nn.softmax_cross_entropy_with_logits(
+                                logits=self.fc_out_lin, labels=self.y_trgt ) )
+        self.train_step = tf.train.AdamOptimizer(self.alpha).minimize(
+                                                        self.cross_entropy )
+
+        #########################################################
+        # Define how to test trained model
+        self.network_prediction  = tf.cast( tf.argmax(
+                                        self.fc_out_lin, 1 ), tf.float32 )
+        self.is_correct_prediction = tf.equal( tf.argmax( self.fc_out_lin, 1 ),
+                                               tf.argmax( self.y_trgt, 1 ) )
+        self.accuracy = tf.reduce_mean( tf.cast(
+                                    self.is_correct_prediction, tf.float32 ) )
+
+        #########################################################
+        # Create save operation
+        self.saver = tf.train.Saver()
+
+    def display_network_architecture(self):
+        """Displays the network architecture"""
+        self.log("\n-------- Network architecture --------")
+        self.log("y_res: {}".format(self.y_res))
+        self.log("x_res: {}".format(self.x_res))
+        self.log("n_input_channels: {}".format(self.n_input_channels))
+        self.log("n_output_classes: {}".format(self.n_output_classes))
+        self.log("conv_n_layers: {}".format(self.conv_n_layers))
+        for L in range(self.conv_n_layers):
+            self.log("conv{}_size: {}".format(L+1,self.conv_size))
+            self.log("conv{}_n_input_chan: {}".format(L+1,self.conv_n_chan_L[L]))
+            self.log("conv{}_n_output_chan: {}".format(L+1,self.conv_n_chan_L[L+1]))
+            self.log("conv{}_n_pool: {}".format(L+1,self.conv_n_pool))
+        self.log("fc1_n_chan: {}".format(self.fc1_n_chan))
+        self.log("fc2_n_chan: {}".format(self.fc1_n_chan))
+        self.log("fc2_dropout: {}".format(self.fc1_dropout))
         self.log("alpha: {}".format(self.alpha))
         self.log("n_samples_trained: {}".format(self.n_samples_trained))
         for c in range(self.n_output_classes):
