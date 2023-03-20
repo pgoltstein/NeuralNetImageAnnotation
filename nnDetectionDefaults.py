@@ -1,15 +1,17 @@
 # Default Settings
-network_path = '/data/nn'
-training_data_path = '/data/roi/Dataset_small1'
+# network_path = '/data/nn'
+# training_data_path = '/data/roi/Dataset_small1'
+network_path = 'D:/data/nn'
+training_data_path = 'D:/data/danielle'
 # network_path = 'D:/neuralnets'
 # training_data_path = 'D:/data/roi/DataSet1'
 
 # Annotation arguments
 annotation_size = 33 # Size of the images around the annotations
-morph_annotations = False # Random morphing of annotations
+morph_annotations = True # Random morphing of annotations
 include_annotation_typenrs = 1 # Include only annotations of certain type_nr
 centroid_dilation_factor = 2 # Dilation/erosion (negative) of annotation centroid
-body_dilation_factor = 0 # Dilation/erosion (negative) of annotation body
+body_dilation_factor = 1 # Dilation/erosion (negative) of annotation body
 outline_thickness = 1 # Thickness of annotation outline
 sample_ratio = None # Fraction samples per class (None=all equal).
 annotation_border_ratio = None # Fraction from border between pos and neg samples
@@ -19,10 +21,10 @@ downsample_image = None # downsampling of image by factor of #
 
 # Training arguments
 training_procedure = "batch" # "batch" or "epochs"
-n_epochs = 25
+n_epochs = 10
 m_samples = 2000
-number_of_batches = 10
-batch_size = 5000
+number_of_batches = 100
+batch_size = 2000
 report_every = 10
 fc1_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
 alpha = 0.001 # Learning rate (typically smaller than 0.001)
