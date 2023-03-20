@@ -63,13 +63,16 @@ import numpy as np
 from skimage import measure
 from skimage import segmentation
 from skimage import morphology
-from skimage.morphology import watershed
+try:
+    from skimage.segmentation import watershed
+except:
+    from skimage.morphology import watershed
 from skimage.feature import peak_local_max
 from skimage.io import imread
 from scipy import ndimage
 from scipy.io import loadmat,savemat
 from os import path
-import glob
+import glob, os
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -112,7 +115,7 @@ def zoom( image, y, x, zoom_size, normalize=False, pad_value=0 ):
         else:
             if normalize:
                 zoom_im = image[ np.ix_(ix_y,ix_x) ]
-                zoom_im = zoom_im - zoom_im.min()
+                zoom_im = (zoom_im*1.0) - zoom_im.min()
                 return zoom_im / zoom_im.max()
             else:
                 return image[ np.ix_(ix_y,ix_x) ]
@@ -523,7 +526,7 @@ class Annotation(object):
         temp_mask_inset = np.array(temp_mask)
         for _ in range(thickness):
             temp_mask_inset = ndimage.binary_erosion(temp_mask_inset)
-        temp_mask = temp_mask - temp_mask_inset
+        temp_mask = (temp_mask*1.0) - (temp_mask_inset*1.0)
         temp_body = np.array(np.where(temp_mask == True)).transpose()
         image[ temp_body[:,0], temp_body[:,1] ] = mask_value
         if keep_centroid and len(temp_body) == 0:
@@ -738,7 +741,8 @@ class AnnotatedImage(object):
               int(self._exclude_border['top']), int(self._exclude_border['bottom']) )
 
     def add_image_from_file(self, file_name, file_path='.',
-                                normalize=True, use_channels=None):
+                                normalize=True, use_channels=None,
+                                tiff_page=None):
         """Loads image or matlab cell array, scales individual channels to
         max (1), and adds it as a new image channel
         file_name:  String holding name of image file
@@ -767,7 +771,15 @@ class AnnotatedImage(object):
 
         # Load from actual image
         else:
-            im = np.float64(imread(path.join(file_path,file_name)))
+            if tiff_page is None:
+                im = np.float64(imread(path.join(file_path,file_name)))
+            else:
+                imch = np.float64(imread(path.join(file_path,file_name), plugin="tifffile"))
+                imch = imch[tiff_page,:,:,:]
+                [nch,ny,nx] = imch.shape
+                im = np.zeros((ny,nx,3))
+                for ch in range(imch.shape[0]):
+                    im[:,:,ch] = imch[ch,:,:]
 
             # Perform normalization (max=1) and add to channels
             if im.ndim == 3:
@@ -889,6 +901,34 @@ class AnnotatedImage(object):
             self._set_bodies()
             self._set_outlines()
             self._set_centroids()
+
+    def set_annotations_from_coordinates(self, coordinates_list):
+        """Reads data from a list with coordinates [cells, [x,y]] (a list holding lists).
+        """
+
+        # Load mat file with ROI data
+        annotation_list = []
+        type_nr_list = []
+        nROIs = len(coordinates_list)
+        for c in range(nROIs):
+            body = np.zeros((9,2),dtype=int)
+            cnt = 0
+            for y in [-1,0,1]:
+                for x in [-1,0,1]:
+                    # coordinates list = xy, body = yx
+                    body[cnt,1] = coordinates_list[c][0] + x
+                    body[cnt,0] = coordinates_list[c][1] + y
+                    cnt += 1
+            body = body-1 # Matlab/FIJI (1-index) to Python (0-index)
+            type_nr = int(1) # is neuron
+            name = str("neuron")
+            group_nr = int(0)  # no group
+            annotation_list.append( Annotation( body_pixels_yx=body,
+                    annotation_name=name, type_nr=type_nr, group_nr=group_nr ) )
+            type_nr_list.append(type_nr)
+        if self.include_annotation_typenrs is None:
+            self.include_annotation_typenrs = type_nr_list
+        self.annotation = annotation_list
 
     def import_annotations_from_mat(self, file_name, file_path='.'):
         """Reads data from ROI.mat file and fills the annotation_list.
@@ -1964,5 +2004,113 @@ class AnnotatedImageSet(object):
             print("    - "+anim.__str__())
             self.ai_list.append(anim)
             annotation_type_nrs.update(anim.include_annotation_typenrs)
+        if self.include_annotation_typenrs is None:
+            self.include_annotation_typenrs = annotation_type_nrs
+
+
+    # **************************************
+    # *****  Load data from directory  *****
+    def load_data_dir_multipagetiff_xml(self, data_directory,
+                    normalize=True, use_channels=None, exclude_border=None):
+        """Loads all Tiff images or *channel.mat and accompanying XML
+        files from a single directory that contains matching sets of .tiff
+        or *channel.mat and .mat files
+        data_directory:  path
+        normalize:  Normalize to maximum of image
+        use_channels:  tuple holding channel numbers/order to load (None=all)
+        exclude_border: Load border exclude region from file
+        """
+        # Get list of all .tiff file and .mat files
+        image_files = sorted(glob.glob(path.join(data_directory,'*.tif')))
+        xml_files = sorted(glob.glob(path.join(data_directory,'*.xml')))
+
+        # Loop files and load images and annotations
+        print("\nLoading image and annotation files:")
+        annotation_type_nrs = set()
+        for f, (image_file, xml_file) in enumerate(zip(image_files,xml_files)):
+            image_filepath, image_filename = path.split(image_file)
+            xml_filepath, xml_filename = path.split(xml_file)
+            print("{:2.0f}) {} -- {}".format(f+1,image_filename,xml_filename))
+
+            # Load the XML
+            markers = []
+            z_list = []
+            with open(os.path.join(xml_filepath,xml_filename)) as f:
+                for line in f:
+                    if "<Name>" in line:
+                        start_ix = line.find("<Name>") + len("<Name>")
+                        stop_ix = line.find("</Name>")
+                        marker_name = line[start_ix:stop_ix]
+                    if "<Type>" in line:
+                        start_ix = line.find("<Type>") + len("<Type>")
+                        stop_ix = line.find("</Type>")
+                        marker_type = int(line[start_ix:stop_ix])
+                    if "<MarkerX>" in line:
+                        start_ix = line.find("<MarkerX>") + len("<MarkerX>")
+                        stop_ix = line.find("</MarkerX>")
+                        marker_x = int(line[start_ix:stop_ix])
+                    if "<MarkerY>" in line:
+                        start_ix = line.find("<MarkerY>") + len("<MarkerY>")
+                        stop_ix = line.find("</MarkerY>")
+                        marker_y = int(line[start_ix:stop_ix])
+                    if "<MarkerZ>" in line:
+                        start_ix = line.find("<MarkerZ>") + len("<MarkerZ>")
+                        stop_ix = line.find("</MarkerZ>")
+                        marker_z = int(line[start_ix:stop_ix])
+                        z_list.append(marker_z)
+                        markers.append([marker_x,marker_y,marker_z])
+
+            # find z-increment
+            unique_z = np.unique(np.array(z_list))
+            steps_z = np.diff(unique_z)
+            z_incr = np.min(steps_z)
+
+            # recalc z-values
+            for m in markers:
+                m[2] = np.floor(m[2]/z_incr)
+
+            # Get number of tiff-pages
+            imch = np.float64(imread(path.join(image_filepath,image_filename), plugin="tifffile"))
+            n_pages = imch.shape[0]
+
+            # Loop tiff pages
+            for z_level in range(n_pages):
+                print("       - Adding tiffpage {}".format(z_level))
+
+                # Find annotations for this tiff plane
+                use_markers = []
+                for m in markers:
+                    if m[2] == z_level:
+                        use_markers.append(m)
+                if len(use_markers) == 0:
+                    continue
+
+                if z_level == 4:
+                    break
+
+                # Create new AnnotatedImage, add images and annotations
+                anim = AnnotatedImage(downsample=self.downsamplingfactor)
+                if self.include_annotation_typenrs is not None:
+                    anim.include_annotation_typenrs = self.include_annotation_typenrs
+
+                # Load single tiff page
+                anim.add_image_from_file( file_name=image_filename, file_path=image_filepath, normalize=normalize, use_channels=use_channels, tiff_page=z_level)
+
+                # Set annotations
+                anim.set_annotations_from_coordinates( use_markers )
+
+                # Check if the number of channels is the same
+                if len(self.ai_list) == 0:
+                    self._n_channels = anim.n_channels
+                else:
+                    if self._n_channels != anim.n_channels:
+                        print("!!! CRITICAL WARNING !!!")
+                        print("-- Number of channels is not equal for all annotated images --")
+
+                # Append AnnotatedImage to the internal list
+                print("    - "+anim.__str__())
+                self.ai_list.append(anim)
+                annotation_type_nrs.update(anim.include_annotation_typenrs)
+
         if self.include_annotation_typenrs is None:
             self.include_annotation_typenrs = annotation_type_nrs

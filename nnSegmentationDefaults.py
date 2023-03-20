@@ -1,8 +1,10 @@
 # Default Settings
 # network_path = '/data/nn'
 # training_data_path = '/data/roi/Dataset_small'
-network_path = 'D:/neuralnets'
-training_data_path = 'D:/data/roi/DataSet_small1'
+network_path = '/data/nn'
+training_data_path = 'Users/pgoltstein/data/danielle'
+# network_path = 'D:/neuralnets'
+# training_data_path = 'D:/data/roi/DataSet_small1'
 
 # Annotation arguments
 selection_type = "Bodies"
@@ -14,7 +16,7 @@ include_annotation_typenrs = 1 # Include only annotations of certain type_nr
 centroid_dilation_factor = 2 # Dilation/erosion (negative) of annotation centroid
 body_dilation_factor = 0 # Dilation/erosion (negative) of annotation body
 outline_thickness = 2 # Thickness of annotation outline
-sample_ratio = [0.3,0.7] # Fraction samples per class (None=all equal).
+sample_ratio = None # Fraction samples per class (None=all equal).
 annotation_border_ratio = None # Fraction from border between pos and neg samples
 use_channels = [1,2] # List of channels that are to be used, 1 based e.g. [1,2]
 normalize_samples = False # True/False
@@ -25,7 +27,7 @@ training_procedure = "batch" # "batch" or "epochs"
 n_epochs = 25
 m_samples = 500
 number_of_batches = 10
-batch_size = 5000
+batch_size = 500
 report_every = 1
 fc_dropout = 0.5 # Keep-fraction in last fully connectd layer during training
 alpha = 0.005 # Learning rate (typically smaller than 0.001)
