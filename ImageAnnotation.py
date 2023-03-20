@@ -2085,9 +2085,6 @@ class AnnotatedImageSet(object):
                 if len(use_markers) == 0:
                     continue
 
-                if z_level == 4:
-                    break
-
                 # Create new AnnotatedImage, add images and annotations
                 anim = AnnotatedImage(downsample=self.downsamplingfactor)
                 if self.include_annotation_typenrs is not None:
